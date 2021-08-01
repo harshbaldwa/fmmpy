@@ -35,11 +35,12 @@ def radix_sort(A, index, level):
     max_digit = int(math.floor(math.log(max(A), 10)) + 1)
     for digit in range(max_digit):
         A, index, level = counting_sort(A, digit, 10, index, level)
+
     return A, index, level
 
 
-TYPE_TREE = 2
-index = [9, 2, 11, 3, 1]
+TYPE_TREE = 3
+index = [17, 2, 23, 3, 1]
 level = [3, 2, 3, 1, 2]
 new_index_sort = [0] * len(index)
 max_l = max(level)
@@ -48,5 +49,6 @@ for i in range(len(new_index_sort)):
     new_index_sort[i] = ((index[i] + 1) << TYPE_TREE * (max_l - level[i])) - 1
 
 B, result_index, result_level = radix_sort(new_index_sort, index, level)
+
 print(result_index)
 print(result_level)

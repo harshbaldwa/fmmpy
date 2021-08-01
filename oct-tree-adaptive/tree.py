@@ -1,7 +1,7 @@
 from compyle.api import declare, Elementwise, annotate, Scan
-from compyle.low_level import cast, atomic_inc
+from compyle.low_level import cast, atomic_inc, atomic_dec
 import numpy as np
-from math import floor
+from math import floor, log
 
 
 @annotate(double="x, y, z, x_min, y_min, z_min, length, b_len", return_="int")
@@ -95,24 +95,38 @@ def output_cumsum_arr(i, item, cumsum_arr):
 def counting_sort_two(
     i, arr, cumsum_arr, sort_arr, index, sort_index, radix, digit, len_arr
 ):
-    digit_arr_i, j = declare("int", 2)
+    digit_arr_i, j, idx = declare("int", 3)
     j = len_arr - i - 1
     digit_arr_i = cast(((arr[j] / radix ** digit) % radix), "int")
     sort_arr[cumsum_arr[digit_arr_i] - 1] = arr[j]
     sort_index[cumsum_arr[digit_arr_i] - 1] = index[j]
-    cumsum_arr[digit_arr_i] -= 1
+    idx = atomic_dec(cumsum_arr[digit_arr_i])
 
 
-@annotate(int="i, radix, digit, len_arr", gintp="arr, cumsum_arr, sort_arr, index, sort_index, level, sort_level")
-def counting_sort_three(i, arr, cumsum_arr, sort_arr, index, sort_index, level, sort_level, radix, digit, len_arr):
-    digit_arr_i, j = declare("int", 2)
+@annotate(
+    int="i, radix, digit, len_arr",
+    gintp="arr, cumsum_arr, sort_arr, index, sort_index, level, sort_level",
+)
+def counting_sort_three(
+    i,
+    arr,
+    cumsum_arr,
+    sort_arr,
+    index,
+    sort_index,
+    level,
+    sort_level,
+    radix,
+    digit,
+    len_arr,
+):
+    digit_arr_i, j, idx = declare("int", 2)
     j = len_arr - i - 1
     digit_arr_i = cast(((arr[j] / radix ** digit) % radix), "int")
     sort_arr[cumsum_arr[digit_arr_i] - 1] = arr[j]
-    printf("%d, %d\n", cumsum_arr[digit_arr_i] - 1, arr[j])
     sort_index[cumsum_arr[digit_arr_i] - 1] = index[j]
     sort_level[cumsum_arr[digit_arr_i] - 1] = level[j]
-    cumsum_arr[digit_arr_i] -= 1
+    idx = atomic_dec(cumsum_arr[digit_arr_i])
 
 
 @annotate(i="int", gintp="arr, sort_arr, index, sort_index")
@@ -126,6 +140,14 @@ def shift_arrs_two(i, arr, sort_arr, index, sort_index, level, sort_level):
     arr[i] = sort_arr[i]
     index[i] = sort_index[i]
     level[i] = sort_level[i]
+
+
+@annotate(int="i, len_arr", gintp="arr, sort_arr, index, sort_index, level, sort_level")
+def reverse_arrs(i, arr, sort_arr, index, sort_index, level, sort_level, len_arr):
+    sort_arr[len_arr - i - 1] = arr[i]
+    sort_index[len_arr - i - 1] = index[i]
+    sort_level[len_arr - i - 1] = level[i]
+
 
 if __name__ == "__main__":
 
@@ -172,8 +194,9 @@ if __name__ == "__main__":
 
     ecounting_sort_three = Elementwise(counting_sort_three, backend=backend)
     eshift_arrs_two = Elementwise(shift_arrs_two, backend=backend)
+    ereverse_arrs = Elementwise(reverse_arrs, backend=backend)
 
-    index_arr = np.array([9, 2, 11, 3, 1], dtype=np.int32)
+    index_arr = np.array([17, 2, 23, 3, 1], dtype=np.int32)
     level_arr = np.array([3, 2, 3, 1, 2], dtype=np.int32)
     u_index_arr = np.zeros_like(index_arr, dtype=np.int32)
     max_level = np.max(level_arr)
@@ -184,17 +207,62 @@ if __name__ == "__main__":
     sort_index_arr = np.zeros_like(index_arr, dtype=np.int32)
     sort_level_arr = np.zeros_like(level_arr, dtype=np.int32)
     sort_u_index_arr = np.zeros_like(u_index_arr, dtype=np.int32)
-    bin_arr = np.zeros_like(index_arr, dtype=np.int32)
-    cumsum_arr = np.zeros_like(index_arr, dtype=np.int32)
     radix = 10
+    bin_arr = np.zeros(radix, dtype=np.int32)
+    cumsum_arr = np.zeros_like(bin_arr, dtype=np.int32)
+    max_digit = int(floor(log(max(u_index_arr), radix)) + 1)
     len_arr = len(index_arr)
 
-    ereset_bin_arr(bin_arr, cumsum_arr)
+
     ecounting_sort_one(level_arr, bin_arr, 0, radix)
     cumsum_arr_calc(bin_arr=bin_arr, cumsum_arr=cumsum_arr)
-    ecounting_sort_three(level_arr, cumsum_arr, sort_level_arr[::-1], index_arr, sort_index_arr[::-1], u_index_arr, sort_u_index_arr[::-1], radix, 0, len_arr)
-    eshift_arrs_two(level_arr, sort_level_arr, index_arr, sort_index_arr, u_index_arr, sort_u_index_arr)
+    ecounting_sort_three(
+        level_arr,
+        cumsum_arr,
+        sort_level_arr,
+        index_arr,
+        sort_index_arr,
+        u_index_arr,
+        sort_u_index_arr,
+        radix,
+        0,
+        len_arr,
+    )
 
-    print(sort_level_arr)
-    # print(sort_index_arr)
-    # print(sort_u_index_arr)
+    ereverse_arrs(
+        sort_level_arr,
+        level_arr,
+        sort_index_arr,
+        index_arr,
+        sort_u_index_arr,
+        u_index_arr,
+        len_arr,
+    )
+
+    for digit in range(max_digit):
+        ereset_bin_arr(bin_arr, cumsum_arr)
+        ecounting_sort_one(u_index_arr, bin_arr, digit, radix)
+        cumsum_arr_calc(bin_arr=bin_arr, cumsum_arr=cumsum_arr)
+        ecounting_sort_three(
+            u_index_arr,
+            cumsum_arr,
+            sort_u_index_arr,
+            index_arr,
+            sort_index_arr,
+            level_arr,
+            sort_level_arr,
+            radix,
+            digit,
+            len_arr,
+        )
+        eshift_arrs_two(
+            u_index_arr,
+            sort_u_index_arr,
+            index_arr,
+            sort_index_arr,
+            level_arr,
+            sort_level_arr,
+        )
+    
+    print(index_arr)
+    print(level_arr)
