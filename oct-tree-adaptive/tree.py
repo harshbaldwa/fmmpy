@@ -123,17 +123,8 @@ def counting_sort_two(
     gintp="arr, cumsum_arr, sort_arr, index, sort_index, level, sort_level",
 )
 def counting_sort_three(
-    i,
-    arr,
-    cumsum_arr,
-    sort_arr,
-    index,
-    sort_index,
-    level,
-    sort_level,
-    radix,
-    digit,
-    len_arr,
+    i, arr, cumsum_arr, sort_arr, index, sort_index,
+    level, sort_level, radix, digit, len_arr,
 ):
     digit_arr_i, j, idx = declare("int", 2)
     j = len_arr - i - 1
