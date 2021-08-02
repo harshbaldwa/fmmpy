@@ -49,8 +49,8 @@ def swap_arrs(i, arr, sort_arr):
     arr[i] = sort_arr[i]
 
 
-backend = 'cython'
-get_config().use_openmp = True
+backend = 'opencl'
+# get_config().use_openmp = True
 
 ereset_bin_arr = Elementwise(reset_bin_arr, backend=backend)
 ecounting_sort_one = Elementwise(counting_sort_one, backend=backend)
