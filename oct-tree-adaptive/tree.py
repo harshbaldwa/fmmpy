@@ -4,12 +4,14 @@ import numpy as np
 from math import floor, log
 
 
-@annotate(double="x, y, z, x_min, y_min, z_min, length, b_len", return_="int")
-def get_particle_index(x, y, z, b_len, x_min=0.0, y_min=0.0, z_min=0.0, length=1):
-    nx, ny, nz, id = declare("int", 4)
-    nx = cast(floor((b_len * (x - x_min)) / length), "int")
-    ny = cast(floor((b_len * (y - y_min)) / length), "int")
-    nz = cast(floor((b_len * (z - z_min)) / length), "int")
+@annotate(i="int", index="gintp", gdoublep="x, y, z",
+          double="max_index, length"
+          )
+def get_particle_index(i, index, x, y, z, max_index, length):
+    nx, ny, nz = declare("int", 3)
+    nx = cast(floor((max_index * x[i]) / length), "int")
+    ny = cast(floor((max_index * y[i]) / length), "int")
+    nz = cast(floor((max_index * z[i]) / length), "int")
 
     nx = (nx | (nx << 16)) & 0x030000FF
     nx = (nx | (nx << 8)) & 0x0300F00F
@@ -26,43 +28,56 @@ def get_particle_index(x, y, z, b_len, x_min=0.0, y_min=0.0, z_min=0.0, length=1
     nz = (nz | (nz << 4)) & 0x030C30C3
     nz = (nz | (nz << 2)) & 0x09249249
 
-    id = (nz << 2) | (ny << 1) | nx
-    return id
+    index[i] = (nz << 2) | (ny << 1) | nx
 
 
-@annotate(i="int", gintp="index1, index2, level1, level2, lca_index, lca_level")
-def internal_nodes(i, index1, index2, level1, level2, lca_index, lca_level):
-    level_diff, xor, i1, i2, l, j = declare("int", 6)
+@annotate(i="int",
+          gintp="sfc_idx, level, idx, full_sfc_idx, full_level, full_idx"
+          )
+def cpy_idx_tree(i, sfc_idx, level, idx, full_sfc_idx, full_level, full_idx):
+    full_sfc_idx[i] = sfc_idx[i]
+    full_level[i] = level[i]
+    full_idx[i] = idx[i]
+
+
+@annotate(i="int",
+          gintp="sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx"
+          )
+def internal_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx):
+    level_diff, xor, i1, i2, level, j = declare("int", 6)
     level_diff = cast(abs(level1[i] - level2[i]), "int")
 
     if level1[i] - level2[i] > 0:
-        i1 = index1[i]
-        i2 = index2[i] << 3 * level_diff
-        l = level1[i]
+        i1 = sfc1[i]
+        i2 = sfc2[i] << 3 * level_diff
+        level = level1[i]
     elif level1[i] - level2[i] < 0:
-        i1 = index1[i] << 3 * level_diff
-        i2 = index2[i]
-        l = level2[i]
+        i1 = sfc1[i] << 3 * level_diff
+        i2 = sfc2[i]
+        level = level2[i]
     else:
-        i1 = index1[i]
-        i2 = index2[i]
-        l = level1[i]
+        i1 = sfc1[i]
+        i2 = sfc2[i]
+        level = level1[i]
 
     xor = i1 ^ i2
 
     if xor == 0:
-        lca_index[i] = i1 >> 3 * level_diff
-        lca_level[i] = l - level_diff
+        lca_sfc[i] = i1 >> 3 * level_diff
+        lca_level[i] = level - level_diff
+        lca_idx[i] = -1
         return
 
-    for j in range(l + 1, 0, -1):
+    for j in range(level + 1, 0, -1):
         if xor > ((1 << (j - 1) * 3) - 1):
-            lca_index[i] = i1 >> 3 * j
-            lca_level[i] = l - j
+            lca_sfc[i] = i1 >> 3 * j
+            lca_level[i] = level - j
+            lca_idx[i] = -1
             return
 
-    lca_index[i] = 0
+    lca_sfc[i] = 0
     lca_level[i] = 0
+    lca_idx[i] = -1
     return
 
 
@@ -89,9 +104,9 @@ def output_cumsum_arr(i, item, cumsum_arr):
     cumsum_arr[i] = item
 
 
-@annotate(
-    int="i, radix, digit, len_arr", gintp="arr, cumsum_arr, sort_arr, index, sort_index"
-)
+@annotate(int="i, radix, digit, len_arr",
+          gintp="arr, cumsum_arr, sort_arr, index, sort_index"
+          )
 def counting_sort_two(
     i, arr, cumsum_arr, sort_arr, index, sort_index, radix, digit, len_arr
 ):
@@ -129,140 +144,146 @@ def counting_sort_three(
     idx = atomic_dec(cumsum_arr[digit_arr_i])
 
 
-@annotate(i="int", gintp="arr, sort_arr, index, sort_index")
-def shift_arrs(i, arr, sort_arr, index, sort_index):
+@annotate(
+    i="int",
+    gintp="arr, sort_arr, index, sort_index"
+)
+def swap_arrs(i, arr, sort_arr, index, sort_index):
     arr[i] = sort_arr[i]
     index[i] = sort_index[i]
 
 
-@annotate(i="int", gintp="arr, sort_arr, index, sort_index, level, sort_level")
-def shift_arrs_two(i, arr, sort_arr, index, sort_index, level, sort_level):
+@annotate(
+    i="int",
+    gintp="arr, sort_arr, index, sort_index, level, sort_level"
+)
+def swap_arrs_two(i, arr, sort_arr, index, sort_index, level, sort_level):
     arr[i] = sort_arr[i]
     index[i] = sort_index[i]
     level[i] = sort_level[i]
 
 
-@annotate(int="i, len_arr", gintp="arr, sort_arr, index, sort_index, level, sort_level")
-def reverse_arrs(i, arr, sort_arr, index, sort_index, level, sort_level, len_arr):
-    sort_arr[len_arr - i - 1] = arr[i]
-    sort_index[len_arr - i - 1] = index[i]
-    sort_level[len_arr - i - 1] = level[i]
+@annotate(
+    int="i, len_arr",
+    gintp="arr, sort_arr, index, sort_index, level, sort_level"
+)
+def reverse_arrs(i, sort_arr, arr, sort_index,
+                 index, sort_level, level, len_arr):
+    arr[len_arr - i - 1] = sort_arr[i]
+    index[len_arr - i - 1] = sort_index[i]
+    level[len_arr - i - 1] = sort_level[i]
+
+
+@annotate(int="i, max_level", gintp="sfc, level")
+def sfc_same(i, sfc, level, max_level):
+    sfc[i] = ((sfc[i] + 1) << 3 * (max_level - level[i])) - 1
+
+
+@annotate(int="i, max_level", gintp="sfc, level")
+def sfc_real(i, sfc, level, max_level):
+    sfc[i] = ((sfc[i] + 1) >> 3 * (max_level - level[i])) - 1
 
 
 if __name__ == "__main__":
 
     backend = "cython"
+    N = 10
+    max_depth = 2
+    length = 1
 
-    # a = np.array([377, 3016], dtype=np.int32)
-    # level = np.array([3, 4], dtype=np.int32)
-    # lca_index = np.zeros(1, dtype=np.int32)
-    # lca_level = np.zeros(1, dtype=np.int32)
+    # all parameters here
 
-    # einternal_nodes = Elementwise(internal_nodes, backend=backend)
-    # einternal_nodes(a[:-1], a[1:], level[:-1], level[1:], lca_index, lca_level)
+    np.random.seed(4)
+    particle_pos = np.random.random((3, N))
+    idx = np.arange(N, dtype=np.int32)
+    max_index = 2 ** max_depth
 
-    # print(lca_index)
-    # print(lca_level)
+    sfc = np.zeros_like(idx, dtype=np.int32)
+    level = np.ones(N, dtype=np.int32) * max_depth
+
+    radix = 10
+    max_digits = int(floor(log((1 << 3*max_depth)-1, radix)) + 1)
+    bin_arr = np.zeros(radix, dtype=np.int32)
+    cumsum_arr = np.zeros(radix, dtype=np.int32)
+    sort_sfc = np.zeros(N, dtype=np.int32)
+    sort_idx = np.zeros(N, dtype=np.int32)
+
+    full_sfc = np.zeros(2*N-1, dtype=np.int32)
+    full_level = np.zeros(2*N-1, dtype=np.int32)
+    full_idx = np.ones(2*N-1, dtype=np.int32) * -1
+
+    sort_sfc_nodes = np.zeros(N-1, dtype=np.int32)
+    sort_level_nodes = np.zeros(N-1, dtype=np.int32)
+    sort_idx_nodes = np.zeros(N-1, dtype=np.int32)
+
+    # defining all the parallel functions here
+
+    eget_particle_index = Elementwise(get_particle_index, backend=backend)
 
     ereset_bin_arr = Elementwise(reset_bin_arr, backend=backend)
     ecounting_sort_one = Elementwise(counting_sort_one, backend=backend)
     cumsum_arr_calc = Scan(
-        input_cumsum_arr, output_cumsum_arr, "a+b", dtype=np.int32, backend=backend
+        input_cumsum_arr, output_cumsum_arr, "a+b",
+        dtype=np.int32, backend=backend
     )
     ecounting_sort_two = Elementwise(counting_sort_two, backend=backend)
-    eshift_arrs = Elementwise(shift_arrs, backend=backend)
+    eswap_arrs = Elementwise(swap_arrs, backend=backend)
 
-    # arr = np.array([54, 34, 21, 65, 23, 47, 12, 17, 54], dtype=np.int32)
-    # len_arr = len(arr)
-    # index = np.arange(len_arr, dtype=np.int32)
-    # radix = 10
-    # digits = 2
-    # sort_arr = np.zeros(len_arr, dtype=np.int32)
-    # sort_index = np.zeros(len_arr, dtype=np.int32)
-    # bin_arr = np.zeros(radix, dtype=np.int32)
-    # cumsum_arr = np.zeros(radix, dtype=np.int32)
-
-    # for digit in range(digits):
-    #     ereset_bin_arr(bin_arr, cumsum_arr)
-    #     ecounting_sort_one(arr, bin_arr, digit, radix)
-    #     cumsum_arr_calc(bin_arr=bin_arr, cumsum_arr=cumsum_arr)
-    #     ecounting_sort_two(arr, cumsum_arr, sort_arr, index, sort_index, radix, digit, len_arr)
-    #     eshift_arrs(arr, sort_arr, index, sort_index)
-
-    # print(sort_arr)
-    # print(sort_index)
+    ecpy_idx_tree = Elementwise(cpy_idx_tree, backend=backend)
+    einternal_nodes = Elementwise(internal_nodes, backend=backend)
 
     ecounting_sort_three = Elementwise(counting_sort_three, backend=backend)
-    eshift_arrs_two = Elementwise(shift_arrs_two, backend=backend)
     ereverse_arrs = Elementwise(reverse_arrs, backend=backend)
+    eswap_arrs_two = Elementwise(swap_arrs_two, backend=backend)
+    esfc_same = Elementwise(sfc_same, backend=backend)
+    esfc_real = Elementwise(sfc_real, backend=backend)
 
-    index_arr = np.array([17, 2, 23, 3, 1], dtype=np.int32)
-    level_arr = np.array([3, 2, 3, 1, 2], dtype=np.int32)
-    u_index_arr = np.zeros_like(index_arr, dtype=np.int32)
-    max_level = np.max(level_arr)
+    # calculations after this, cant be in serial !!!!!
 
-    for i in range(len(u_index_arr)):
-        u_index_arr[i] = ((index_arr[i] + 1) << 3 * (max_level - level_arr[i])) - 1
+    # getting SFC index of each particle at finest level
+    eget_particle_index(sfc, particle_pos[0], particle_pos[1],
+                        particle_pos[2], max_index, length)
 
-    sort_index_arr = np.zeros_like(index_arr, dtype=np.int32)
-    sort_level_arr = np.zeros_like(level_arr, dtype=np.int32)
-    sort_u_index_arr = np.zeros_like(u_index_arr, dtype=np.int32)
-    radix = 10
-    bin_arr = np.zeros(radix, dtype=np.int32)
-    cumsum_arr = np.zeros_like(bin_arr, dtype=np.int32)
-    max_digit = int(floor(log(max(u_index_arr), radix)) + 1)
-    len_arr = len(index_arr)
-
-
-    ecounting_sort_one(level_arr, bin_arr, 0, radix)
-    cumsum_arr_calc(bin_arr=bin_arr, cumsum_arr=cumsum_arr)
-    ecounting_sort_three(
-        level_arr,
-        cumsum_arr,
-        sort_level_arr,
-        index_arr,
-        sort_index_arr,
-        u_index_arr,
-        sort_u_index_arr,
-        radix,
-        0,
-        len_arr,
-    )
-
-    ereverse_arrs(
-        sort_level_arr,
-        level_arr,
-        sort_index_arr,
-        index_arr,
-        sort_u_index_arr,
-        u_index_arr,
-        len_arr,
-    )
-
-    for digit in range(max_digit):
+    # sorting these SFC indices using parallel radix sort
+    for digit in range(max_digits):
         ereset_bin_arr(bin_arr, cumsum_arr)
-        ecounting_sort_one(u_index_arr, bin_arr, digit, radix)
+        ecounting_sort_one(sfc, bin_arr, digit, radix)
         cumsum_arr_calc(bin_arr=bin_arr, cumsum_arr=cumsum_arr)
-        ecounting_sort_three(
-            u_index_arr,
-            cumsum_arr,
-            sort_u_index_arr,
-            index_arr,
-            sort_index_arr,
-            level_arr,
-            sort_level_arr,
-            radix,
-            digit,
-            len_arr,
-        )
-        eshift_arrs_two(
-            u_index_arr,
-            sort_u_index_arr,
-            index_arr,
-            sort_index_arr,
-            level_arr,
-            sort_level_arr,
-        )
-    
-    print(index_arr)
-    print(level_arr)
+        ecounting_sort_two(sfc, cumsum_arr, sort_sfc,
+                           idx, sort_idx, radix, digit, N)
+        eswap_arrs(sfc, sort_sfc, idx, sort_idx)
+
+    # now finding internal nodes
+    ecpy_idx_tree(sfc, level, idx, full_sfc, full_level, full_idx)
+    einternal_nodes(sfc[:-1], sfc[1:], level[:-1], level[1:],
+                    full_sfc[N:], full_level[N:], full_idx[N:])
+
+    # sorting the internal nodes using parallel radix sort
+
+    # first we sort based on the level of the nodes
+    # (assuming less than 10 levels)
+    ereset_bin_arr(bin_arr, cumsum_arr)
+    ecounting_sort_one(full_level[N:], bin_arr, 0, radix)
+    cumsum_arr_calc(bin_arr=bin_arr, cumsum_arr=cumsum_arr)
+    ecounting_sort_three(full_level[N:], cumsum_arr, sort_level_nodes,
+                         full_sfc[N:], sort_sfc_nodes, full_idx[N:],
+                         sort_idx_nodes, radix, 0, N-1)
+    ereverse_arrs(sort_level_nodes, full_level[N:], sort_sfc_nodes,
+                  full_sfc[N:], sort_idx_nodes, full_idx[N:], N-1)
+
+    # now we make sfc indices of the nodes of same length
+    esfc_same(full_sfc[N:], full_level[N:], max_depth)
+
+    # now we sort based on the sfc index of the nodes
+    for digit in range(max_digits):
+        ereset_bin_arr(bin_arr, cumsum_arr)
+        ecounting_sort_one(full_sfc[N:], bin_arr, digit, radix)
+        cumsum_arr_calc(bin_arr=bin_arr, cumsum_arr=cumsum_arr)
+        ecounting_sort_three(full_sfc[N:], cumsum_arr, sort_sfc_nodes,
+                             full_idx[N:], sort_idx_nodes, full_level[N:],
+                             sort_level_nodes, radix, digit, N-1)
+        eswap_arrs_two(full_sfc[N:], sort_sfc_nodes, full_idx[N:],
+                       sort_idx_nodes, full_level[N:], sort_level_nodes)
+
+    # now we make sfc indices of the nodes of respective length
+    esfc_real(full_sfc[N:], full_level[N:], max_depth)
