@@ -1,8 +1,7 @@
-from compyle.api import declare, Elementwise, annotate, Scan, wrap
+from compyle.api import declare, Elementwise, annotate, Scan, wrap, Reduction
 from compyle.low_level import cast
 from compyle.sort import radix_sort
 import numpy as np
-import time
 from math import floor, log
 
 
@@ -123,10 +122,24 @@ def sfc_real(i, sfc, level, max_level):
     sfc[i] = ((sfc[i] + 1) >> 3 * (max_level - level[i])) - 1
 
 
+@annotate(i="int", gintp="sfc, duplicate_idx")
+def id_duplicates(i, sfc, duplicate_idx):
+    if i == 0:
+        duplicate_idx[i] = 0
+
+    if sfc[i] == sfc[i+1]:
+        duplicate_idx[i+1] = 1
+
+
+@annotate(i="int", x="gintp")
+def map(i, x):
+    return x[i]
+
+
 if __name__ == "__main__":
 
     backend = "cython"
-    N = 1000000
+    N = 10
     max_depth = 2
     length = 1
 
@@ -149,12 +162,15 @@ if __name__ == "__main__":
     sort_level_nodes = np.zeros(N-1, dtype=np.int32)
     sort_idx_nodes = np.ones(N-1, dtype=np.int32) * -1
 
+    duplicate_idx = np.zeros(N-1, dtype=np.int32)
+    sort_duplicate_idx = np.zeros(N-1, dtype=np.int32)
+
     idx, sfc, sort_idx, sort_sfc, level, sfc_nodes,\
         level_nodes, idx_nodes, sort_sfc_nodes, sort_level_nodes, \
-        sort_idx_nodes = wrap(
+        sort_idx_nodes, duplicate_idx = wrap(
             idx, sfc, sort_idx, sort_sfc, level, sfc_nodes, level_nodes,
             idx_nodes, sort_sfc_nodes, sort_level_nodes, sort_idx_nodes,
-            backend=backend)
+            duplicate_idx, backend=backend)
 
     eget_particle_index = Elementwise(get_particle_index, backend=backend)
 
@@ -169,66 +185,44 @@ if __name__ == "__main__":
     esfc_same = Elementwise(sfc_same, backend=backend)
     esfc_real = Elementwise(sfc_real, backend=backend)
 
-    time1 = time.time()
+    eid_duplicates = Elementwise(id_duplicates, backend=backend)
+    n_duplicates = Reduction('a+b', map_func=map, backend=backend)
 
     eget_particle_index(sfc, particle_pos[0], particle_pos[1],
                         particle_pos[2], max_index, length)
 
-    time2 = time.time()
-
-    # [sort_sfc, sort_idx], _ = radix_sort([sfc, idx], backend=backend)
-    sorted_array, _ = radix_sort([sfc, idx], backend=backend)
-
-    time3 = time.time()
-
+    [sort_sfc, sort_idx], _ = radix_sort([sfc, idx], backend=backend)
     eswap_arrs_two(sfc, idx, sort_sfc, sort_idx)
 
-    time4 = time.time()
-    print(time4-time2)
+    ecpy_idx_tree(sfc, level, idx, sfc_nodes, level_nodes, idx_nodes)
+    einternal_nodes(sfc[:-1], sfc[1:], level[:-1], level[1:],
+                    sfc_nodes[N:], level_nodes[N:], idx_nodes[N:])
 
-    # ecpy_idx_tree(sfc, level, idx, sfc_nodes, level_nodes, idx_nodes)
-    # einternal_nodes(sfc[:-1], sfc[1:], level[:-1], level[1:],
-    #                 sfc_nodes[N:], level_nodes[N:], idx_nodes[N:])
+    [sort_level_nodes, sort_sfc_nodes, sort_idx_nodes], _ = radix_sort(
+        [level_nodes[N:], sfc_nodes[N:], idx_nodes[N:]], backend=backend)
 
-    # time5 = time.time()
+    ereverse_arrs(level_nodes[N:], sfc_nodes[N:], idx_nodes[N:],
+                  sort_level_nodes, sort_sfc_nodes, sort_idx_nodes,
+                  N-1)
 
-    # [sort_level_nodes, sort_sfc_nodes, sort_idx_nodes], _ = radix_sort(
-    #     [level_nodes[N:], sfc_nodes[N:], idx_nodes[N:]], backend=backend)
+    esfc_same(sfc_nodes[N:], level_nodes[N:], max_depth)
 
-    # time6 = time.time()
+    [sort_sfc_nodes, sort_level_nodes, sort_idx_nodes], _ = radix_sort(
+        [sfc_nodes[N:], level_nodes[N:], idx_nodes[N:]], backend=backend)
 
-    # ereverse_arrs(level_nodes[N:], sfc_nodes[N:], idx_nodes[N:],
-    #               sort_level_nodes, sort_sfc_nodes, sort_idx_nodes,
-    #               N-1)
+    eswap_arrs_three(sfc_nodes[N:], level_nodes[N:], idx_nodes[N:],
+                     sort_sfc_nodes, sort_level_nodes, sort_idx_nodes)
 
-    # time7 = time.time()
+    eid_duplicates(sfc_nodes[N:-1], duplicate_idx)
 
-    # esfc_same(sfc_nodes[N:], level_nodes[N:], max_depth)
+    [sort_duplicate_idx, sort_sfc_nodes, sort_level_nodes,
+     sort_idx_nodes], _ = radix_sort(
+        [duplicate_idx, sfc_nodes[N:], level_nodes[N:], idx_nodes[N:]],
+        backend=backend)
 
-    # time8 = time.time()
+    eswap_arrs_three(sfc_nodes[N:], level_nodes[N:], idx_nodes[N:],
+                     sort_sfc_nodes, sort_level_nodes, sort_idx_nodes)
 
-    # [sort_sfc_nodes, sort_level_nodes, sort_idx_nodes], _ = radix_sort(
-    #     [sfc_nodes[N:], level_nodes[N:], idx_nodes[N:]], backend=backend)
+    count_repeated = int(n_duplicates(sort_duplicate_idx)) - 1
 
-    # time9 = time.time()
-
-    # eswap_arrs_three(sfc_nodes[N:], level_nodes[N:], idx_nodes[N:],
-    #                  sort_sfc_nodes, sort_level_nodes, sort_idx_nodes)
-
-    # time10 = time.time()
-
-    # esfc_real(sfc_nodes[N:], level_nodes[N:], max_depth)
-
-    # time11 = time.time()
-    # print(time2-time1)
-    # print(time3-time2)
-    # print(time4-time3)
-    # print(time5-time4)
-    # print(time6-time5)
-    # print(time7-time6)
-    # print(time8-time7)
-    # print(time9-time8)
-    # print(time10-time9)
-    # print(time11-time10)
-
-    # print("total time - ", time11-time1)
+    esfc_real(sfc_nodes[N:], level_nodes[N:], max_depth)

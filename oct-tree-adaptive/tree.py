@@ -180,7 +180,7 @@ if __name__ == "__main__":
 
     backend = "cython"
     N = 1000000
-    max_depth = 2
+    max_depth = 4
     length = 1
 
     # all parameters here
@@ -250,63 +250,61 @@ if __name__ == "__main__":
 
     time3 = time.time()
 
-    print(time3 - time2)
-
     # now finding internal nodes
-    # ecpy_idx_tree(sfc, level, idx, full_sfc, full_level, full_idx)
-    # einternal_nodes(sfc[:-1], sfc[1:], level[:-1], level[1:],
-    #                 full_sfc[N:], full_level[N:], full_idx[N:])
+    ecpy_idx_tree(sfc, level, idx, full_sfc, full_level, full_idx)
+    einternal_nodes(sfc[:-1], sfc[1:], level[:-1], level[1:],
+                    full_sfc[N:], full_level[N:], full_idx[N:])
 
-    # time4 = time.time()
+    time4 = time.time()
 
-    # # sorting the internal nodes using parallel radix sort
+    # sorting the internal nodes using parallel radix sort
 
-    # # first we sort based on the level of the nodes
-    # # (assuming less than 10 levels)
-    # ereset_bin_arr(bin_arr, cumsum_arr)
-    # ecounting_sort_one(full_level[N:], bin_arr, 0, radix)
-    # cumsum_arr_calc(bin_arr=bin_arr, cumsum_arr=cumsum_arr)
-    # ecounting_sort_three(full_level[N:], cumsum_arr, sort_level_nodes,
-    #                      full_sfc[N:], sort_sfc_nodes, full_idx[N:],
-    #                      sort_idx_nodes, radix, 0, N-1)
+    # first we sort based on the level of the nodes
+    # (assuming less than 10 levels)
+    ereset_bin_arr(bin_arr, cumsum_arr)
+    ecounting_sort_one(full_level[N:], bin_arr, 0, radix)
+    cumsum_arr_calc(bin_arr=bin_arr, cumsum_arr=cumsum_arr)
+    ecounting_sort_three(full_level[N:], cumsum_arr, sort_level_nodes,
+                         full_sfc[N:], sort_sfc_nodes, full_idx[N:],
+                         sort_idx_nodes, radix, 0, N-1)
 
-    # time5 = time.time()
+    time5 = time.time()
 
-    # ereverse_arrs(sort_level_nodes, full_level[N:], sort_sfc_nodes,
-    #               full_sfc[N:], sort_idx_nodes, full_idx[N:], N-1)
+    ereverse_arrs(sort_level_nodes, full_level[N:], sort_sfc_nodes,
+                  full_sfc[N:], sort_idx_nodes, full_idx[N:], N-1)
 
-    # time6 = time.time()
+    time6 = time.time()
 
-    # # now we make sfc indices of the nodes of same length
-    # esfc_same(full_sfc[N:], full_level[N:], max_depth)
+    # now we make sfc indices of the nodes of same length
+    esfc_same(full_sfc[N:], full_level[N:], max_depth)
 
-    # time7 = time.time()
+    time7 = time.time()
 
-    # # now we sort based on the sfc index of the nodes
-    # for digit in range(max_digits):
-    #     ereset_bin_arr(bin_arr, cumsum_arr)
-    #     ecounting_sort_one(full_sfc[N:], bin_arr, digit, radix)
-    #     cumsum_arr_calc(bin_arr=bin_arr, cumsum_arr=cumsum_arr)
-    #     ecounting_sort_three(full_sfc[N:], cumsum_arr, sort_sfc_nodes,
-    #                          full_idx[N:], sort_idx_nodes, full_level[N:],
-    #                          sort_level_nodes, radix, digit, N-1)
-    #     eswap_arrs_two(full_sfc[N:], sort_sfc_nodes, full_idx[N:],
-    #                    sort_idx_nodes, full_level[N:], sort_level_nodes)
+    # now we sort based on the sfc index of the nodes
+    for digit in range(max_digits):
+        ereset_bin_arr(bin_arr, cumsum_arr)
+        ecounting_sort_one(full_sfc[N:], bin_arr, digit, radix)
+        cumsum_arr_calc(bin_arr=bin_arr, cumsum_arr=cumsum_arr)
+        ecounting_sort_three(full_sfc[N:], cumsum_arr, sort_sfc_nodes,
+                             full_idx[N:], sort_idx_nodes, full_level[N:],
+                             sort_level_nodes, radix, digit, N-1)
+        eswap_arrs_two(full_sfc[N:], sort_sfc_nodes, full_idx[N:],
+                       sort_idx_nodes, full_level[N:], sort_level_nodes)
 
-    # time8 = time.time()
+    time8 = time.time()
 
-    # # now we make sfc indices of the nodes of respective length
-    # esfc_real(full_sfc[N:], full_level[N:], max_depth)
+    # now we make sfc indices of the nodes of respective length
+    esfc_real(full_sfc[N:], full_level[N:], max_depth)
 
-    # time9 = time.time()
+    time9 = time.time()
 
-    # print(time2-time1)
-    # print(time3-time2)
-    # print(time4-time3)
-    # print(time5-time4)
-    # print(time6-time5)
-    # print(time7-time6)
-    # print(time8-time7)
-    # print(time9-time8)
+    print(time2-time1)
+    print(time3-time2)
+    print(time4-time3)
+    print(time5-time4)
+    print(time6-time5)
+    print(time7-time6)
+    print(time8-time7)
+    print(time9-time8)
 
-    # print("total time - ", time9-time1)
+    print("total time - ", time9-time1)
