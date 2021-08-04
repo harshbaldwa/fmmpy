@@ -6,16 +6,18 @@ from time import time
 from compyle.sort import radix_sort
 
 
-backend = 'opencl'
+backend = 'cython'
 # get_config().use_openmp = True
 
-N = 1000000
-a = np.random.randint(0, 9, N, dtype=np.int32)
+N = 10
+a = np.random.randint(-9, 9, N, dtype=np.int32)
 # b = np.arange(N, dtype=np.int32)
 a = wrap(a, backend=backend)
+
+print(a)
 
 vicky = time()
 t1, t2 = radix_sort([a], backend=backend)
 harsh = time()
 
-print(harsh-vicky)
+print(t1[0])

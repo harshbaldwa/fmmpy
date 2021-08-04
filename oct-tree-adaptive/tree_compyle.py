@@ -1,3 +1,4 @@
+from types import CodeType
 from compyle.api import declare, Elementwise, annotate, Scan, wrap, Reduction
 from compyle.low_level import cast
 from compyle.sort import radix_sort
@@ -122,13 +123,20 @@ def sfc_real(i, sfc, level, max_level):
     sfc[i] = ((sfc[i] + 1) >> 3 * (max_level - level[i])) - 1
 
 
-@annotate(i="int", gintp="sfc, duplicate_idx")
-def id_duplicates(i, sfc, duplicate_idx):
+@annotate(i="int", gintp="sfc, level, duplicate_idx")
+def id_duplicates(i, sfc, level, duplicate_idx):
     if i == 0:
         duplicate_idx[i] = 0
 
-    if sfc[i] == sfc[i+1]:
+    if sfc[i] == sfc[i+1] and level[i] == level[i+1]:
         duplicate_idx[i+1] = 1
+
+
+@annotate(i="int", gintp="duplicate_idx, sfc, level")
+def remove_duplicates(i, duplicate_idx, sfc, level):
+    if duplicate_idx[i] == 1:
+        sfc[i] = 0
+        level[i] = -1
 
 
 @annotate(i="int", x="gintp")
@@ -162,15 +170,21 @@ if __name__ == "__main__":
     sort_level_nodes = np.zeros(N-1, dtype=np.int32)
     sort_idx_nodes = np.ones(N-1, dtype=np.int32) * -1
 
+    sort_full_sfc = np.zeros(2*N-1, dtype=np.int32)
+    sort_full_level = np.zeros(2*N-1, dtype=np.int32)
+    sort_full_idx = np.ones(2*N-1, dtype=np.int32) * -1
+
     duplicate_idx = np.zeros(N-1, dtype=np.int32)
     sort_duplicate_idx = np.zeros(N-1, dtype=np.int32)
 
     idx, sfc, sort_idx, sort_sfc, level, sfc_nodes,\
         level_nodes, idx_nodes, sort_sfc_nodes, sort_level_nodes, \
-        sort_idx_nodes, duplicate_idx = wrap(
-            idx, sfc, sort_idx, sort_sfc, level, sfc_nodes, level_nodes,
-            idx_nodes, sort_sfc_nodes, sort_level_nodes, sort_idx_nodes,
-            duplicate_idx, backend=backend)
+        sort_idx_nodes, duplicate_idx, sort_full_sfc, sort_full_level, \
+        sort_full_idx = wrap(idx, sfc, sort_idx, sort_sfc, level, sfc_nodes,
+                             level_nodes, idx_nodes, sort_sfc_nodes,
+                             sort_level_nodes, sort_idx_nodes, duplicate_idx,
+                             sort_full_sfc, sort_full_level, sort_full_idx,
+                             backend=backend)
 
     eget_particle_index = Elementwise(get_particle_index, backend=backend)
 
@@ -186,6 +200,7 @@ if __name__ == "__main__":
     esfc_real = Elementwise(sfc_real, backend=backend)
 
     eid_duplicates = Elementwise(id_duplicates, backend=backend)
+    eremove_duplicates = Elementwise(remove_duplicates, backend=backend)
     n_duplicates = Reduction('a+b', map_func=map, backend=backend)
 
     eget_particle_index(sfc, particle_pos[0], particle_pos[1],
@@ -213,7 +228,8 @@ if __name__ == "__main__":
     eswap_arrs_three(sfc_nodes[N:], level_nodes[N:], idx_nodes[N:],
                      sort_sfc_nodes, sort_level_nodes, sort_idx_nodes)
 
-    eid_duplicates(sfc_nodes[N:-1], duplicate_idx)
+    eid_duplicates(sfc_nodes[N:-1], level_nodes[N:-1], duplicate_idx)
+    eremove_duplicates(duplicate_idx, sfc_nodes[N:], level_nodes[N:])
 
     [sort_duplicate_idx, sort_sfc_nodes, sort_level_nodes,
      sort_idx_nodes], _ = radix_sort(
@@ -223,6 +239,12 @@ if __name__ == "__main__":
     eswap_arrs_three(sfc_nodes[N:], level_nodes[N:], idx_nodes[N:],
                      sort_sfc_nodes, sort_level_nodes, sort_idx_nodes)
 
-    count_repeated = int(n_duplicates(sort_duplicate_idx)) - 1
+    count_repeated = int(n_duplicates(sort_duplicate_idx))
 
-    esfc_real(sfc_nodes[N:], level_nodes[N:], max_depth)
+    [sort_full_sfc, sort_full_level, sort_full_idx], _ = radix_sort(
+        [sfc_nodes, level_nodes, idx_nodes], backend=backend)
+
+    eswap_arrs_three(sfc_nodes, level_nodes, idx_nodes,
+                     sort_full_sfc, sort_full_level, sort_full_idx)
+
+    esfc_real(sfc_nodes, level_nodes, max_depth)
