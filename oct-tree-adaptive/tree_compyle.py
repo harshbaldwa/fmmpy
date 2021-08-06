@@ -36,6 +36,7 @@ def get_particle_index(i, index, x, y, z, max_index, length):
 @annotate(i="int",
           gintp="sfc_idx, level, idx, full_sfc_idx, full_level, full_idx"
           )
+# copying index from one array to another
 def cpy_idx_tree(i, sfc_idx, level, idx, full_sfc_idx, full_level, full_idx):
     full_sfc_idx[i] = sfc_idx[i]
     full_level[i] = level[i]
@@ -45,6 +46,7 @@ def cpy_idx_tree(i, sfc_idx, level, idx, full_sfc_idx, full_level, full_idx):
 @annotate(i="int",
           gintp="sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx"
           )
+# compute lowest common ancestor (LCA) of two nodes
 def internal_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx):
     level_diff, xor, i1, i2, level, j = declare("int", 6)
     level_diff = cast(abs(level1[i] - level2[i]), "int")
@@ -87,6 +89,7 @@ def internal_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx):
     int="i, len_arr",
     gintp="arr, sort_arr, index, sort_index, level, sort_level"
 )
+# reverse the array and store it in another array
 def reverse_arrs(i, arr, index, level, sort_arr,
                  sort_index, sort_level, len_arr):
     arr[len_arr - i - 1] = sort_arr[i]
@@ -98,6 +101,7 @@ def reverse_arrs(i, arr, index, level, sort_arr,
     i="int",
     gintp="arr, sort_arr, index, sort_index"
 )
+# swap two arrays
 def swap_arrs_two(i, arr, index, sort_arr, sort_index):
     arr[i] = sort_arr[i]
     index[i] = sort_index[i]
@@ -107,6 +111,7 @@ def swap_arrs_two(i, arr, index, sort_arr, sort_index):
     i="int",
     gintp="arr, sort_arr, index, sort_index, level, sort_level"
 )
+# swap three arrays
 def swap_arrs_three(i, arr, index, level, sort_arr, sort_index, sort_level):
     arr[i] = sort_arr[i]
     index[i] = sort_index[i]
@@ -114,16 +119,19 @@ def swap_arrs_three(i, arr, index, level, sort_arr, sort_index, sort_level):
 
 
 @annotate(int="i, max_level", gintp="sfc, level")
+# make the sfc of all elements of same length
 def sfc_same(i, sfc, level, max_level):
     sfc[i] = ((sfc[i] + 1) << 3 * (max_level - level[i])) - 1
 
 
 @annotate(int="i, max_level", gintp="sfc, level")
+# make the sfc of all elements of their respective length
 def sfc_real(i, sfc, level, max_level):
     sfc[i] = ((sfc[i] + 1) >> 3 * (max_level - level[i])) - 1
 
 
 @annotate(i="int", gintp="sfc, level, duplicate_idx")
+# find the duplicate items in the array
 def id_duplicates(i, sfc, level, duplicate_idx):
     if i == 0:
         duplicate_idx[i] = 0
@@ -133,6 +141,7 @@ def id_duplicates(i, sfc, level, duplicate_idx):
 
 
 @annotate(i="int", gintp="duplicate_idx, sfc, level")
+# removing the duplicate items from the array
 def remove_duplicates(i, duplicate_idx, sfc, level):
     if duplicate_idx[i] == 1:
         sfc[i] = 0
@@ -140,7 +149,8 @@ def remove_duplicates(i, duplicate_idx, sfc, level):
 
 
 @annotate(i="int", x="gintp")
-def map(i, x):
+# mapping for reduction (calculating sum of all elements)
+def map_sum(i, x):
     return x[i]
 
 
@@ -178,13 +188,15 @@ if __name__ == "__main__":
     sort_duplicate_idx = np.zeros(N-1, dtype=np.int32)
 
     idx, sfc, sort_idx, sort_sfc, level, sfc_nodes,\
-        level_nodes, idx_nodes, sort_sfc_nodes, sort_level_nodes, \
-        sort_idx_nodes, duplicate_idx, sort_full_sfc, sort_full_level, \
-        sort_full_idx = wrap(idx, sfc, sort_idx, sort_sfc, level, sfc_nodes,
-                             level_nodes, idx_nodes, sort_sfc_nodes,
-                             sort_level_nodes, sort_idx_nodes, duplicate_idx,
-                             sort_full_sfc, sort_full_level, sort_full_idx,
-                             backend=backend)
+        level_nodes, idx_nodes, sort_sfc_nodes, \
+        sort_level_nodes, sort_idx_nodes, duplicate_idx, \
+        sort_full_sfc, sort_full_level, sort_full_idx, \
+        sort_duplicate_idx = wrap(idx, sfc, sort_idx, sort_sfc, level,
+                                  sfc_nodes, level_nodes, idx_nodes,
+                                  sort_sfc_nodes, sort_level_nodes,
+                                  sort_idx_nodes, duplicate_idx, sort_full_sfc,
+                                  sort_full_level, sort_full_idx,
+                                  sort_duplicate_idx, backend=backend)
 
     eget_particle_index = Elementwise(get_particle_index, backend=backend)
 
@@ -201,18 +213,23 @@ if __name__ == "__main__":
 
     eid_duplicates = Elementwise(id_duplicates, backend=backend)
     eremove_duplicates = Elementwise(remove_duplicates, backend=backend)
-    n_duplicates = Reduction('a+b', map_func=map, backend=backend)
+    n_duplicates = Reduction('a+b', map_func=map_sum, backend=backend)
 
+    # making the adaptive oct tree from bottom up
+    # calculates sfc of all particles at the $max_depth level
     eget_particle_index(sfc, particle_pos[0], particle_pos[1],
                         particle_pos[2], max_index, length)
 
+    # sorts based on sfc array
     [sort_sfc, sort_idx], _ = radix_sort([sfc, idx], backend=backend)
     eswap_arrs_two(sfc, idx, sort_sfc, sort_idx)
 
+    # finds the LCA of all particles
     ecpy_idx_tree(sfc, level, idx, sfc_nodes, level_nodes, idx_nodes)
     einternal_nodes(sfc[:-1], sfc[1:], level[:-1], level[1:],
                     sfc_nodes[N:], level_nodes[N:], idx_nodes[N:])
 
+    # sorts internal nodes array across level
     [sort_level_nodes, sort_sfc_nodes, sort_idx_nodes], _ = radix_sort(
         [level_nodes[N:], sfc_nodes[N:], idx_nodes[N:]], backend=backend)
 
@@ -228,6 +245,7 @@ if __name__ == "__main__":
     eswap_arrs_three(sfc_nodes[N:], level_nodes[N:], idx_nodes[N:],
                      sort_sfc_nodes, sort_level_nodes, sort_idx_nodes)
 
+    # deletes all duplicate nodes
     eid_duplicates(sfc_nodes[N:-1], level_nodes[N:-1], duplicate_idx)
     eremove_duplicates(duplicate_idx, sfc_nodes[N:], level_nodes[N:])
 
@@ -239,8 +257,10 @@ if __name__ == "__main__":
     eswap_arrs_three(sfc_nodes[N:], level_nodes[N:], idx_nodes[N:],
                      sort_sfc_nodes, sort_level_nodes, sort_idx_nodes)
 
+    # number of repeated internal nodes
     count_repeated = int(n_duplicates(sort_duplicate_idx))
 
+    # full sorted arrays (sfc, level, idx)
     [sort_full_sfc, sort_full_level, sort_full_idx], _ = radix_sort(
         [sfc_nodes, level_nodes, idx_nodes], backend=backend)
 
