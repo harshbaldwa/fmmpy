@@ -2,10 +2,7 @@ from compyle.api import declare, Elementwise, annotate, Scan, wrap, Reduction
 from compyle.low_level import cast
 from compyle.sort import radix_sort
 import numpy as np
-import compyle.array as ary
 from math import floor, log
-from compyle.template import Template
-import time
 
 
 @annotate(i="int", index="gintp", gdoublep="x, y, z",
@@ -35,88 +32,22 @@ def get_particle_index(i, index, x, y, z, max_index, length):
     index[i] = (nz << 2) | (ny << 1) | nx
 
 
-class CopyValue(Template):
-    def __init__(self, name, arrays):
-        super(CopyValue, self).__init__(name=name)
-        self.arrays = arrays
-        self.number = len(arrays)
-
-    def extra_args(self):
-        return self.arrays, {"intp": ','.join(self.arrays)}
-
-    @annotate(i='int')
-    def template(self, i):
-        '''
-        % for t in range(obj.number//2):
-        ${obj.arrays[obj.number//2+t]}[i] = ${obj.arrays[t]}[i]
-        % endfor
-        '''
-
-
-class ReverseArray(Template):
-    def __init__(self, name, arrays):
-        super(ReverseArray, self).__init__(name=name)
-        self.arrays = arrays
-        self.number = len(arrays)
-
-    def extra_args(self):
-        return self.arrays + ["length"], {"intp": ','.join(self.arrays),
-                                          "length": "int"}
-
-    @annotate(i='int')
-    def template(self, i):
-        '''
-        % for t in range(obj.number//2):
-        ${obj.arrays[t]}[length - i - 1] = ${obj.arrays[obj.number//2 + t]}[i]
-        % endfor
-        '''
+@annotate(
+    int="i, len_a",
+    gintp="a1, a2, a3, a4, a5, s_a1, s_a2, s_a3, s_a4, s_a5"
+)
+# reverse the array and store it in another array
+def reverse_arrs_five(i, a1, a2, a3, a4, a5,
+                      s_a1, s_a2, s_a3, s_a4, s_a5, len_a):
+    a1[len_a - i - 1] = s_a1[i]
+    a2[len_a - i - 1] = s_a2[i]
+    a3[len_a - i - 1] = s_a3[i]
+    a4[len_a - i - 1] = s_a4[i]
+    a5[len_a - i - 1] = s_a5[i]
 
 
 @annotate(i="int",
-          gintp="sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx"
-          )
-# compute lowest common ancestor (LCA) of two nodes
-def internal_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx):
-    level_diff, xor, i1, i2, level, j = declare("int", 6)
-    level_diff = cast(abs(level1[i] - level2[i]), "int")
-
-    if level1[i] - level2[i] > 0:
-        i1 = sfc1[i]
-        i2 = sfc2[i] << 3 * level_diff
-        level = level1[i]
-    elif level1[i] - level2[i] < 0:
-        i1 = sfc1[i] << 3 * level_diff
-        i2 = sfc2[i]
-        level = level2[i]
-    else:
-        i1 = sfc1[i]
-        i2 = sfc2[i]
-        level = level1[i]
-
-    xor = i1 ^ i2
-
-    if xor == 0:
-        lca_sfc[i] = i1 >> 3 * level_diff
-        lca_level[i] = level - level_diff
-        lca_idx[i] = -1
-        return
-
-    for j in range(level + 1, 0, -1):
-        if xor > ((1 << (j - 1) * 3) - 1):
-            lca_sfc[i] = i1 >> 3 * j
-            lca_level[i] = level - j
-            lca_idx[i] = -1
-            return
-
-    lca_sfc[i] = 0
-    lca_level[i] = 0
-    lca_idx[i] = -1
-    return
-
-
-@annotate(i="int",
-          gintp="sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx, "
-                "child_sfc, child_idx"
+          gintp="sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx, child_sfc, child_idx"
           )
 # compute lowest common ancestor (LCA) of two nodes
 def parent_child(i, sfc1, sfc2, level1, level2, lca_sfc,
@@ -162,6 +93,91 @@ def parent_child(i, sfc1, sfc2, level1, level2, lca_sfc,
     child_sfc[i] = sfc1[i]
     child_idx[i] = i
     return
+
+
+@annotate(i="int",
+          gintp="sfc_idx, level, idx, full_sfc_idx, full_level, full_idx"
+          )
+# copying index from one array to another
+def cpy_idx_tree(i, sfc_idx, level, idx, full_sfc_idx, full_level, full_idx):
+    full_sfc_idx[i] = sfc_idx[i]
+    full_level[i] = level[i]
+    full_idx[i] = idx[i]
+
+
+@annotate(i="int",
+          gintp="sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx"
+          )
+# compute lowest common ancestor (LCA) of two nodes
+def internal_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx):
+    level_diff, xor, i1, i2, level, j = declare("int", 6)
+    level_diff = cast(abs(level1[i] - level2[i]), "int")
+
+    if level1[i] - level2[i] > 0:
+        i1 = sfc1[i]
+        i2 = sfc2[i] << 3 * level_diff
+        level = level1[i]
+    elif level1[i] - level2[i] < 0:
+        i1 = sfc1[i] << 3 * level_diff
+        i2 = sfc2[i]
+        level = level2[i]
+    else:
+        i1 = sfc1[i]
+        i2 = sfc2[i]
+        level = level1[i]
+
+    xor = i1 ^ i2
+
+    if xor == 0:
+        lca_sfc[i] = i1 >> 3 * level_diff
+        lca_level[i] = level - level_diff
+        lca_idx[i] = -1
+        return
+
+    for j in range(level + 1, 0, -1):
+        if xor > ((1 << (j - 1) * 3) - 1):
+            lca_sfc[i] = i1 >> 3 * j
+            lca_level[i] = level - j
+            lca_idx[i] = -1
+            return
+
+    lca_sfc[i] = 0
+    lca_level[i] = 0
+    lca_idx[i] = -1
+    return
+
+
+@annotate(
+    int="i, len_arr",
+    gintp="arr, sort_arr, index, sort_index, level, sort_level"
+)
+# reverse the array and store it in another array
+def reverse_arrs(i, arr, index, level, sort_arr,
+                 sort_index, sort_level, len_arr):
+    arr[len_arr - i - 1] = sort_arr[i]
+    index[len_arr - i - 1] = sort_index[i]
+    level[len_arr - i - 1] = sort_level[i]
+
+
+@annotate(
+    i="int",
+    gintp="arr, sort_arr, index, sort_index"
+)
+# swap two arrays
+def swap_arrs_two(i, arr, index, sort_arr, sort_index):
+    arr[i] = sort_arr[i]
+    index[i] = sort_index[i]
+
+
+@annotate(
+    i="int",
+    gintp="arr, sort_arr, index, sort_index, level, sort_level"
+)
+# swap three arrays
+def swap_arrs_three(i, arr, index, level, sort_arr, sort_index, sort_level):
+    arr[i] = sort_arr[i]
+    index[i] = sort_index[i]
+    level[i] = sort_level[i]
 
 
 @annotate(int="i, max_level", gintp="sfc, level")
@@ -246,31 +262,13 @@ if __name__ == "__main__":
 
     eget_particle_index = Elementwise(get_particle_index, backend=backend)
 
-    copy_value_2 = CopyValue('copy_value_2', [
-                             'a1', 'a2',
-                             'b1', 'b2']).function
-    copy_value_3 = CopyValue('copy_value_3', [
-                             'a1', 'a2', 'a3',
-                             'b1', 'b2', 'b3']).function
-    copy_value_5 = CopyValue('copy_value_5', [
-                             'a1', 'a2', 'a3', 'a4', 'a5',
-                             'b1', 'b2', 'b3', 'b4', 'b5']).function
-
-    ecopy_value_2 = Elementwise(copy_value_2, backend=backend)
-    ecopy_value_3 = Elementwise(copy_value_3, backend=backend)
-    ecopy_value_5 = Elementwise(copy_value_5, backend=backend)
-
+    ecpy_idx_tree = Elementwise(cpy_idx_tree, backend=backend)
     einternal_nodes = Elementwise(internal_nodes, backend=backend)
 
-    reverse_arr_3 = ReverseArray('reverse_arr_3', [
-                                 'a1', 'a2', 'a3',
-                                 'b1', 'b2', 'b3']).function
-    reverse_arr_5 = ReverseArray('reverse_arr_5', [
-                                 'a1', 'a2', 'a3', 'a4', 'a5',
-                                 'b1', 'b2', 'b3', 'b4', 'b5']).function
+    ereverse_arrs = Elementwise(reverse_arrs, backend=backend)
 
-    ereverse_arrs_3 = Elementwise(reverse_arr_3, backend=backend)
-    ereverse_arrs_5 = Elementwise(reverse_arr_5, backend=backend)
+    eswap_arrs_two = Elementwise(swap_arrs_two, backend=backend)
+    eswap_arrs_three = Elementwise(swap_arrs_three, backend=backend)
 
     esfc_same = Elementwise(sfc_same, backend=backend)
     esfc_real = Elementwise(sfc_real, backend=backend)
@@ -286,11 +284,10 @@ if __name__ == "__main__":
 
     # sorts based on sfc array
     [sort_sfc, sort_idx], _ = radix_sort([sfc, idx], backend=backend)
-    ecopy_value_2(sort_sfc, sort_idx, sfc, idx)
+    eswap_arrs_two(sfc, idx, sort_sfc, sort_idx)
 
     # finds the LCA of all particles
-
-    ecopy_value_3(sfc, level, idx, sfc_nodes, level_nodes, idx_nodes)
+    ecpy_idx_tree(sfc, level, idx, sfc_nodes, level_nodes, idx_nodes)
     einternal_nodes(sfc[:-1], sfc[1:], level[:-1], level[1:],
                     sfc_nodes[N:], level_nodes[N:], idx_nodes[N:])
 
@@ -298,16 +295,17 @@ if __name__ == "__main__":
     [sort_level_nodes, sort_sfc_nodes, sort_idx_nodes], _ = radix_sort(
         [level_nodes[N:], sfc_nodes[N:], idx_nodes[N:]], backend=backend)
 
-    ereverse_arrs_3(level_nodes[N:], sfc_nodes[N:], idx_nodes[N:],
-                    sort_level_nodes, sort_sfc_nodes, sort_idx_nodes, N-1)
+    ereverse_arrs(level_nodes[N:], sfc_nodes[N:], idx_nodes[N:],
+                  sort_level_nodes, sort_sfc_nodes, sort_idx_nodes,
+                  N-1)
 
     esfc_same(sfc_nodes[N:], level_nodes[N:], max_depth)
 
     [sort_sfc_nodes, sort_level_nodes, sort_idx_nodes], _ = radix_sort(
         [sfc_nodes[N:], level_nodes[N:], idx_nodes[N:]], backend=backend)
 
-    ecopy_value_3(sort_sfc_nodes, sort_level_nodes, sort_idx_nodes,
-                  sfc_nodes[N:], level_nodes[N:], idx_nodes[N:])
+    eswap_arrs_three(sfc_nodes[N:], level_nodes[N:], idx_nodes[N:],
+                     sort_sfc_nodes, sort_level_nodes, sort_idx_nodes)
 
     # deletes all duplicate nodes
     eid_duplicates(sfc_nodes[N:-1], level_nodes[N:-1], duplicate_idx)
@@ -318,8 +316,8 @@ if __name__ == "__main__":
         [duplicate_idx, sfc_nodes[N:], level_nodes[N:], idx_nodes[N:]],
         backend=backend)
 
-    ecopy_value_3(sort_sfc_nodes, sort_level_nodes, sort_idx_nodes,
-                  sfc_nodes[N:], level_nodes[N:], idx_nodes[N:])
+    eswap_arrs_three(sfc_nodes[N:], level_nodes[N:], idx_nodes[N:],
+                     sort_sfc_nodes, sort_level_nodes, sort_idx_nodes)
 
     # number of repeated internal nodes
     count_repeated = int(n_duplicates(sort_duplicate_idx))
@@ -328,8 +326,8 @@ if __name__ == "__main__":
     [sort_full_sfc, sort_full_level, sort_full_idx], _ = radix_sort(
         [sfc_nodes, level_nodes, idx_nodes], backend=backend)
 
-    ecopy_value_3(sort_full_sfc, sort_full_level, sort_full_idx,
-                  sfc_nodes, level_nodes, idx_nodes)
+    eswap_arrs_three(sfc_nodes, level_nodes, idx_nodes,
+                     sort_full_sfc, sort_full_level, sort_full_idx)
 
     esfc_real(sfc_nodes, level_nodes, max_depth)
 
@@ -356,8 +354,9 @@ if __name__ == "__main__":
                                   sort_child_idx_arr, backend=backend)
 
     eparent_child = Elementwise(parent_child, backend=backend)
+    ereverse_arrs_five = Elementwise(reverse_arrs_five, backend=backend)
 
-    ecopy_value_3(sfc_nodes, level_nodes, idx_nodes,
+    ecpy_idx_tree(sfc_nodes, level_nodes, idx_nodes,
                   full_pc_sfc, full_pc_level, full_pc_idx)
 
     eparent_child(sfc_nodes[count_repeated:-1],
@@ -373,10 +372,13 @@ if __name__ == "__main__":
                                           full_pc_idx, child_sfc,
                                           child_idx_arr], backend=backend)
 
-    ereverse_arrs_5(full_pc_level, full_pc_sfc, full_pc_idx, child_sfc,
-                    child_idx_arr, sort_full_pc_level, sort_full_pc_sfc,
-                    sort_full_pc_idx, sort_child_sfc, sort_child_idx_arr,
-                    4*N-2)
+    ereverse_arrs_five(full_pc_level, full_pc_sfc, full_pc_idx, child_sfc,
+                       child_idx_arr, sort_full_pc_level, sort_full_pc_sfc,
+                       sort_full_pc_idx, sort_child_sfc, sort_child_idx_arr,
+                       4*N-2)
 
     esfc_same(full_pc_sfc[2*count_repeated+1:],
               full_pc_level[2*count_repeated+1:], max_depth)
+
+    print(full_pc_sfc[2*count_repeated+1:])
+    print(full_pc_level[2*count_repeated+1:])
