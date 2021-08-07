@@ -1,9 +1,11 @@
-from types import CodeType
 from compyle.api import declare, Elementwise, annotate, Scan, wrap, Reduction
 from compyle.low_level import cast
 from compyle.sort import radix_sort
 import numpy as np
+import compyle.array as ary
 from math import floor, log
+from compyle.template import Template
+import time
 
 
 @annotate(i="int", index="gintp", gdoublep="x, y, z",
@@ -31,6 +33,24 @@ def get_particle_index(i, index, x, y, z, max_index, length):
     nz = (nz | (nz << 2)) & 0x09249249
 
     index[i] = (nz << 2) | (ny << 1) | nx
+
+
+class CopyValue(Template):
+    def __init__(self, name, arrays):
+        super(CopyValue, self).__init__(name=name)
+        self.arrays = arrays
+        self.number = len(arrays)
+
+    def extra_args(self):
+        return self.arrays, {"intp": ','.join(self.arrays)}
+
+    @annotate(i='int')
+    def template(self, i):
+        '''
+        % for t in range(obj.number//2):
+        ${obj.arrays[obj.number//2+t]}[i] = ${obj.arrays[t]}[i]
+        % endfor
+        '''
 
 
 @annotate(i="int",
@@ -85,37 +105,112 @@ def internal_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx):
     return
 
 
+@annotate(i="int",
+          gintp="sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx, child_sfc, child_idx"
+          )
+# compute lowest common ancestor (LCA) of two nodes
+def parent_child(i, sfc1, sfc2, level1, level2, lca_sfc,
+                 lca_level, lca_idx, child_sfc, child_idx):
+    level_diff, xor, i1, i2, level, j = declare("int", 6)
+    level_diff = cast(abs(level1[i] - level2[i]), "int")
+
+    if level1[i] - level2[i] > 0:
+        i1 = sfc1[i]
+        i2 = sfc2[i] << 3 * level_diff
+        level = level1[i]
+    elif level1[i] - level2[i] < 0:
+        i1 = sfc1[i] << 3 * level_diff
+        i2 = sfc2[i]
+        level = level2[i]
+    else:
+        i1 = sfc1[i]
+        i2 = sfc2[i]
+        level = level1[i]
+
+    xor = i1 ^ i2
+
+    if xor == 0:
+        lca_sfc[i] = i1 >> 3 * level_diff
+        lca_level[i] = level - level_diff
+        lca_idx[i] = -1
+        child_sfc[i] = sfc1[i]
+        child_idx[i] = i
+        return
+
+    for j in range(level + 1, 0, -1):
+        if xor > ((1 << (j - 1) * 3) - 1):
+            lca_sfc[i] = i1 >> 3 * j
+            lca_level[i] = level - j
+            lca_idx[i] = -1
+            child_sfc[i] = sfc1[i]
+            child_idx[i] = i
+            return
+
+    lca_sfc[i] = 0
+    lca_level[i] = 0
+    lca_idx[i] = -1
+    child_sfc[i] = sfc1[i]
+    child_idx[i] = i
+    return
+
+
 @annotate(
-    int="i, len_arr",
-    gintp="arr, sort_arr, index, sort_index, level, sort_level"
+    int="i, len_a",
+    gintp="a1, a2, a3, s_a1, s_a2, s_a3"
 )
 # reverse the array and store it in another array
-def reverse_arrs(i, arr, index, level, sort_arr,
-                 sort_index, sort_level, len_arr):
-    arr[len_arr - i - 1] = sort_arr[i]
-    index[len_arr - i - 1] = sort_index[i]
-    level[len_arr - i - 1] = sort_level[i]
+def reverse_arrs(i, a1, a2, a3, s_a1, s_a2, s_a3, len_a):
+    a1[len_a - i - 1] = s_a1[i]
+    a2[len_a - i - 1] = s_a2[i]
+    a3[len_a - i - 1] = s_a3[i]
+
+
+@annotate(
+    int="i, len_a",
+    gintp="a1, a2, a3, a4, a5, s_a1, s_a2, s_a3, s_a4, s_a5"
+)
+# reverse the array and store it in another array
+def reverse_arrs_five(i, a1, a2, a3, a4, a5,
+                      s_a1, s_a2, s_a3, s_a4, s_a5, len_a):
+    a1[len_a - i - 1] = s_a1[i]
+    a2[len_a - i - 1] = s_a2[i]
+    a3[len_a - i - 1] = s_a3[i]
+    a4[len_a - i - 1] = s_a4[i]
+    a5[len_a - i - 1] = s_a5[i]
 
 
 @annotate(
     i="int",
-    gintp="arr, sort_arr, index, sort_index"
+    gintp="a1, a2, b1, b2"
 )
 # swap two arrays
-def swap_arrs_two(i, arr, index, sort_arr, sort_index):
-    arr[i] = sort_arr[i]
-    index[i] = sort_index[i]
+def swap_arrs_two(i, a1, a2, b1, b2):
+    a1[i] = b1[i]
+    a2[i] = b2[i]
 
 
 @annotate(
     i="int",
-    gintp="arr, sort_arr, index, sort_index, level, sort_level"
+    gintp="a1, a2, a3, b1, b2, b3"
 )
 # swap three arrays
-def swap_arrs_three(i, arr, index, level, sort_arr, sort_index, sort_level):
-    arr[i] = sort_arr[i]
-    index[i] = sort_index[i]
-    level[i] = sort_level[i]
+def swap_arrs_three(i, a1, a2, a3, b1, b2, b3):
+    a1[i] = b1[i]
+    a2[i] = b2[i]
+    a3[i] = b3[i]
+
+
+@annotate(
+    i="int",
+    gintp="a1, a2, a3, a4, a5, b1, b2, b3, b4, b5"
+)
+# swap three arrays
+def swap_arrs_five(i, a1, a2, a3, a4, a5, b1, b2, b3, b4, b5):
+    a1[i] = b1[i]
+    a2[i] = b2[i]
+    a3[i] = b3[i]
+    a4[i] = b4[i]
+    a5[i] = b5[i]
 
 
 @annotate(int="i, max_level", gintp="sfc, level")
@@ -157,7 +252,7 @@ def map_sum(i, x):
 if __name__ == "__main__":
 
     backend = "cython"
-    N = 10
+    N = 10000000
     max_depth = 2
     length = 1
 
@@ -201,6 +296,11 @@ if __name__ == "__main__":
     eget_particle_index = Elementwise(get_particle_index, backend=backend)
 
     ecpy_idx_tree = Elementwise(cpy_idx_tree, backend=backend)
+
+    copy_value = CopyValue(
+        'copy_value', ['a1', 'a2', 'a3', 'b1', 'b2', 'b3']).function
+    ecopy_value = Elementwise(copy_value, backend=backend)
+
     einternal_nodes = Elementwise(internal_nodes, backend=backend)
 
     ereverse_arrs = Elementwise(reverse_arrs, backend=backend)
@@ -225,46 +325,111 @@ if __name__ == "__main__":
     eswap_arrs_two(sfc, idx, sort_sfc, sort_idx)
 
     # finds the LCA of all particles
+    t1 = time.time()
     ecpy_idx_tree(sfc, level, idx, sfc_nodes, level_nodes, idx_nodes)
-    einternal_nodes(sfc[:-1], sfc[1:], level[:-1], level[1:],
-                    sfc_nodes[N:], level_nodes[N:], idx_nodes[N:])
+    t2 = time.time()
+    ecopy_value(sfc, level, idx, sfc_nodes, level_nodes, idx_nodes)
+    t3 = time.time()
 
-    # sorts internal nodes array across level
-    [sort_level_nodes, sort_sfc_nodes, sort_idx_nodes], _ = radix_sort(
-        [level_nodes[N:], sfc_nodes[N:], idx_nodes[N:]], backend=backend)
+    print("Time taken by simple - ", t2-t1)
+    print("Time taken by template - ", t3-t2)
 
-    ereverse_arrs(level_nodes[N:], sfc_nodes[N:], idx_nodes[N:],
-                  sort_level_nodes, sort_sfc_nodes, sort_idx_nodes,
-                  N-1)
+    # einternal_nodes(sfc[:-1], sfc[1:], level[:-1], level[1:],
+    #                 sfc_nodes[N:], level_nodes[N:], idx_nodes[N:])
 
-    esfc_same(sfc_nodes[N:], level_nodes[N:], max_depth)
+    # # sorts internal nodes array across level
+    # [sort_level_nodes, sort_sfc_nodes, sort_idx_nodes], _ = radix_sort(
+    #     [level_nodes[N:], sfc_nodes[N:], idx_nodes[N:]], backend=backend)
 
-    [sort_sfc_nodes, sort_level_nodes, sort_idx_nodes], _ = radix_sort(
-        [sfc_nodes[N:], level_nodes[N:], idx_nodes[N:]], backend=backend)
+    # ereverse_arrs(level_nodes[N:], sfc_nodes[N:], idx_nodes[N:],
+    #               sort_level_nodes, sort_sfc_nodes, sort_idx_nodes,
+    #               N-1)
 
-    eswap_arrs_three(sfc_nodes[N:], level_nodes[N:], idx_nodes[N:],
-                     sort_sfc_nodes, sort_level_nodes, sort_idx_nodes)
+    # esfc_same(sfc_nodes[N:], level_nodes[N:], max_depth)
 
-    # deletes all duplicate nodes
-    eid_duplicates(sfc_nodes[N:-1], level_nodes[N:-1], duplicate_idx)
-    eremove_duplicates(duplicate_idx, sfc_nodes[N:], level_nodes[N:])
+    # [sort_sfc_nodes, sort_level_nodes, sort_idx_nodes], _ = radix_sort(
+    #     [sfc_nodes[N:], level_nodes[N:], idx_nodes[N:]], backend=backend)
 
-    [sort_duplicate_idx, sort_sfc_nodes, sort_level_nodes,
-     sort_idx_nodes], _ = radix_sort(
-        [duplicate_idx, sfc_nodes[N:], level_nodes[N:], idx_nodes[N:]],
-        backend=backend)
+    # eswap_arrs_three(sfc_nodes[N:], level_nodes[N:], idx_nodes[N:],
+    #                  sort_sfc_nodes, sort_level_nodes, sort_idx_nodes)
 
-    eswap_arrs_three(sfc_nodes[N:], level_nodes[N:], idx_nodes[N:],
-                     sort_sfc_nodes, sort_level_nodes, sort_idx_nodes)
+    # # deletes all duplicate nodes
+    # eid_duplicates(sfc_nodes[N:-1], level_nodes[N:-1], duplicate_idx)
+    # eremove_duplicates(duplicate_idx, sfc_nodes[N:], level_nodes[N:])
 
-    # number of repeated internal nodes
-    count_repeated = int(n_duplicates(sort_duplicate_idx))
+    # [sort_duplicate_idx, sort_sfc_nodes, sort_level_nodes,
+    #  sort_idx_nodes], _ = radix_sort(
+    #     [duplicate_idx, sfc_nodes[N:], level_nodes[N:], idx_nodes[N:]],
+    #     backend=backend)
 
-    # full sorted arrays (sfc, level, idx)
-    [sort_full_sfc, sort_full_level, sort_full_idx], _ = radix_sort(
-        [sfc_nodes, level_nodes, idx_nodes], backend=backend)
+    # eswap_arrs_three(sfc_nodes[N:], level_nodes[N:], idx_nodes[N:],
+    #                  sort_sfc_nodes, sort_level_nodes, sort_idx_nodes)
 
-    eswap_arrs_three(sfc_nodes, level_nodes, idx_nodes,
-                     sort_full_sfc, sort_full_level, sort_full_idx)
+    # # number of repeated internal nodes
+    # count_repeated = int(n_duplicates(sort_duplicate_idx))
 
-    esfc_real(sfc_nodes, level_nodes, max_depth)
+    # # full sorted arrays (sfc, level, idx)
+    # [sort_full_sfc, sort_full_level, sort_full_idx], _ = radix_sort(
+    #     [sfc_nodes, level_nodes, idx_nodes], backend=backend)
+
+    # eswap_arrs_three(sfc_nodes, level_nodes, idx_nodes,
+    #                  sort_full_sfc, sort_full_level, sort_full_idx)
+
+    # esfc_real(sfc_nodes, level_nodes, max_depth)
+
+    # # finding parent child relationships
+    # full_pc_sfc = np.ones(4*N-2, dtype=np.int32) * -1
+    # full_pc_level = np.ones(4*N-2, dtype=np.int32) * -1
+    # full_pc_idx = np.ones(4*N-2, dtype=np.int32) * -1
+    # child_sfc = np.ones(4*N-2, dtype=np.int32) * -1
+    # child_idx_arr = np.ones(4*N-2, dtype=np.int32) * -1
+
+    # sort_full_pc_sfc = np.zeros(4*N-2, dtype=np.int32)
+    # sort_full_pc_level = np.zeros(4*N-2, dtype=np.int32)
+    # sort_full_pc_idx = np.zeros(4*N-2, dtype=np.int32)
+    # sort_child_sfc = np.zeros(4*N-2, dtype=np.int32)
+    # sort_child_idx_arr = np.zeros(4*N-2, dtype=np.int32)
+
+    # full_pc_sfc, full_pc_level, full_pc_idx, \
+    #     sort_full_pc_sfc, sort_full_pc_level, \
+    #     sort_full_pc_idx, child_sfc, child_idx_arr, sort_child_sfc, \
+    #     sort_child_idx_arr = wrap(full_pc_sfc, full_pc_level,
+    #                               full_pc_idx, sort_full_pc_sfc,
+    #                               sort_full_pc_level, sort_full_pc_idx,
+    #                               child_sfc, child_idx_arr, sort_child_sfc,
+    #                               sort_child_idx_arr, backend=backend)
+
+    # eparent_child = Elementwise(parent_child, backend=backend)
+    # ereverse_arrs_five = Elementwise(reverse_arrs_five, backend=backend)
+
+    # # ecpy_idx_tree(sfc_nodes, level_nodes, idx_nodes,
+    # #               full_pc_sfc, full_pc_level, full_pc_idx)
+    # ecopy_value(sfc_nodes, level_nodes, idx_nodes,
+    #             full_pc_sfc, full_pc_level, full_pc_idx)
+
+    # eparent_child(sfc_nodes[count_repeated:-1],
+    #               sfc_nodes[count_repeated+1:],
+    #               level_nodes[count_repeated:-1],
+    #               level_nodes[count_repeated+1:],
+    #               full_pc_sfc[2*N-1:], full_pc_level[2*N-1:],
+    #               full_pc_idx[2*N-1:], child_sfc[2*N-1:],
+    #               child_idx_arr[2*N-1:])
+
+    # [sort_full_pc_level, sort_full_pc_sfc, sort_full_pc_idx, sort_child_sfc,
+    #  sort_child_idx_arr], _ = radix_sort([full_pc_level, full_pc_sfc,
+    #                                       full_pc_idx, child_sfc,
+    #                                       child_idx_arr], backend=backend)
+
+    # ereverse_arrs_five(full_pc_level, full_pc_sfc, full_pc_idx, child_sfc,
+    #                    child_idx_arr, sort_full_pc_level, sort_full_pc_sfc,
+    #                    sort_full_pc_idx, sort_child_sfc, sort_child_idx_arr,
+    #                    4*N-2)
+
+    # esfc_same(full_pc_sfc[2*count_repeated+1:],
+    #           full_pc_level[2*count_repeated+1:], max_depth)
+
+    # # eswap_arrs_three(sfc_nodes[N:], level_nodes[N:], idx_nodes[N:],
+    # #                  sort_sfc_nodes, sort_level_nodes, sort_idx_nodes)
+
+    # print(full_pc_sfc[2*count_repeated+1:])
+    # print(full_pc_level[2*count_repeated+1:])
