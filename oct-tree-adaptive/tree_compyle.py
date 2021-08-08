@@ -5,7 +5,8 @@ import numpy as np
 import compyle.array as ary
 from math import floor, log
 from compyle.template import Template
-import time
+
+np.set_printoptions(linewidth=np.inf)
 
 
 @annotate(i="int", index="gintp", gdoublep="x, y, z",
@@ -380,3 +381,26 @@ if __name__ == "__main__":
 
     esfc_same(full_pc_sfc[2*count_repeated+1:],
               full_pc_level[2*count_repeated+1:], max_depth)
+
+    [sort_full_pc_sfc, sort_full_pc_level, sort_full_pc_idx, sort_child_sfc,
+     sort_child_idx_arr], _ = radix_sort([full_pc_sfc, full_pc_level,
+                                          full_pc_idx, child_sfc,
+                                          child_idx_arr], backend=backend)
+
+    ecopy_value_5(sort_full_pc_sfc, sort_full_pc_level, sort_full_pc_idx,
+                  sort_child_sfc, sort_child_idx_arr, full_pc_sfc,
+                  full_pc_level, full_pc_idx, child_sfc, child_idx_arr)
+
+    esfc_real(full_pc_sfc[:-(2*count_repeated+1)],
+              full_pc_level[:-(2*count_repeated+1)], max_depth)
+
+    print(np.c_[full_pc_sfc[:-(2*count_repeated+1)],
+                full_pc_level[:-(2*count_repeated+1)],
+                child_idx_arr[:-(2*count_repeated+1)]])
+
+    # # print('#'*80)
+
+    # # print(np.c_[np.arange(2*N-1-count_repeated),
+    # #             sfc_nodes[count_repeated:],
+    # #             level_nodes[count_repeated:],
+    # #             idx_nodes[count_repeated:]])
