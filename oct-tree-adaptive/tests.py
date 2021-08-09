@@ -82,19 +82,19 @@ def test_parent_child():
 def test_sfc_same():
     sfc = np.array([52, 6], dtype=np.int32)
     level = np.array([2, 1], dtype=np.int32)
-    cpy_sfc = np.array([52, 6], dtype=np.int32)
-    sfc, level, cpy_sfc = wrap(
-        sfc, level, cpy_sfc, backend=backend)
+    r_sfc = np.array([52, 55], dtype=np.int32)
+    sfc, level, r_sfc = wrap(
+        sfc, level, r_sfc, backend=backend)
     max_level = 2
 
     e = Elementwise(sfc_same, backend=backend)
     e(sfc, level, max_level)
 
-    np.testing.assert_array_equal(cpy_sfc, sfc)
+    np.testing.assert_array_equal(r_sfc, sfc)
 
 
 def test_sfc_real():
-    sfc = np.array([52, 48], dtype=np.int32)
+    sfc = np.array([52, 55], dtype=np.int32)
     level = np.array([2, 1], dtype=np.int32)
     cpy_sfc = np.array([52, 6], dtype=np.int32)
     sfc, level, cpy_sfc = wrap(
