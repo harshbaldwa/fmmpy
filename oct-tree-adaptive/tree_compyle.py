@@ -201,6 +201,15 @@ def map_sum(i, x):
     return x[i]
 
 
+# def find_parent(i, sfc, child_idx_arr, parent_idx_arr):
+#     j = declare("int")
+
+#     if child_idx_arr == -1:
+#         for j in range(8):
+#             if sfc[i] == sfc[i+j+1] and level[i] == level[i+j+1]:
+#                 parent_idx_arr[child_idx_arr[i+j+1]] =
+
+
 if __name__ == "__main__":
 
     backend = "cython"
@@ -347,6 +356,8 @@ if __name__ == "__main__":
     sort_child_sfc = np.zeros(4*N-2, dtype=np.int32)
     sort_child_idx_arr = np.zeros(4*N-2, dtype=np.int32)
 
+    parent_idx_arr = np.zeros(2*N-1, dtype=np.int32)
+
     full_pc_sfc, full_pc_level, full_pc_idx, \
         sort_full_pc_sfc, sort_full_pc_level, \
         sort_full_pc_idx, child_sfc, child_idx_arr, sort_child_sfc, \
@@ -397,10 +408,3 @@ if __name__ == "__main__":
     print(np.c_[full_pc_sfc[:-(2*count_repeated+1)],
                 full_pc_level[:-(2*count_repeated+1)],
                 child_idx_arr[:-(2*count_repeated+1)]])
-
-    # # print('#'*80)
-
-    # # print(np.c_[np.arange(2*N-1-count_repeated),
-    # #             sfc_nodes[count_repeated:],
-    # #             level_nodes[count_repeated:],
-    # #             idx_nodes[count_repeated:]])
