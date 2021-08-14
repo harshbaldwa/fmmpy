@@ -291,6 +291,8 @@ if __name__ == "__main__":
     eremove_duplicates = Elementwise(remove_duplicates, backend=backend)
     n_duplicates = Reduction('a+b', map_func=map_sum, backend=backend)
 
+    eparent_child = Elementwise(parent_child, backend=backend)
+
     # making the adaptive oct tree from bottom up
     # calculates sfc of all particles at the $max_depth level
     eget_particle_index(sfc, particle_pos[0], particle_pos[1],
@@ -346,18 +348,6 @@ if __name__ == "__main__":
     esfc_real(sfc_nodes, level_nodes, max_depth)
 
     # finding parent child relationships
-
-    # full_pc_sfc, full_pc_level, full_pc_idx, \
-    #     sort_full_pc_sfc, sort_full_pc_level, \
-    #     sort_full_pc_idx, child_sfc, child_idx_arr, sort_child_sfc, \
-    #     sort_child_idx_arr = wrap(full_pc_sfc, full_pc_level,
-    #                               full_pc_idx, sort_full_pc_sfc,
-    #                               sort_full_pc_level, sort_full_pc_idx,
-    #                               child_sfc, child_idx_arr, sort_child_sfc,
-    #                               sort_child_idx_arr, backend=backend)
-
-    eparent_child = Elementwise(parent_child, backend=backend)
-
     ecopy_value_3(sfc_nodes, level_nodes, idx_nodes,
                   full_pc_sfc, full_pc_level, full_pc_idx)
 
