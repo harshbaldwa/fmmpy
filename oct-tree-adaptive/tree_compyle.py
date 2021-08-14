@@ -243,17 +243,19 @@ if __name__ == "__main__":
     duplicate_idx = ary.zeros(N-1, dtype=np.int32, backend=backend)
     sort_duplicate_idx = ary.zeros(N-1, dtype=np.int32, backend=backend)
 
-    # idx, sfc, sort_idx, sort_sfc, level, sfc_nodes,\
-    #     level_nodes, idx_nodes, sort_sfc_nodes, \
-    #     sort_level_nodes, sort_idx_nodes, duplicate_idx, \
-    #     sort_full_sfc, sort_full_level, sort_full_idx, \
-    #     sort_duplicate_idx = wrap(idx, sfc, sort_idx, sort_sfc, level,
-    #                               sfc_nodes, level_nodes, idx_nodes,
-    #                               sort_sfc_nodes, sort_level_nodes,
-    #                               sort_idx_nodes, duplicate_idx, sort_full_sfc,
-    #                               sort_full_level, sort_full_idx,
-    #                               sort_duplicate_idx, backend=backend)
+    full_pc_sfc = ary.ones(4*N-2, dtype=np.int32, backend=backend) * -1
+    full_pc_level = ary.ones(4*N-2, dtype=np.int32, backend=backend) * -1
+    full_pc_idx = ary.ones(4*N-2, dtype=np.int32, backend=backend) * -1
+    child_sfc = ary.ones(4*N-2, dtype=np.int32, backend=backend) * -1
+    child_idx_arr = ary.ones(4*N-2, dtype=np.int32, backend=backend) * -1
 
+    sort_full_pc_sfc = ary.zeros(4*N-2, dtype=np.int32, backend=backend)
+    sort_full_pc_level = ary.zeros(4*N-2, dtype=np.int32, backend=backend)
+    sort_full_pc_idx = ary.zeros(4*N-2, dtype=np.int32, backend=backend)
+    sort_child_sfc = ary.zeros(4*N-2, dtype=np.int32, backend=backend)
+    sort_child_idx_arr = ary.zeros(4*N-2, dtype=np.int32, backend=backend)
+
+    # different functions start from here
     eget_particle_index = Elementwise(get_particle_index, backend=backend)
 
     copy_value_2 = CopyValue('copy_value_2', [
@@ -344,28 +346,15 @@ if __name__ == "__main__":
     esfc_real(sfc_nodes, level_nodes, max_depth)
 
     # finding parent child relationships
-    full_pc_sfc = np.ones(4*N-2, dtype=np.int32) * -1
-    full_pc_level = np.ones(4*N-2, dtype=np.int32) * -1
-    full_pc_idx = np.ones(4*N-2, dtype=np.int32) * -1
-    child_sfc = np.ones(4*N-2, dtype=np.int32) * -1
-    child_idx_arr = np.ones(4*N-2, dtype=np.int32) * -1
 
-    sort_full_pc_sfc = np.zeros(4*N-2, dtype=np.int32)
-    sort_full_pc_level = np.zeros(4*N-2, dtype=np.int32)
-    sort_full_pc_idx = np.zeros(4*N-2, dtype=np.int32)
-    sort_child_sfc = np.zeros(4*N-2, dtype=np.int32)
-    sort_child_idx_arr = np.zeros(4*N-2, dtype=np.int32)
-
-    parent_idx_arr = np.zeros(2*N-1, dtype=np.int32)
-
-    full_pc_sfc, full_pc_level, full_pc_idx, \
-        sort_full_pc_sfc, sort_full_pc_level, \
-        sort_full_pc_idx, child_sfc, child_idx_arr, sort_child_sfc, \
-        sort_child_idx_arr = wrap(full_pc_sfc, full_pc_level,
-                                  full_pc_idx, sort_full_pc_sfc,
-                                  sort_full_pc_level, sort_full_pc_idx,
-                                  child_sfc, child_idx_arr, sort_child_sfc,
-                                  sort_child_idx_arr, backend=backend)
+    # full_pc_sfc, full_pc_level, full_pc_idx, \
+    #     sort_full_pc_sfc, sort_full_pc_level, \
+    #     sort_full_pc_idx, child_sfc, child_idx_arr, sort_child_sfc, \
+    #     sort_child_idx_arr = wrap(full_pc_sfc, full_pc_level,
+    #                               full_pc_idx, sort_full_pc_sfc,
+    #                               sort_full_pc_level, sort_full_pc_idx,
+    #                               child_sfc, child_idx_arr, sort_child_sfc,
+    #                               sort_child_idx_arr, backend=backend)
 
     eparent_child = Elementwise(parent_child, backend=backend)
 
