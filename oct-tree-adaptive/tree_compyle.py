@@ -222,37 +222,37 @@ if __name__ == "__main__":
     idx = np.arange(N, dtype=np.int32)
     max_index = 2 ** max_depth
 
-    sfc = np.zeros(N, dtype=np.int32)
-    level = np.ones(N, dtype=np.int32) * max_depth
+    sfc = ary.zeros(N, dtype=np.int32, backend=backend)
+    level = ary.ones(N, dtype=np.int32, backend=backend) * max_depth
 
-    sort_sfc = np.zeros(N, dtype=np.int32)
-    sort_idx = np.zeros(N, dtype=np.int32)
+    sort_sfc = ary.zeros(N, dtype=np.int32, backend=backend)
+    sort_idx = ary.zeros(N, dtype=np.int32, backend=backend)
 
-    sfc_nodes = np.zeros(2*N-1, dtype=np.int32)
-    level_nodes = np.zeros(2*N-1, dtype=np.int32)
-    idx_nodes = np.ones(2*N-1, dtype=np.int32) * -1
+    sfc_nodes = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
+    level_nodes = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
+    idx_nodes = ary.ones(2*N-1, dtype=np.int32, backend=backend) * -1
 
-    sort_sfc_nodes = np.zeros(N-1, dtype=np.int32)
-    sort_level_nodes = np.zeros(N-1, dtype=np.int32)
-    sort_idx_nodes = np.ones(N-1, dtype=np.int32) * -1
+    sort_sfc_nodes = ary.zeros(N-1, dtype=np.int32, backend=backend)
+    sort_level_nodes = ary.zeros(N-1, dtype=np.int32, backend=backend)
+    sort_idx_nodes = ary.ones(N-1, dtype=np.int32, backend=backend) * -1
 
-    sort_full_sfc = np.zeros(2*N-1, dtype=np.int32)
-    sort_full_level = np.zeros(2*N-1, dtype=np.int32)
-    sort_full_idx = np.ones(2*N-1, dtype=np.int32) * -1
+    sort_full_sfc = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
+    sort_full_level = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
+    sort_full_idx = ary.ones(2*N-1, dtype=np.int32, backend=backend) * -1
 
-    duplicate_idx = np.zeros(N-1, dtype=np.int32)
-    sort_duplicate_idx = np.zeros(N-1, dtype=np.int32)
+    duplicate_idx = ary.zeros(N-1, dtype=np.int32, backend=backend)
+    sort_duplicate_idx = ary.zeros(N-1, dtype=np.int32, backend=backend)
 
-    idx, sfc, sort_idx, sort_sfc, level, sfc_nodes,\
-        level_nodes, idx_nodes, sort_sfc_nodes, \
-        sort_level_nodes, sort_idx_nodes, duplicate_idx, \
-        sort_full_sfc, sort_full_level, sort_full_idx, \
-        sort_duplicate_idx = wrap(idx, sfc, sort_idx, sort_sfc, level,
-                                  sfc_nodes, level_nodes, idx_nodes,
-                                  sort_sfc_nodes, sort_level_nodes,
-                                  sort_idx_nodes, duplicate_idx, sort_full_sfc,
-                                  sort_full_level, sort_full_idx,
-                                  sort_duplicate_idx, backend=backend)
+    # idx, sfc, sort_idx, sort_sfc, level, sfc_nodes,\
+    #     level_nodes, idx_nodes, sort_sfc_nodes, \
+    #     sort_level_nodes, sort_idx_nodes, duplicate_idx, \
+    #     sort_full_sfc, sort_full_level, sort_full_idx, \
+    #     sort_duplicate_idx = wrap(idx, sfc, sort_idx, sort_sfc, level,
+    #                               sfc_nodes, level_nodes, idx_nodes,
+    #                               sort_sfc_nodes, sort_level_nodes,
+    #                               sort_idx_nodes, duplicate_idx, sort_full_sfc,
+    #                               sort_full_level, sort_full_idx,
+    #                               sort_duplicate_idx, backend=backend)
 
     eget_particle_index = Elementwise(get_particle_index, backend=backend)
 
