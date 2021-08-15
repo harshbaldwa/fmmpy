@@ -1,4 +1,5 @@
 from tree_compyle import *
+from compyle.api import wrap
 
 backend = 'cython'
 
