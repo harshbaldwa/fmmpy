@@ -1,5 +1,11 @@
 {
   "python.formatting.provider": "autopep8",
   "python.linting.pycodestyleEnabled": true,
-  "python.linting.enabled": true
+  "python.linting.enabled": true,
+  "python.testing.pytestArgs": [
+    "octree_adaptive"
+  ],
+  "python.testing.unittestEnabled": false,
+  "python.testing.nosetestsEnabled": false,
+  "python.testing.pytestEnabled": true
 }
