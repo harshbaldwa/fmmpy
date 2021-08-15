@@ -18,15 +18,15 @@ def test_copy_arr():
 
 
 def test_reverse_arr():
-    arr_org = np.arange(10, dtype=np.int32)
-    arr_result = arr_org[::-1]
+    arr_org = np.array([1, 2, 4], dtype=np.int32)
+    arr_result = np.array([4, 2, 1], dtype=np.int32)
     arr_org, arr_result = wrap(arr_org, arr_result, backend=backend)
-    arr_empty = ary.empty(10, dtype=np.int32, backend=backend)
+    arr_empty = ary.empty(3, dtype=np.int32, backend=backend)
 
     reverse = ReverseArray('reverse', ['a', 'b']).function
     e = Elementwise(reverse, backend=backend)
 
-    e(arr_empty, arr_org, 10)
+    e(arr_empty, arr_org, 3)
     np.testing.assert_array_equal(arr_result, arr_empty)
 
 
