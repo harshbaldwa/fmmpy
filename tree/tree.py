@@ -6,7 +6,7 @@ import compyle.array as ary
 from math import floor, log
 from compyle.template import Template
 
-import pytest
+# import pytest
 
 np.set_printoptions(linewidth=np.inf)
 
@@ -118,12 +118,12 @@ def internal_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx):
 
 
 @annotate(i="int",
-          gintp="sfc1, sfc2, level1, level2, lca_sfc, "
-                "lca_level, lca_idx, child_sfc, child_idx"
+          gintp="sfc1, sfc2, level1, level2, lca_sfc, all_idx, "
+                "lca_level, lca_idx, child_idx"
           )
 # compute lowest common ancestor (LCA) of two nodes
-def parent_child(i, sfc1, sfc2, level1, level2, lca_sfc,
-                 lca_level, lca_idx, child_sfc, child_idx):
+def parent_child(i, sfc1, sfc2, level1, level2, all_idx, lca_sfc,
+                 lca_level, lca_idx, child_idx):
     level_diff, xor, i1, i2, level, j = declare("int", 6)
     level_diff = cast(abs(level1[i] - level2[i]), "int")
 
@@ -146,8 +146,7 @@ def parent_child(i, sfc1, sfc2, level1, level2, lca_sfc,
         lca_sfc[i] = i1 >> 3 * level_diff
         lca_level[i] = level - level_diff
         lca_idx[i] = -1
-        child_sfc[i] = sfc1[i]
-        child_idx[i] = i
+        child_idx[i] = all_idx[i]
         return
 
     for j in range(level + 1, 0, -1):
@@ -155,15 +154,13 @@ def parent_child(i, sfc1, sfc2, level1, level2, lca_sfc,
             lca_sfc[i] = i1 >> 3 * j
             lca_level[i] = level - j
             lca_idx[i] = -1
-            child_sfc[i] = sfc1[i]
-            child_idx[i] = i
+            child_idx[i] = all_idx[i]
             return
 
     lca_sfc[i] = 0
     lca_level[i] = 0
     lca_idx[i] = -1
-    child_sfc[i] = sfc1[i]
-    child_idx[i] = i
+    child_idx[i] = all_idx[i]
     return
 
 
@@ -203,6 +200,23 @@ def map_sum(i, x):
     return x[i]
 
 
+@annotate(i="int", gintp="full_pc_sfc, full_pc_level, full_pc_idx, child_idx, rel_idx, parent_idx, children_idx")
+def define_parents(i, full_pc_sfc, full_pc_level, full_pc_idx, child_idx, rel_idx, parent_idx, children_idx):
+    j, k = declare("int", 2)
+
+    if full_pc_sfc[i] == -1 or child_idx[i] != -1:
+        return
+
+    j = i - 1
+    k = 0
+
+    while full_pc_sfc[i] == full_pc_sfc[j] and full_pc_level[i] == full_pc_level[j]:
+        parent_idx[child_idx[j]] = rel_idx[i]
+        children_idx[8*rel_idx[i] + k] = child_idx[j]
+        j -= 1
+        k += 1
+
+
 if __name__ == "__main__":
 
     backend = "cython"
@@ -212,41 +226,57 @@ if __name__ == "__main__":
 
     np.random.seed(4)
     particle_pos = np.random.random((3, N))
-    idx = np.arange(N, dtype=np.int32)
     max_index = 2 ** max_depth
 
+    particle_pos = wrap(particle_pos, backend=backend)
+
     sfc = ary.zeros(N, dtype=np.int32, backend=backend)
-    level = ary.ones(N, dtype=np.int32, backend=backend) * max_depth
+    idx = ary.arange(0, N, 1, dtype=np.int32, backend=backend)
+    leaf_node_idx = ary.arange(0, 2*N-1, 1, dtype=np.int32, backend=backend)
+    level = ary.empty(N, dtype=np.int32, backend=backend)
+    level.fill(max_depth)
 
     sort_sfc = ary.zeros(N, dtype=np.int32, backend=backend)
     sort_idx = ary.zeros(N, dtype=np.int32, backend=backend)
 
     sfc_nodes = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
     level_nodes = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
-    idx_nodes = ary.ones(2*N-1, dtype=np.int32, backend=backend) * -1
+    idx_nodes = ary.empty(2*N-1, dtype=np.int32, backend=backend)
+    idx_nodes.fill(-1)
 
     sort_sfc_nodes = ary.zeros(N-1, dtype=np.int32, backend=backend)
     sort_level_nodes = ary.zeros(N-1, dtype=np.int32, backend=backend)
-    sort_idx_nodes = ary.ones(N-1, dtype=np.int32, backend=backend) * -1
+    sort_idx_nodes = ary.empty(N-1, dtype=np.int32, backend=backend)
+    sort_idx_nodes.fill(-1)
 
     sort_full_sfc = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
     sort_full_level = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
-    sort_full_idx = ary.ones(2*N-1, dtype=np.int32, backend=backend) * -1
+    sort_full_idx = ary.empty(2*N-1, dtype=np.int32, backend=backend)
+    sort_full_idx.fill(-1)
 
     duplicate_idx = ary.zeros(N-1, dtype=np.int32, backend=backend)
     sort_duplicate_idx = ary.zeros(N-1, dtype=np.int32, backend=backend)
 
-    full_pc_sfc = ary.ones(4*N-2, dtype=np.int32, backend=backend) * -1
-    full_pc_level = ary.ones(4*N-2, dtype=np.int32, backend=backend) * -1
-    full_pc_idx = ary.ones(4*N-2, dtype=np.int32, backend=backend) * -1
-    child_sfc = ary.ones(4*N-2, dtype=np.int32, backend=backend) * -1
-    child_idx_arr = ary.ones(4*N-2, dtype=np.int32, backend=backend) * -1
+    full_pc_sfc = ary.empty(4*N-2, dtype=np.int32, backend=backend)
+    full_pc_level = ary.empty(4*N-2, dtype=np.int32, backend=backend)
+    full_pc_idx = ary.empty(4*N-2, dtype=np.int32, backend=backend)
+    child_idx = ary.empty(4*N-2, dtype=np.int32, backend=backend)
+    parent_idx = ary.empty(2*N-1, dtype=np.int32, backend=backend)
+    children_idx = ary.empty(8*(2*N-1), dtype=np.int32, backend=backend)
+    rel_idx = ary.empty(4*N-2, dtype=np.int32, backend=backend)
+    full_pc_sfc.fill(-1)
+    full_pc_level.fill(-1)
+    full_pc_idx.fill(-1)
+    child_idx.fill(-1)
+    parent_idx.fill(-1)
+    children_idx.fill(-1)
+    rel_idx.fill(-1)
 
     sort_full_pc_sfc = ary.zeros(4*N-2, dtype=np.int32, backend=backend)
     sort_full_pc_level = ary.zeros(4*N-2, dtype=np.int32, backend=backend)
     sort_full_pc_idx = ary.zeros(4*N-2, dtype=np.int32, backend=backend)
-    sort_child_sfc = ary.zeros(4*N-2, dtype=np.int32, backend=backend)
-    sort_child_idx_arr = ary.zeros(4*N-2, dtype=np.int32, backend=backend)
+    sort_rel_idx = ary.zeros(4*N-2, dtype=np.int32, backend=backend)
+    sort_child_idx = ary.zeros(4*N-2, dtype=np.int32, backend=backend)
 
     # different functions start from here
     eget_particle_index = Elementwise(get_particle_index, backend=backend)
@@ -257,12 +287,16 @@ if __name__ == "__main__":
     copy_value_3 = CopyValue('copy_value_3', [
                              'a1', 'a2', 'a3',
                              'b1', 'b2', 'b3']).function
+    copy_value_4 = CopyValue('copy_value_4', [
+                             'a1', 'a2', 'a3', 'a4',
+                             'b1', 'b2', 'b3', 'b4']).function
     copy_value_5 = CopyValue('copy_value_5', [
                              'a1', 'a2', 'a3', 'a4', 'a5',
                              'b1', 'b2', 'b3', 'b4', 'b5']).function
 
     ecopy_value_2 = Elementwise(copy_value_2, backend=backend)
     ecopy_value_3 = Elementwise(copy_value_3, backend=backend)
+    ecopy_value_4 = Elementwise(copy_value_4, backend=backend)
     ecopy_value_5 = Elementwise(copy_value_5, backend=backend)
 
     einternal_nodes = Elementwise(internal_nodes, backend=backend)
@@ -270,11 +304,15 @@ if __name__ == "__main__":
     reverse_arr_3 = ReverseArray('reverse_arr_3', [
                                  'a1', 'a2', 'a3',
                                  'b1', 'b2', 'b3']).function
+    reverse_arr_4 = ReverseArray('reverse_arr_4', [
+                                 'a1', 'a2', 'a3', 'a4',
+                                 'b1', 'b2', 'b3', 'b4']).function
     reverse_arr_5 = ReverseArray('reverse_arr_5', [
                                  'a1', 'a2', 'a3', 'a4', 'a5',
                                  'b1', 'b2', 'b3', 'b4', 'b5']).function
 
     ereverse_arrs_3 = Elementwise(reverse_arr_3, backend=backend)
+    ereverse_arrs_4 = Elementwise(reverse_arr_4, backend=backend)
     ereverse_arrs_5 = Elementwise(reverse_arr_5, backend=backend)
 
     esfc_same = Elementwise(sfc_same, backend=backend)
@@ -285,6 +323,7 @@ if __name__ == "__main__":
     n_duplicates = Reduction('a+b', map_func=map_sum, backend=backend)
 
     eparent_child = Elementwise(parent_child, backend=backend)
+    edefine_parents = Elementwise(define_parents, backend=backend)
 
     # making the adaptive oct tree from bottom up
     # calculates sfc of all particles at the $max_depth level
@@ -341,38 +380,46 @@ if __name__ == "__main__":
     esfc_real(sfc_nodes, level_nodes, max_depth)
 
     # finding parent child relationships
-    ecopy_value_3(sfc_nodes, level_nodes, idx_nodes,
-                  full_pc_sfc, full_pc_level, full_pc_idx)
+    ecopy_value_4(sfc_nodes, level_nodes, idx_nodes, leaf_node_idx,
+                  full_pc_sfc, full_pc_level, full_pc_idx, rel_idx)
 
     eparent_child(sfc_nodes[count_repeated:-1],
                   sfc_nodes[count_repeated+1:],
                   level_nodes[count_repeated:-1],
                   level_nodes[count_repeated+1:],
+                  leaf_node_idx[count_repeated:-1],
                   full_pc_sfc[2*N-1:], full_pc_level[2*N-1:],
-                  full_pc_idx[2*N-1:], child_sfc[2*N-1:],
-                  child_idx_arr[2*N-1:])
+                  full_pc_idx[2*N-1:], child_idx[2*N-1:])
 
-    [sort_full_pc_level, sort_full_pc_sfc, sort_full_pc_idx, sort_child_sfc,
-     sort_child_idx_arr], _ = radix_sort([full_pc_level, full_pc_sfc,
-                                          full_pc_idx, child_sfc,
-                                          child_idx_arr], backend=backend)
+    [sort_full_pc_level, sort_full_pc_sfc, sort_full_pc_idx, sort_rel_idx,
+     sort_child_idx], _ = radix_sort([full_pc_level, full_pc_sfc,
+                                      full_pc_idx, rel_idx, child_idx],
+                                     backend=backend)
 
-    ereverse_arrs_5(full_pc_level, full_pc_sfc, full_pc_idx, child_sfc,
-                    child_idx_arr, sort_full_pc_level, sort_full_pc_sfc,
-                    sort_full_pc_idx, sort_child_sfc, sort_child_idx_arr,
-                    4*N-2)
+    ereverse_arrs_5(full_pc_level, full_pc_sfc, full_pc_idx, rel_idx,
+                    child_idx, sort_full_pc_level, sort_full_pc_sfc,
+                    sort_full_pc_idx, sort_rel_idx, sort_child_idx, 4*N-2)
 
     esfc_same(full_pc_sfc[2*count_repeated+1:],
               full_pc_level[2*count_repeated+1:], max_depth)
 
-    [sort_full_pc_sfc, sort_full_pc_level, sort_full_pc_idx, sort_child_sfc,
-     sort_child_idx_arr], _ = radix_sort([full_pc_sfc, full_pc_level,
-                                          full_pc_idx, child_sfc,
-                                          child_idx_arr], backend=backend)
+    [sort_full_pc_sfc, sort_full_pc_level, sort_full_pc_idx, sort_rel_idx,
+     sort_child_idx], _ = radix_sort([full_pc_sfc, full_pc_level,
+                                      full_pc_idx, rel_idx, child_idx],
+                                     backend=backend)
 
     ecopy_value_5(sort_full_pc_sfc, sort_full_pc_level, sort_full_pc_idx,
-                  sort_child_sfc, sort_child_idx_arr, full_pc_sfc,
-                  full_pc_level, full_pc_idx, child_sfc, child_idx_arr)
+                  sort_rel_idx, sort_child_idx, full_pc_sfc, full_pc_level, full_pc_idx,
+                  rel_idx, child_idx)
 
     esfc_real(full_pc_sfc[:-(2*count_repeated+1)],
               full_pc_level[:-(2*count_repeated+1)], max_depth)
+
+    edefine_parents(full_pc_sfc, full_pc_level, full_pc_idx,
+                    child_idx, rel_idx, parent_idx, children_idx)
+
+
+    print("sfc", sfc_nodes[count_repeated:])
+    print("pid", parent_idx[count_repeated:])
+    for i in range(8):
+        print("cid", children_idx[count_repeated*8+i::8])

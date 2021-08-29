@@ -56,30 +56,28 @@ def test_internal_nodes():
 def test_parent_child():
     sfc = np.array([52, 53], dtype=np.int32)
     level = np.array([2, 2], dtype=np.int32)
+    all_idx = np.arange(2, dtype=np.int32)
     r_lca_sfc = np.array([6], dtype=np.int32)
     r_lca_level = np.array([1], dtype=np.int32)
     r_lca_idx = np.array([-1], dtype=np.int32)
-    r_child_sfc = np.array([52], dtype=np.int32)
     r_child_idx = np.array([0], dtype=np.int32)
-    (sfc, level, r_lca_sfc, r_lca_level, r_lca_idx, r_child_sfc,
+    (sfc, level, r_lca_sfc, r_lca_level, r_lca_idx, all_idx,
      r_child_idx) = wrap(sfc, level, r_lca_sfc, r_lca_level,
-                         r_lca_idx, r_child_sfc, r_child_idx,
+                         r_lca_idx, all_idx, r_child_idx,
                          backend=backend)
 
     lca_sfc = ary.empty(1, dtype=np.int32, backend=backend)
     lca_level = ary.empty(1, dtype=np.int32, backend=backend)
     lca_idx = ary.empty(1, dtype=np.int32, backend=backend)
-    child_sfc = ary.empty(1, dtype=np.int32, backend=backend)
     child_idx = ary.empty(1, dtype=np.int32, backend=backend)
 
     e = Elementwise(parent_child, backend=backend)
-    e(sfc[:-1], sfc[1:], level[:-1], level[1:],
-      lca_sfc, lca_level, lca_idx, child_sfc, child_idx)
+    e(sfc[:-1], sfc[1:], level[:-1], level[1:], all_idx,
+      lca_sfc, lca_level, lca_idx, child_idx)
 
     np.testing.assert_array_equal(r_lca_sfc, lca_sfc)
     np.testing.assert_array_equal(r_lca_level, lca_level)
     np.testing.assert_array_equal(r_lca_idx, lca_idx)
-    np.testing.assert_array_equal(r_child_sfc, child_sfc)
     np.testing.assert_array_equal(r_child_idx, child_idx)
 
 
