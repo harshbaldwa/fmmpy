@@ -200,8 +200,12 @@ def map_sum(i, x):
     return x[i]
 
 
-@annotate(i="int", gintp="full_pc_sfc, full_pc_level, full_pc_idx, child_idx, rel_idx, parent_idx, children_idx")
-def define_parents(i, full_pc_sfc, full_pc_level, full_pc_idx, child_idx, rel_idx, parent_idx, children_idx):
+@annotate(i="int",
+          gintp="full_pc_sfc, full_pc_level, full_pc_idx, child_idx, "
+                "rel_idx, parent_idx, children_idx"
+          )
+def define_parents(i, full_pc_sfc, full_pc_level, full_pc_idx, child_idx,
+                   rel_idx, parent_idx, children_idx):
     j, k = declare("int", 2)
 
     if full_pc_sfc[i] == -1 or child_idx[i] != -1:
@@ -210,7 +214,8 @@ def define_parents(i, full_pc_sfc, full_pc_level, full_pc_idx, child_idx, rel_id
     j = i - 1
     k = 0
 
-    while full_pc_sfc[i] == full_pc_sfc[j] and full_pc_level[i] == full_pc_level[j]:
+    while (full_pc_sfc[i] == full_pc_sfc[j] and
+           full_pc_level[i] == full_pc_level[j]):
         parent_idx[child_idx[j]] = rel_idx[i]
         children_idx[8*rel_idx[i] + k] = child_idx[j]
         j -= 1
@@ -409,15 +414,14 @@ if __name__ == "__main__":
                                      backend=backend)
 
     ecopy_value_5(sort_full_pc_sfc, sort_full_pc_level, sort_full_pc_idx,
-                  sort_rel_idx, sort_child_idx, full_pc_sfc, full_pc_level, full_pc_idx,
-                  rel_idx, child_idx)
+                  sort_rel_idx, sort_child_idx, full_pc_sfc, full_pc_level,
+                  full_pc_idx, rel_idx, child_idx)
 
     esfc_real(full_pc_sfc[:-(2*count_repeated+1)],
               full_pc_level[:-(2*count_repeated+1)], max_depth)
 
     edefine_parents(full_pc_sfc, full_pc_level, full_pc_idx,
                     child_idx, rel_idx, parent_idx, children_idx)
-
 
     print("sfc", sfc_nodes[count_repeated:])
     print("pid", parent_idx[count_repeated:])
