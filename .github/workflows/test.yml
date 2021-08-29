@@ -23,7 +23,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install flake8 pytest scipy coverage codecov
+        pip install flake8 pytest scipy pytest-cov
         pip install https://github.com/pypr/compyle/zipball/master
     - name: PEP8 Action
       # You may pin to the exact commit or the version.
@@ -31,10 +31,4 @@ jobs:
       uses: quentinguidee/pep8-action@v1
     - name: Test with pytest
       run: |
-        coverage erase
-        coverage run -m pytest -v
-    - name: Report
-      if: ${{ success() }}
-      run: coverage report
-    - name: Upload Coverage to Codecov
-      uses: codecov/codecov-action@v1
+        pytest --cov-report term --cov=${{ github.event.repository.name }} tests/
