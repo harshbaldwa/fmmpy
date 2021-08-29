@@ -14,6 +14,7 @@ def test_copy_arr():
     copy_value = CopyValue('copy_value', ['a', 'b']).function
     e = Elementwise(copy_value, backend=backend)
     e(arr, arr2)
+
     np.testing.assert_array_equal(arr, arr2)
 
 
