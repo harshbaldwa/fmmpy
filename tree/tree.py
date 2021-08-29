@@ -6,8 +6,6 @@ import compyle.array as ary
 from math import floor, log
 from compyle.template import Template
 
-# import pytest
-
 np.set_printoptions(linewidth=np.inf)
 
 
