@@ -23,7 +23,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install flake8 pytest scipy coverage
+        pip install flake8 pytest scipy
         pip install https://github.com/pypr/compyle/zipball/master
     - name: PEP8 Action
       # You may pin to the exact commit or the version.
@@ -31,5 +31,4 @@ jobs:
       uses: quentinguidee/pep8-action@v1
     - name: Test with pytest
       run: |
-        coverage run -m pytest
-        coverage report -m
+        pytest

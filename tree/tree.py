@@ -70,7 +70,7 @@ class ReverseArray(Template):
     def template(self, i):
         '''
         % for t in range(obj.number//2):
-        ${obj.arrays[t]}[length - i - 1] = ${obj.arrays[obj.number//2 + t]}[i]
+        ${obj.arrays[t]}[length-i-1] = ${obj.arrays[obj.number//2+t]}[i]
         % endfor
         '''
 
@@ -118,8 +118,8 @@ def internal_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx):
 
 
 @annotate(i="int",
-          gintp="sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx, "
-                "child_sfc, child_idx"
+          gintp="sfc1, sfc2, level1, level2, lca_sfc, "
+                "lca_level, lca_idx, child_sfc, child_idx"
           )
 # compute lowest common ancestor (LCA) of two nodes
 def parent_child(i, sfc1, sfc2, level1, level2, lca_sfc,
