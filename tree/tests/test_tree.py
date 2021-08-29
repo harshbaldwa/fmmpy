@@ -1,6 +1,6 @@
 import pytest
 
-from ..tree_compyle import *
+from ..tree import *
 from compyle.api import wrap
 
 
