@@ -203,15 +203,6 @@ def map_sum(i, x):
     return x[i]
 
 
-# def find_parent(i, sfc, child_idx_arr, parent_idx_arr):
-#     j = declare("int")
-
-#     if child_idx_arr == -1:
-#         for j in range(8):
-#             if sfc[i] == sfc[i+j+1] and level[i] == level[i+j+1]:
-#                 parent_idx_arr[child_idx_arr[i+j+1]] =
-
-
 if __name__ == "__main__":
 
     backend = "cython"
@@ -385,7 +376,3 @@ if __name__ == "__main__":
 
     esfc_real(full_pc_sfc[:-(2*count_repeated+1)],
               full_pc_level[:-(2*count_repeated+1)], max_depth)
-
-    print(np.c_[full_pc_sfc[:-(2*count_repeated+1)],
-                full_pc_level[:-(2*count_repeated+1)],
-                child_idx_arr[:-(2*count_repeated+1)]])
