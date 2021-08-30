@@ -11,8 +11,8 @@ def test_copy_arr():
     arr = ary.ones(10, dtype=np.int32, backend=backend)
     arr2 = ary.empty(10, dtype=np.int32, backend=backend)
 
-    copy_value = CopyValue('copy_value', ['a', 'b']).function
-    e = Elementwise(copy_value, backend=backend)
+    copy_arrays = CopyArrays('copy_arrays', ['a', 'b']).function
+    e = Elementwise(copy_arrays, backend=backend)
     e(arr, arr2)
     np.testing.assert_array_equal(arr, arr2)
 
@@ -23,7 +23,7 @@ def test_reverse_arr():
     arr_org, arr_result = wrap(arr_org, arr_result, backend=backend)
     arr_empty = ary.empty(3, dtype=np.int32, backend=backend)
 
-    reverse = ReverseArray('reverse', ['a', 'b']).function
+    reverse = ReverseArrays('reverse', ['a', 'b']).function
     e = Elementwise(reverse, backend=backend)
 
     e(arr_empty, arr_org, 3)
@@ -53,7 +53,7 @@ def test_internal_nodes():
      np.testing.assert_array_equal(r_lca_idx, lca_idx))
 
 
-def test_parent_child():
+def test_find_parents():
     sfc = np.array([52, 53], dtype=np.int32)
     level = np.array([2, 2], dtype=np.int32)
     all_idx = np.arange(2, dtype=np.int32)
@@ -71,13 +71,37 @@ def test_parent_child():
     lca_idx = ary.empty(1, dtype=np.int32, backend=backend)
     child_idx = ary.empty(1, dtype=np.int32, backend=backend)
 
-    e = Elementwise(parent_child, backend=backend)
+    e = Elementwise(find_parents, backend=backend)
     e(sfc[:-1], sfc[1:], level[:-1], level[1:], all_idx,
       lca_sfc, lca_level, lca_idx, child_idx)
 
     np.testing.assert_array_equal(r_lca_sfc, lca_sfc)
     np.testing.assert_array_equal(r_lca_level, lca_level)
     np.testing.assert_array_equal(r_lca_idx, lca_idx)
+    np.testing.assert_array_equal(r_child_idx, child_idx)
+
+
+def test_get_relations():
+    pc_sfc = np.array([2, 0, 0], dtype=np.int32)
+    pc_level = np.array([1, 0, 0], dtype=np.int32)
+    temp_idx = np.array([-1, 0, -1], dtype=np.int32)
+    rel_idx = np.array([0, -1, 1], dtype=np.int32)
+    r_parent_idx = np.array([1, -1], dtype=np.int32)
+    r_child_idx = np.ones(16, dtype=np.int32) * -1
+    r_child_idx[8] = 0
+
+    (pc_sfc, pc_level, temp_idx, rel_idx, r_parent_idx,
+     r_child_idx) = wrap(pc_sfc, pc_level, temp_idx, rel_idx,
+                         r_parent_idx, r_child_idx, backend=backend)
+
+    parent_idx = ary.empty(2, dtype=np.int32, backend=backend)
+    child_idx = ary.empty(16, dtype=np.int32, backend=backend)
+    child_idx.fill(-1)
+
+    e = Elementwise(get_relations, backend=backend)
+    e(pc_sfc, pc_level, temp_idx, rel_idx, parent_idx, child_idx)
+
+    np.testing.assert_array_equal(r_parent_idx, parent_idx)
     np.testing.assert_array_equal(r_child_idx, child_idx)
 
 
