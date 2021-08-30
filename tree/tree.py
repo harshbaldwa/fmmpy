@@ -5,6 +5,7 @@ import numpy as np
 import compyle.array as ary
 from math import floor, log
 from compyle.template import Template
+import argparse
 
 np.set_printoptions(linewidth=np.inf)
 
@@ -223,16 +224,23 @@ def get_relations(i, pc_sfc, pc_level, temp_idx, rel_idx,
 
 if __name__ == "__main__":
 
-    backend = "cython"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-b", "--backend", help="backend to use",
+                        default='cython')
+    args = parser.parse_args()
+
+    backend = args.backend
     N = 10
     max_depth = 2
     length = 1
 
     np.random.seed(4)
-    particle_pos = np.random.random((3, N))
+    part_x = np.random.random(N)
+    part_y = np.random.random(N)
+    part_z = np.random.random(N)
     max_index = 2 ** max_depth
 
-    particle_pos = wrap(particle_pos, backend=backend)
+    part_x, part_y, part_z = wrap(part_x, part_y, part_z, backend=backend)
 
     leaf_sfc = ary.zeros(N, dtype=np.int32, backend=backend)
     leaf_idx = ary.arange(0, N, 1, dtype=np.int32, backend=backend)
@@ -259,7 +267,7 @@ if __name__ == "__main__":
     all_idx_sorted.fill(-1)
 
     dp_idx = ary.zeros(N-1, dtype=np.int32, backend=backend)
-    dp_index_sorted = ary.zeros(N-1, dtype=np.int32, backend=backend)
+    dp_idx_sorted = ary.zeros(N-1, dtype=np.int32, backend=backend)
 
     pc_sfc = ary.empty(4*N-2, dtype=np.int32, backend=backend)
     pc_level = ary.empty(4*N-2, dtype=np.int32, backend=backend)
@@ -331,8 +339,8 @@ if __name__ == "__main__":
 
     # making the adaptive oct tree from bottom up
     # calculates sfc of all particles at the $max_depth level
-    eget_particle_index(leaf_sfc, particle_pos[0], particle_pos[1],
-                        particle_pos[2], max_index, length)
+    eget_particle_index(leaf_sfc, part_x, part_y,
+                        part_z, max_index, length)
 
     # sorts based on sfc array
     [leaf_sfc_sorted, leaf_idx_sorted], _ = radix_sort(
@@ -367,7 +375,7 @@ if __name__ == "__main__":
     eid_duplicates(nodes_sfc[N:-1], nodes_level[N:-1], dp_idx)
     eremove_duplicates(dp_idx, nodes_sfc[N:], nodes_level[N:])
 
-    [dp_index_sorted, nodes_sfc_sorted, nodes_level_sorted,
+    [dp_idx_sorted, nodes_sfc_sorted, nodes_level_sorted,
      nodes_idx_sorted], _ = radix_sort(
         [dp_idx, nodes_sfc[N:], nodes_level[N:], nodes_idx[N:]],
         backend=backend)
@@ -376,7 +384,7 @@ if __name__ == "__main__":
                  nodes_sfc[N:], nodes_level[N:], nodes_idx[N:])
 
     # number of repeated internal nodes
-    count_repeated = int(n_duplicates(dp_index_sorted))
+    count_repeated = int(n_duplicates(dp_idx_sorted))
 
     # full sorted arrays (sfc, level, idx)
     [all_sfc_sorted, all_level_sorted, all_idx_sorted], _ = radix_sort(
@@ -426,8 +434,8 @@ if __name__ == "__main__":
     eget_relations(pc_sfc, pc_level, temp_idx, rel_idx,
                    parent_idx, child_idx)
 
-    print("rid", leaf_nodes_idx[count_repeated:])
-    print("sfc", nodes_sfc[count_repeated:])
-    for i in range(8):
-        print("cid", child_idx[count_repeated*8+i::8])
-    print("pid", parent_idx[count_repeated:])
+    # print("rid", leaf_nodes_idx[count_repeated:])
+    # print("sfc", nodes_sfc[count_repeated:])
+    # for i in range(8):
+    #     print("cid", child_idx[count_repeated*8+i::8])
+    # print("pid", parent_idx[count_repeated:])
