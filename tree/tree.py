@@ -1,4 +1,5 @@
-from compyle.api import declare, Elementwise, annotate, Scan, wrap, Reduction, get_config
+from compyle.api import declare, Elementwise, \
+    annotate, wrap, Reduction, get_config
 from compyle.low_level import cast
 from compyle.sort import radix_sort
 import numpy as np
