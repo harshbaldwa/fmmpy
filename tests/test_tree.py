@@ -1,13 +1,20 @@
 import pytest
 
 from tree.tree import *
-from compyle.api import wrap
 
 
-backend = 'cython'
+check_all_backends = pytest.mark.parametrize('backend',
+                                             ['cython', 'opencl'])
 
 
-def test_copy_arr():
+def check_import(backend):
+    if backend == 'opencl':
+        pytest.importorskip('pyopencl')
+
+
+@check_all_backends
+def test_copy_arr(backend):
+    check_import(backend)
     arr = ary.ones(10, dtype=np.int32, backend=backend)
     arr2 = ary.empty(10, dtype=np.int32, backend=backend)
 
@@ -17,7 +24,9 @@ def test_copy_arr():
     np.testing.assert_array_equal(arr, arr2)
 
 
-def test_reverse_arr():
+@check_all_backends
+def test_reverse_arr(backend):
+    check_import(backend)
     arr_org = np.array([1, 2, 4], dtype=np.int32)
     arr_result = np.array([4, 2, 1], dtype=np.int32)
     arr_org, arr_result = wrap(arr_org, arr_result, backend=backend)
@@ -30,7 +39,9 @@ def test_reverse_arr():
     np.testing.assert_array_equal(arr_result, arr_empty)
 
 
-def test_internal_nodes():
+@check_all_backends
+def test_internal_nodes(backend):
+    check_import(backend)
     sfc = np.array([52, 53], dtype=np.int32)
     level = np.array([2, 2], dtype=np.int32)
     r_lca_sfc = np.array([6], dtype=np.int32)
@@ -53,7 +64,9 @@ def test_internal_nodes():
      np.testing.assert_array_equal(r_lca_idx, lca_idx))
 
 
-def test_find_parents():
+@check_all_backends
+def test_find_parents(backend):
+    check_import(backend)
     sfc = np.array([52, 53], dtype=np.int32)
     level = np.array([2, 2], dtype=np.int32)
     all_idx = np.arange(2, dtype=np.int32)
@@ -81,7 +94,9 @@ def test_find_parents():
     np.testing.assert_array_equal(r_child_idx, child_idx)
 
 
-def test_get_relations():
+@check_all_backends
+def test_get_relations(backend):
+    check_import(backend)
     pc_sfc = np.array([2, 0, 0], dtype=np.int32)
     pc_level = np.array([1, 0, 0], dtype=np.int32)
     temp_idx = np.array([-1, 0, -1], dtype=np.int32)
@@ -96,6 +111,7 @@ def test_get_relations():
 
     parent_idx = ary.empty(2, dtype=np.int32, backend=backend)
     child_idx = ary.empty(16, dtype=np.int32, backend=backend)
+    parent_idx.fill(-1)
     child_idx.fill(-1)
 
     e = Elementwise(get_relations, backend=backend)
@@ -105,7 +121,9 @@ def test_get_relations():
     np.testing.assert_array_equal(r_child_idx, child_idx)
 
 
-def test_sfc_same():
+@check_all_backends
+def test_sfc_same(backend):
+    check_import(backend)
     sfc = np.array([52, 6], dtype=np.int32)
     level = np.array([2, 1], dtype=np.int32)
     r_sfc = np.array([52, 55], dtype=np.int32)
@@ -119,7 +137,9 @@ def test_sfc_same():
     np.testing.assert_array_equal(r_sfc, sfc)
 
 
-def test_sfc_real():
+@check_all_backends
+def test_sfc_real(backend):
+    check_import(backend)
     sfc = np.array([52, 55], dtype=np.int32)
     level = np.array([2, 1], dtype=np.int32)
     cpy_sfc = np.array([52, 6], dtype=np.int32)
@@ -133,7 +153,9 @@ def test_sfc_real():
     np.testing.assert_array_equal(cpy_sfc, sfc)
 
 
-def test_id_duplicates():
+@check_all_backends
+def test_id_duplicates(backend):
+    check_import(backend)
     sfc = np.array([52, 52, 53], dtype=np.int32)
     level = np.array([2, 2, 2], dtype=np.int32)
     r_duplicate_idx = np.array([0, 1], dtype=np.int32)
@@ -149,7 +171,9 @@ def test_id_duplicates():
     np.testing.assert_array_equal(r_duplicate_idx, duplicate_idx)
 
 
-def test_remove_duplicates():
+@check_all_backends
+def test_remove_duplicates(backend):
+    check_import(backend)
     sfc = np.array([52, 52, 53], dtype=np.int32)
     level = np.array([2, 2, 2], dtype=np.int32)
     duplicate_idx = np.array([0, 1], dtype=np.int32)
