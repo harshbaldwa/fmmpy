@@ -213,11 +213,11 @@ def get_relations(i, pc_sfc, pc_level, temp_idx, rel_idx,
         return
 
     for j in range(8):
-        if (pc_sfc[i] != pc_sfc[i-j] and pc_level[i] != pc_level[i-j]):
+        if (pc_sfc[i] != pc_sfc[i-j-1] and pc_level[i] != pc_level[i-j-1]):
             return
         else:
-            parent_idx[temp_idx[i-j]] = rel_idx[i]
-            child_idx[8*rel_idx[i] + j] = temp_idx[i-j]
+            parent_idx[temp_idx[i-j-1]] = rel_idx[i]
+            child_idx[8*rel_idx[i] + j] = temp_idx[i-j-1]
 
 
 if __name__ == "__main__":
