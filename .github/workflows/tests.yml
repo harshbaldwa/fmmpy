@@ -1,0 +1,37 @@
+name: Tests
+
+on:
+  push:
+    branches:
+    - main
+
+jobs:
+  tests:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: [3.9]
+
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
+          channels: conda-forge
+      - name: Install dependencies on Linux
+        run: |
+          conda info
+          conda install -c conda-forge pocl pyopencl pytest
+          python -c 'import pyopencl as cl'
+      - name: PEP8 Action
+        uses: quentinguidee/pep8-action@v1
+      - name: Run tests
+        run: |
+          pytest
