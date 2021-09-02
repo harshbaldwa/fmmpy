@@ -15,17 +15,18 @@ def check_import(backend):
 @check_all_backends
 def test_get_particle_index(backend):
     check_import(backend)
-    max_index = 2
+    max_depth = 1
     length = 1
     x_min = 0
     y_min = 0
     z_min = 0
-    x = np.array([0.125, 0.125, 0.875])
-    y = np.array([0.125, 0.875, 0.875])
-    z = np.array([0.875, 0.125, 0.125])
-    r_index = np.array([4, 2, 3], dtype=np.int32)
+    x = np.array([0.125, 0.125, 0.875, 0.875])
+    y = np.array([0.125, 0.875, 0.875, 0.875])
+    z = np.array([0.875, 0.125, 0.125, 0.875])
+    r_index = np.array([4, 2, 3, 7], dtype=np.int32)
+    max_index = 2 ** max_depth
     x, y, z, r_index = wrap(x, y, z, r_index, backend=backend)
-    index = ary.zeros(3, dtype=np.int32, backend=backend)
+    index = ary.zeros(4, dtype=np.int32, backend=backend)
 
     e = Elementwise(get_particle_index, backend=backend)
     e(index, x, y, z, max_index, length, x_min, y_min, z_min)
