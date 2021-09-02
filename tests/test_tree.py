@@ -17,6 +17,9 @@ def test_get_particle_index(backend):
     check_import(backend)
     max_index = 2
     length = 1
+    x_min = 0
+    y_min = 0
+    z_min = 0
     x = np.array([0.125, 0.125, 0.875])
     y = np.array([0.125, 0.875, 0.875])
     z = np.array([0.875, 0.125, 0.125])
@@ -25,7 +28,7 @@ def test_get_particle_index(backend):
     index = ary.zeros(3, dtype=np.int32, backend=backend)
 
     e = Elementwise(get_particle_index, backend=backend)
-    e(index, x, y, z, max_index, length)
+    e(index, x, y, z, max_index, length, x_min, y_min, z_min)
     np.testing.assert_array_equal(r_index, index)
 
 

@@ -12,13 +12,14 @@ np.set_printoptions(linewidth=np.inf)
 
 
 @annotate(i="int", index="gintp", gdoublep="x, y, z",
-          double="max_index, length"
+          double="max_index, length, x_min, y_min, z_min"
           )
-def get_particle_index(i, index, x, y, z, max_index, length):
+def get_particle_index(i, index, x, y, z, max_index,
+                       length, x_min, y_min, z_min):
     nx, ny, nz = declare("int", 3)
-    nx = cast(floor((max_index * x[i]) / length), "int")
-    ny = cast(floor((max_index * y[i]) / length), "int")
-    nz = cast(floor((max_index * z[i]) / length), "int")
+    nx = cast(floor((max_index * (x[i] - x_min)) / length), "int")
+    ny = cast(floor((max_index * (y[i] - y_min)) / length), "int")
+    nz = cast(floor((max_index * (z[i] - z_min)) / length), "int")
 
     nx = (nx | (nx << 16)) & 0x030000FF
     nx = (nx | (nx << 8)) & 0x0300F00F
