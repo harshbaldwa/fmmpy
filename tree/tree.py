@@ -4,7 +4,7 @@ from compyle.low_level import cast
 from compyle.sort import radix_sort
 import numpy as np
 import compyle.array as ary
-from math import floor, log
+from math import floor
 from compyle.template import Template
 import argparse
 

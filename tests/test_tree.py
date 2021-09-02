@@ -13,6 +13,23 @@ def check_import(backend):
 
 
 @check_all_backends
+def test_get_particle_index(backend):
+    check_import(backend)
+    max_index = 2
+    length = 1
+    x = np.array([0.125, 0.125, 0.875])
+    y = np.array([0.125, 0.875, 0.875])
+    z = np.array([0.875, 0.125, 0.125])
+    r_index = np.array([4, 2, 3], dtype=np.int32)
+    x, y, z, r_index = wrap(x, y, z, r_index, backend=backend)
+    index = ary.zeros(3, dtype=np.int32, backend=backend)
+
+    e = Elementwise(get_particle_index, backend=backend)
+    e(index, x, y, z, max_index, length)
+    np.testing.assert_array_equal(r_index, index)
+
+
+@check_all_backends
 def test_copy_arr(backend):
     check_import(backend)
     arr = ary.ones(10, dtype=np.int32, backend=backend)
