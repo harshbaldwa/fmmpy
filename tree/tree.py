@@ -7,6 +7,7 @@ import compyle.array as ary
 from math import floor
 from compyle.template import Template
 import argparse
+import time
 
 np.set_printoptions(linewidth=np.inf)
 
@@ -241,8 +242,9 @@ if __name__ == "__main__":
     N = int(args.n)
     max_depth = 2
     length = 1
-
-    np.random.seed(4)
+    x_min = 0
+    y_min = 0
+    z_min = 0
     part_x = np.random.random(N)
     part_y = np.random.random(N)
     part_z = np.random.random(N)
@@ -354,10 +356,13 @@ if __name__ == "__main__":
     efind_parents = Elementwise(find_parents, backend=backend)
     eget_relations = Elementwise(get_relations, backend=backend)
 
+    time_start = time.time()
+
     # making the adaptive oct tree from bottom up
     # calculates sfc of all particles at the $max_depth level
     eget_particle_index(leaf_sfc, part_x, part_y,
-                        part_z, max_index, length)
+                        part_z, max_index, length,
+                        x_min, y_min, z_min)
 
     # sorts based on sfc array
     [leaf_sfc_sorted, leaf_idx_sorted], _ = radix_sort(
@@ -455,6 +460,9 @@ if __name__ == "__main__":
 
     eget_relations(pc_sfc, pc_level, temp_idx, rel_idx,
                    parent_idx, child_idx)
+
+    time_end = time.time()
+    print('Time taken: {:.2f}s'.format(time_end - time_start))
 
     if args.show:
         print("rid", leaf_nodes_idx[count_repeated:])
