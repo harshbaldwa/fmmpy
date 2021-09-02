@@ -177,7 +177,7 @@ def test_remove_duplicates(backend):
     sfc = np.array([52, 52, 53], dtype=np.int32)
     level = np.array([2, 2, 2], dtype=np.int32)
     duplicate_idx = np.array([0, 1], dtype=np.int32)
-    r_sfc = np.array([52, 0, 53], dtype=np.int32)
+    r_sfc = np.array([52, -1, 53], dtype=np.int32)
     r_level = np.array([2, -1, 2], dtype=np.int32)
 
     sfc, level, duplicate_idx, r_sfc, r_level = wrap(

@@ -191,7 +191,7 @@ def id_duplicates(i, sfc, level, dp_idx):
 # removing the duplicate items from the array
 def remove_duplicates(i, dp_idx, sfc, level):
     if dp_idx[i] == 1:
-        sfc[i] = 0
+        sfc[i] = -1
         level[i] = -1
 
 
@@ -209,11 +209,11 @@ def get_relations(i, pc_sfc, pc_level, temp_idx, rel_idx,
                   parent_idx, child_idx):
     j = declare("int")
 
-    if pc_sfc[i] == -1 or temp_idx[i] != -1:
+    if pc_sfc[i] == -1 or temp_idx[i] != -1 or i == 0:
         return
 
     for j in range(8):
-        if (pc_sfc[i] != pc_sfc[i-j-1] and pc_level[i] != pc_level[i-j-1]):
+        if (pc_sfc[i] != pc_sfc[i-j-1] or pc_level[i] != pc_level[i-j-1]):
             return
         else:
             parent_idx[temp_idx[i-j-1]] = rel_idx[i]
@@ -417,11 +417,11 @@ if __name__ == "__main__":
     ecopy_arrs_4(all_sfc, all_level, all_idx, leaf_nodes_idx,
                  pc_sfc, pc_level, pc_idx, rel_idx)
 
-    efind_parents(all_sfc[count_repeated:-1],
-                  all_sfc[count_repeated+1:],
-                  all_level[count_repeated:-1],
-                  all_level[count_repeated+1:],
-                  leaf_nodes_idx[count_repeated:-1],
+    efind_parents(all_sfc[:-count_repeated-1],
+                  all_sfc[1:-count_repeated],
+                  all_level[:-count_repeated-1],
+                  all_level[1:-count_repeated],
+                  leaf_nodes_idx[:-count_repeated-1],
                   pc_sfc[2*N-1:], pc_level[2*N-1:],
                   pc_idx[2*N-1:], temp_idx[2*N-1:])
 
