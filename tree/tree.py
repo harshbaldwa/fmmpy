@@ -227,7 +227,10 @@ if __name__ == "__main__":
     parser.add_argument("-n", help="backend to use", default=10)
     parser.add_argument("-b", "--backend", help="backend to use",
                         default='cython')
-    parser.add_argument("-omp", "--openmp", help="use openmp for calculations",
+    parser.add_argument("-omp", "--openmp",
+                        help="use openmp for calculations",
+                        action="store_true")
+    parser.add_argument("-show", help="show the results",
                         action="store_true")
     args = parser.parse_args()
 
@@ -453,13 +456,14 @@ if __name__ == "__main__":
     eget_relations(pc_sfc, pc_level, temp_idx, rel_idx,
                    parent_idx, child_idx)
 
-    print("rid", leaf_nodes_idx[count_repeated:])
-    print("sfc", all_sfc[count_repeated:])
-    print("pid", parent_idx[count_repeated:])
-    if backend == 'cython':
-        for i in range(8):
-            print("cid", child_idx[count_repeated*8+i::8])
-    elif backend == 'opencl':
-        child_idx.pull()
-        for i in range(8):
-            print("cid", child_idx.data[count_repeated*8+i::8])
+    if args.show:
+        print("rid", leaf_nodes_idx[count_repeated:])
+        print("sfc", all_sfc[count_repeated:])
+        print("pid", parent_idx[count_repeated:])
+        if backend == 'cython':
+            for i in range(8):
+                print("cid", child_idx[count_repeated*8+i::8])
+        elif backend == 'opencl':
+            child_idx.pull()
+            for i in range(8):
+                print("cid", child_idx.data[count_repeated*8+i::8])
