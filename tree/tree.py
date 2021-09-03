@@ -1,5 +1,5 @@
 from compyle.api import declare, Elementwise, \
-    annotate, wrap, Reduction, get_config
+    annotate, wrap, Reduction, get_config, Scan
 from compyle.low_level import cast
 from compyle.sort import radix_sort
 import numpy as np
@@ -222,6 +222,66 @@ def get_relations(i, pc_sfc, pc_level, temp_idx, rel_idx,
             child_idx[8*rel_idx[i] + j] = temp_idx[i-j-1]
 
 
+@annotate(i="int", gintp="level, parent_idx, level_diff")
+def find_level_diff(i, level, parent_idx, level_diff):
+    if parent_idx[i] != -1:
+        level_diff[i] = level[i] - level[parent_idx[i]] - 1
+
+
+@annotate(i="int", level="gintp", return_="int")
+def input_expr(i, level):
+    if i == 0:
+        return 0
+    else:
+        return level[i - 1]
+
+
+@annotate(int="i, item", cs_level="gintp")
+def output_expr(i, item, cs_level):
+    cs_level[i] = item
+
+
+@annotate(i="int",
+          gintp="level_diff, cumsum_diff, sfc, level, idx, parent, "
+                "child, new_sfc, new_level, new_idx, new_parent, new_child"
+          )
+def complete_tree(i, level_diff, cumsum_diff, sfc, level, idx, parent,
+                  child, new_sfc, new_level, new_idx, new_parent, new_child):
+    offset, j, k, l = declare("int", 4)
+    offset = i + cumsum_diff[i]
+    new_sfc[offset] = sfc[i]
+    new_level[offset] = level[i]
+    new_idx[offset] = idx[i]
+    # for j in range(8):
+    #     if child[8*i + j] != -1:
+    #         new_child[8*offset+j] = child[8*i+j] + cumsum_diff[child[8*i+j]]
+    #     else:
+    #         break
+    if level_diff[i] == 0:
+        if parent[i] != -1:
+            new_parent[offset] = parent[i] + cumsum_diff[parent[i]]
+        else:
+            new_parent[offset] = -1
+        return
+
+    new_parent[offset] = offset + 1
+
+    for k in range(1, level_diff[i]+1):
+        l = offset + k
+        new_sfc[l] = sfc[i] >> 3
+        new_level[l] = level[i] - k
+        new_idx[l] = -1
+        new_parent[l] = l + 1
+        new_child[8*l] = l - 1
+
+    new_parent[offset+level_diff[i]] = parent[i] + cumsum_diff[parent[i]]
+    for j in range(8):
+        if child[8*parent[i]+j] == i:
+            new_child[8*(parent[i] + cumsum_diff[parent[i]]) +
+                      j] = offset + level_diff[i]
+            break
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
@@ -238,6 +298,7 @@ if __name__ == "__main__":
     if args.openmp:
         get_config().use_openmp = True
 
+    np.random.seed(4)
     backend = args.backend
     N = int(args.n)
     max_depth = 2
@@ -305,6 +366,9 @@ if __name__ == "__main__":
     sort_rel_idx = ary.zeros(4*N-2, dtype=np.int32, backend=backend)
     sort_temp_idx = ary.zeros(4*N-2, dtype=np.int32, backend=backend)
 
+    level_diff = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
+    cumsum_diff = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
+
     # different functions start from here
     eget_particle_index = Elementwise(get_particle_index, backend=backend)
 
@@ -356,7 +420,10 @@ if __name__ == "__main__":
     efind_parents = Elementwise(find_parents, backend=backend)
     eget_relations = Elementwise(get_relations, backend=backend)
 
-    time_start = time.time()
+    efind_level_diff = Elementwise(find_level_diff, backend=backend)
+    eget_cumsum_diff = Scan(input_expr, output_expr,
+                            'a+b', dtype=np.int32, backend=backend)
+    ecomplete_tree = Elementwise(complete_tree, backend=backend)
 
     # making the adaptive oct tree from bottom up
     # calculates sfc of all particles at the $max_depth level
@@ -461,17 +528,21 @@ if __name__ == "__main__":
     eget_relations(pc_sfc, pc_level, temp_idx, rel_idx,
                    parent_idx, child_idx)
 
-    time_end = time.time()
-    print('Time taken: {:.2f}s'.format(time_end - time_start))
+    efind_level_diff(all_level[:-count_repeated],
+                     parent_idx[:-count_repeated],
+                     level_diff[:-count_repeated])
 
-    if args.show:
-        print("rid", leaf_nodes_idx[count_repeated:])
-        print("sfc", all_sfc[count_repeated:])
-        print("pid", parent_idx[count_repeated:])
-        if backend == 'cython':
-            for i in range(8):
-                print("cid", child_idx[count_repeated*8+i::8])
-        elif backend == 'opencl':
-            child_idx.pull()
-            for i in range(8):
-                print("cid", child_idx.data[count_repeated*8+i::8])
+    eget_cumsum_diff(level=level_diff, cs_level=cumsum_diff)
+
+    count = 2*N - 1 - count_repeated + cumsum_diff[-count_repeated-1]
+    sfc = ary.zeros(count, dtype=np.int32, backend=backend)
+    level = ary.zeros(count, dtype=np.int32, backend=backend)
+    idx = ary.zeros(count, dtype=np.int32, backend=backend)
+    parent = ary.zeros(count, dtype=np.int32, backend=backend)
+    child = ary.zeros(8*count, dtype=np.int32, backend=backend)
+    child.fill(-1)
+
+    ecomplete_tree(level_diff[:-count_repeated], cumsum_diff[:-count_repeated],
+                   all_sfc[:-count_repeated], all_level[:-count_repeated],
+                   all_idx[:-count_repeated], parent_idx[:-count_repeated],
+                   child_idx[:-8*count_repeated], sfc, level, idx, parent, child)

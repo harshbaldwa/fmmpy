@@ -209,3 +209,83 @@ def test_remove_duplicates(backend):
 
     np.testing.assert_array_equal(r_sfc, sfc)
     np.testing.assert_array_equal(r_level, level)
+
+
+@check_all_backends
+def test_find_level_diff(backend):
+    check_import(backend)
+    level = np.array([2, 2, 0], dtype=np.int32)
+    parent_idx = np.array([2, 2, -1], dtype=np.int32)
+    r_level_diff = np.array([1, 1, 0], dtype=np.int32)
+    level, parent_idx, r_level_diff = wrap(
+        level, parent_idx, r_level_diff, backend=backend)
+    level_diff = ary.zeros(3, dtype=np.int32, backend=backend)
+
+    e = Elementwise(find_level_diff, backend=backend)
+    e(level, parent_idx, level_diff)
+
+    np.testing.assert_array_equal(r_level_diff, level_diff)
+
+
+@check_all_backends
+def test_cumsum_level_diff(backend):
+    check_import(backend)
+    level_diff = np.array([1, 1, 0], dtype=np.int32)
+    r_cumsum_level_diff = np.array([0, 1, 2], dtype=np.int32)
+    level_diff, r_cumsum_level_diff = wrap(
+        level_diff, r_cumsum_level_diff, backend=backend)
+    cumsum_level_diff = ary.zeros(3, dtype=np.int32, backend=backend)
+    scan = Scan(input_expr, output_expr, 'a+b',
+                dtype=np.int32, backend=backend)
+
+    scan(level=level_diff, cs_level=cumsum_level_diff)
+
+    np.testing.assert_array_equal(
+        r_cumsum_level_diff, cumsum_level_diff)
+
+
+@check_all_backends
+def test_complete_tree(backend):
+    check_import(backend)
+    sfc = np.array([1, 8, 0], dtype=np.int32)
+    level = np.array([2, 2, 0], dtype=np.int32)
+    idx = np.array([0, 1, -1], dtype=np.int32)
+    parent = np.array([2, 2, -1], dtype=np.int32)
+    child = np.ones(24, dtype=np.int32) * -1
+    child[16] = 0
+    child[17] = 1
+    level_diff = np.array([1, 1, 0], dtype=np.int32)
+    cum_level_diff = np.array([0, 1, 2], dtype=np.int32)
+    r_new_sfc = np.array([1, 0, 8, 1, 0], dtype=np.int32)
+    r_new_level = np.array([2, 1, 2, 1, 0], dtype=np.int32)
+    r_new_idx = np.array([0, -1, 1, -1, -1], dtype=np.int32)
+    r_new_parent = np.array([1, 4, 3, 4, -1], dtype=np.int32)
+    r_new_child = np.ones(40, dtype=np.int32)*-1
+    r_new_child[8] = 0
+    r_new_child[24] = 2
+    r_new_child[32] = 1
+    r_new_child[33] = 3
+
+    sfc, level, idx, parent, child, level_diff, cum_level_diff, \
+        r_new_sfc, r_new_level, r_new_idx, r_new_parent, \
+        r_new_child = wrap(
+            sfc, level, idx, parent, child, level_diff,
+            cum_level_diff, r_new_sfc, r_new_level, r_new_idx,
+            r_new_parent, r_new_child, backend=backend)
+
+    new_sfc = ary.zeros(5, dtype=np.int32, backend=backend)
+    new_level = ary.zeros(5, dtype=np.int32, backend=backend)
+    new_idx = ary.zeros(5, dtype=np.int32, backend=backend)
+    new_parent = ary.zeros(5, dtype=np.int32, backend=backend)
+    new_child = ary.empty(40, dtype=np.int32, backend=backend)
+    new_child.fill(-1)
+
+    e = Elementwise(complete_tree, backend=backend)
+    e(level_diff, cum_level_diff, sfc, level, idx, parent,
+      child, new_sfc, new_level, new_idx, new_parent, new_child)
+
+    np.testing.assert_array_equal(r_new_sfc, new_sfc)
+    np.testing.assert_array_equal(r_new_level, new_level)
+    np.testing.assert_array_equal(r_new_idx, new_idx)
+    np.testing.assert_array_equal(r_new_parent, new_parent)
+    np.testing.assert_array_equal(r_new_child, new_child)
