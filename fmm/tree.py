@@ -282,33 +282,7 @@ def complete_tree(i, level_diff, cumsum_diff, sfc, level, idx, parent,
             break
 
 
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-n", help="backend to use", default=10)
-    parser.add_argument("-b", "--backend", help="backend to use",
-                        default='cython')
-    parser.add_argument("-omp", "--openmp",
-                        help="use openmp for calculations",
-                        action="store_true")
-    parser.add_argument("-show", help="show the results",
-                        action="store_true")
-    args = parser.parse_args()
-
-    if args.openmp:
-        get_config().use_openmp = True
-
-    np.random.seed(4)
-    backend = args.backend
-    N = int(args.n)
-    max_depth = 2
-    length = 1
-    x_min = 0
-    y_min = 0
-    z_min = 0
-    part_x = np.random.random(N)
-    part_y = np.random.random(N)
-    part_z = np.random.random(N)
+def build(N, max_depth, part_x, part_y, part_z, x_min, y_min, z_min, length, backend):
     max_index = 2 ** max_depth
 
     part_x, part_y, part_z = wrap(part_x, part_y, part_z, backend=backend)
@@ -546,3 +520,29 @@ if __name__ == "__main__":
                    all_sfc[:-count_repeated], all_level[:-count_repeated],
                    all_idx[:-count_repeated], parent_idx[:-count_repeated],
                    child_idx[:-8*count_repeated], sfc, level, idx, parent, child)
+
+    return count, sfc, level, idx, parent, child
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-n", help="backend to use", default=10)
+    parser.add_argument("-l", help="max depth for tree",
+                        default=2)
+    parser.add_argument("--seed", help="Random Seed", default=4)
+    parser.add_argument("-b", "--backend", help="backend to use",
+                        default='cython')
+    parser.add_argument("-omp", "--openmp",
+                        help="use openmp for calculations",
+                        action="store_true")
+    args = parser.parse_args()
+
+    if args.openmp:
+        get_config().use_openmp = True
+
+    np.random.seed(int(args.seed))
+    backend = args.backend
+    N = int(args.n)
+    max_depth = int(args.l)
+    build(N, max_depth, backend)
