@@ -1,6 +1,6 @@
 import pytest
 
-from tree.tree import *
+from fmm.tree import *
 
 
 check_all_backends = pytest.mark.parametrize('backend',

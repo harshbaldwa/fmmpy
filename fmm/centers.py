@@ -30,6 +30,25 @@ def calc_center(i, sfc, level, cx, cy, cz,
     cz[i] = z_min + length*(z + 0.5)/(2.0 ** level[i])
 
 
+@annotate(int="i, num_p2", level="gintp",
+          length="double",
+          gfloatp="cx, cy, cz, out_x, out_y, out_z, "
+                  "in_x, in_y, in_z, sph_pts")
+def setting_p2(i, cx, cy, cz, out_x, out_y,
+               out_z, in_x, in_y, in_z, sph_pts,
+               length, level, num_p2):
+    j = declare("int")
+    sz_cell = declare("double")
+    sz_cell = length/(2.0**(level[i]+1))
+    for j in range(num_p2):
+        out_x[i*num_p2+j] = cx[i]+sph_pts[3*j]*3*sz_cell
+        out_y[i*num_p2+j] = cy[i]+sph_pts[3*j+1]*3*sz_cell
+        out_z[i*num_p2+j] = cz[i]+sph_pts[3*j+2]*3*sz_cell
+        in_x[i*num_p2+j] = cx[i]+sph_pts[3*j]*0.5*sz_cell
+        in_y[i*num_p2+j] = cy[i]+sph_pts[3*j+1]*0.5*sz_cell
+        in_z[i*num_p2+j] = cz[i]+sph_pts[3*j+2]*0.5*sz_cell
+
+
 if __name__ == "__main__":
     backend = 'cython'
     N = 10
