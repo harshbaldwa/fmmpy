@@ -1,9 +1,25 @@
-from compyle.api import annotate, Elementwise, get_config
+from compyle.api import annotate, Elementwise, get_config, Scan
 import compyle.array as ary
+from compyle.sort import radix_sort
 import numpy as np
 import time
-from .tree import build
+from .tree import build, ReverseArrays
 from .spherical_points import spherical_points
+
+# TODO: Use cumsum built in compyle
+
+
+@annotate(i="int", lev_nr="gintp", return_="int")
+def input_expr(i, lev_nr):
+    if i == 0:
+        return 0
+    else:
+        return lev_nr[i - 1]
+
+
+@annotate(int="i, item", lev_cs="gintp")
+def output_expr(i, item, lev_cs):
+    lev_cs[i] = item
 
 
 @annotate(x="int", return_="int")
@@ -50,6 +66,12 @@ def setting_p2(i, cx, cy, cz, out_x, out_y,
         in_z[i*num_p2+j] = cz[i]+sph_pts[3*j+2]*0.5*sz_cell
 
 
+@annotate(i="int", gintp="level, lev_n")
+def level_info(i, level, lev_n):
+    idx = declare("int")
+    idx = atomic_inc(lev_n[level[i]])
+
+
 def set_prob(N, max_depth, part_x, part_y, part_z, x_min,
              y_min, z_min, length, num_p2, backend):
 
@@ -79,19 +101,54 @@ def set_prob(N, max_depth, part_x, part_y, part_z, x_min,
     in_vl = ary.zeros(cells*num_p2, dtype=np.float32,
                       backend=backend)
 
+    # TODO: Have to check everything in this function
+    index = ary.arange(0, cells, 1, dtype=np.int32,
+                       backend=backend)
+    index_t2 = ary.empty(cells, dtype=np.int32,
+                         backend=backend)
+    index_r = ary.zeros(cells, dtype=np.int32,
+                        backend=backend)
+    index_t1 = ary.arange(0, cells, 1, dtype=np.int32,
+                          backend=backend)
+
+    level_ls = ary.zeros(cells, dtype=np.int32, backend=backend)
+    lev_n = ary.zeros(max_depth, dtype=np.int32,
+                      backend=backend)
+    lev_nr = ary.zeros(max_depth, dtype=np.int32,
+                       backend=backend)
+    lev_cs = ary.zeros(max_depth, dtype=np.int32,
+                       backend=backend)
+
     sph_pts, order = spherical_points(N)
+    sph_pts = wrap(sph_pts, backend=backend)
 
     ecalc_center = Elementwise(calc_center, backend=backend)
     esetting_p2 = Elementwise(setting_p2, backend=backend)
+    elevel_info = Elementwise(level_info, backend=backend)
+    cumsum = Scan(input_expr, output_expr, 'a+b',
+                  dtype=np.int32, backend=backend)
+    ereverse = ReverseArrays('ereverse', ['a', 'b']).function
 
     ecalc_center(sfc, level, cx, cy, cz,
                  x_min, y_min, z_min, length)
     esetting_p2(cx, cy, cz, out_x, out_y, out_z, in_x,
                 in_y, in_z, sph_pts, length, level, num_p2)
 
-    return sfc, level, idx, parent, child, cx, cy, cz, \
-        out_x, out_y, out_z, out_vl, in_x, in_y, in_z, \
-        in_vl, sph_pts, order
+    # TODO: Can do this in tree file as well, would be better
+    [level_ls, index], _ = radix_sort(
+        [level, index], backend=backend)
+
+    [index_t2, index_r], _ = radix_sort(
+        [index, index_t1], backend=backend)
+
+    elevel_info(level_ls, lev_n)
+    ereverse(lev_nr, lev_n, max_depth)
+    cumsum(lev_nr=lev_nr, lev_cs=lev_cs)
+
+    # TODO: Is level_ls needed for further implementation
+    return index, level_ls, sfc, level, idx, index_r, \
+        parent, child,  cx, cy, cz, out_x, out_y, out_z, \
+        out_vl, in_x, in_y, in_z, in_vl, sph_pts, order, lev_cs
 
 
 if __name__ == "__main__":
