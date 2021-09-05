@@ -97,3 +97,44 @@ def calc_p2(i, out_val, out_x, out_y, out_z, outc_val, outc_x,
                         sid += l+1
 
     out_val[i] = out_res/num_p2
+
+
+# TODO: add tests for these two functions as well
+@annotate(double="part_val, part_x, part_y, part_z, px, py, pz",
+          return_="double")
+def direct_comp(part_val, part_x, part_y, part_z, px, py, pz):
+    value, dist = declare("double", 2)
+    value = 0
+    dist = sqrt((part_x-px)**2 + (part_y-py)**2 + (part_z-pz)**2)
+    value += part_val/dist
+
+    return value
+
+
+@annotate(int="i, N", gfloatp="val, x, y, z, res")
+def direct_solv(i, val, x, y, z, res, N):
+    j = declare("int")
+    res[i] = 0
+    for j in range(N):
+        if j != i:
+            res[i] += direct_comp(val[j], x[j], y[j],
+                                  z[j], x[i], y[i], z[i])
+
+
+# TODO: complete rigrous mathematical solution for is_adj and is_well_sep
+@annotate(double="cx, cy, cz, cr, ax, ay, az, ar",
+          return_="int")
+def is_adj(cx, cy, cz, cr, ax, ay, az, ar):
+    dis_x, dis_y, dis_z, rr = declare("double", 4)
+    dis_x = abs(cx - ax)
+    dis_y = abs(cy - ay)
+    dis_z = abs(cz - az)
+    rr = cr + ar
+
+    if dis_x > rr or dis_y > rr or dis_z > rr:
+        return 0
+    else:
+        return 1
+
+# TODO: find associates of a given cell
+# TODO: interaction lists for all the cells
