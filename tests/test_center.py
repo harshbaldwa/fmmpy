@@ -1,7 +1,8 @@
 import pytest
 from compyle.api import wrap
 from fmm.centers import *
-from fmm.spherical_points import *
+from importlib import resources
+import pickle
 
 check_all_backends = pytest.mark.parametrize('backend',
                                              ['cython', 'opencl'])
@@ -60,7 +61,9 @@ def test_setting_p2(backend):
     cz = np.array([0.25], dtype=np.float32)
     num_p2 = 6
     length = 1
-    sph_pts, _ = spherical_points(num_p2)
+    temp_d = pickle.load(resources.open_binary(
+        "fmm", "t_design.pickle"))[num_p2]
+    sph_pts = temp_d['array']
     r_out_x = np.array([1, -0.5, 0.25, 0.25, 0.25, 0.25],
                        dtype=np.float32)
     r_out_y = np.array([0.25, 0.25, 1, -0.5, 0.25, 0.25],

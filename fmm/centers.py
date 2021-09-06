@@ -4,7 +4,7 @@ from compyle.sort import radix_sort
 import numpy as np
 import time
 from .tree import build, ReverseArrays
-from .spherical_points import spherical_points
+import pickle
 
 # TODO: Use cumsum built in compyle
 
@@ -119,7 +119,10 @@ def set_prob(N, max_depth, part_x, part_y, part_z, x_min,
     lev_cs = ary.zeros(max_depth, dtype=np.int32,
                        backend=backend)
 
-    sph_pts, order = spherical_points(N)
+    temp_d = pickle.load(resources.open_binary(
+        "fmm", "t_design.pickle"))[num_p2]
+    sph_pts = temp_d['array']
+    order = temp_d['order']
     sph_pts = wrap(sph_pts, backend=backend)
 
     ecalc_center = Elementwise(calc_center, backend=backend)
