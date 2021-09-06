@@ -136,5 +136,28 @@ def is_adj(cx, cy, cz, cr, ax, ay, az, ar):
     else:
         return 1
 
+
+@annotate(int="i, offset",
+          gintp="sfc, parent, child, index_r, assoc, collg")
+def assoc_coarse(i, sfc, parent, child, index_r, assoc, collg,
+                 offset):
+    cid, rid, pid, j = declare("int", 4)
+    cid = i + offset
+    rid = index_r[cid]
+    pid = parent[rid] * 8
+    for j in range(8):
+        if child[pid+j] == -1:
+            break
+        elif child[pid+j] != rid:
+            assoc[27*cid+j] = child[pid+j]
+            collg[27*cid+j] = 1
+        else:
+            continue
+
+
 # TODO: find associates of a given cell
+# have to find associates layer by layer
+# each cell will have at most 26 associates or colleagues cells
+
+
 # TODO: interaction lists for all the cells

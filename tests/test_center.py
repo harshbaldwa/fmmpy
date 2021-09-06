@@ -100,3 +100,37 @@ def test_setting_p2(backend):
     np.testing.assert_array_almost_equal(r_in_x, in_x)
     np.testing.assert_array_almost_equal(r_in_y, in_y)
     np.testing.assert_array_almost_equal(r_in_z, in_z)
+
+
+@check_all_backends
+def test_level_info(backend):
+    check_import(backend)
+    level = np.array([3, 3, 2, 2, 1, 1, 1, 0], dtype=np.int32)
+    r_level_n = np.array([1, 3, 2, 2], dtype=np.int32)
+    level, r_level_n = wrap(level, r_level_n, backend=backend)
+    level_n = ary.zeros(4, dtype=np.int32, backend=backend)
+
+    e = Elementwise(level_info, backend=backend)
+    e(level, level_n)
+
+    np.testing.assert_array_equal(r_level_n, level_n)
+
+
+@check_all_backends
+def test_lev_cumsum(backend):
+    check_import(backend)
+    max_depth = 3
+    lev_nr = np.array([2, 2, 3, 1], dtype=np.int32)
+    r_lev_csr = np.array([7, 4, 2, 0], dtype=np.int32)
+    lev_nr, r_lev_csr = wrap(lev_nr, r_lev_csr, backend=backend)
+    cumsum = Scan(input_expr, output_expr, 'a+b',
+                  dtype=np.int32, backend=backend)
+    reverse = ReverseArrays('reverse', ['a', 'b']).function
+    ereverse = Elementwise(reverse, backend=backend)
+    lev_csr = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
+    lev_cs = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
+
+    cumsum(lev_nr=lev_nr, lev_cs=lev_cs)
+    ereverse(lev_csr, lev_cs, max_depth+1)
+
+    np.testing.assert_array_equal(r_lev_csr, lev_csr)

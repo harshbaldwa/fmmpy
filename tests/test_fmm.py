@@ -102,7 +102,7 @@ def test_calc_p2(backend):
     child[32] = 1
     child[33] = 3
     level = 1
-    level_cs = np.array([0, 2, 4], dtype=np.int32)
+    level_cs = np.array([4, 2, 0], dtype=np.int32)
     r_out_val = np.array([0.5, 1.5, 0.5, 1.5, 0.5, 1.5,
                          1.5, 0.5, 1.5, 0.5, 1.5, 0.5, ],
                          dtype=np.float32)
@@ -121,3 +121,61 @@ def test_calc_p2(backend):
       child, level, level_cs)
 
     np.testing.assert_array_almost_equal(r_out_val, out_val)
+
+
+@check_all_backends
+def test_is_adj(backend):
+    check_import(backend)
+    cx = np.array([0.375, 0.75, 0.25, 0.625], dtype=np.float32)
+    cy = np.array([0.375, 0.75, 0.25, 0.125], dtype=np.float32)
+    cz = np.array([0.375, 0.75, 0.25, 0.125], dtype=np.float32)
+    r = np.array([0.125, 0.25, 0.25, 0.125], dtype=np.float32)
+
+    adj1 = is_adj(cx[0], cy[0], cz[0], r[0],
+                  cx[1], cy[1], cz[1], r[1])
+
+    adj2 = is_adj(cx[3], cy[3], cz[3], r[3],
+                  cx[2], cy[2], cz[2], r[2])
+
+    adj3 = is_adj(cx[1], cy[1], cz[1], r[1],
+                  cx[3], cy[3], cz[3], r[3])
+
+    adj4 = is_adj(cx[2], cy[2], cz[2], r[2],
+                  cx[1], cy[1], cz[1], r[1])
+
+    assert adj1 == 1 and adj2 == 1 and adj3 == 0 and adj4 == 1
+
+
+@check_all_backends
+def test_assoc_coarse(backend):
+    check_import(backend)
+    sfc = np.array([1, 8, 0, 1, 0], dtype=np.int32)
+    # offset = level_cs[1]
+    offset = 2
+    index_r = np.array([0, 2, 1, 3, 4], dtype=np.int32)
+    parent = np.array([1, 4, 3, 4, -1], dtype=np.int32)
+    child = np.ones(40, dtype=np.int32) * -1
+    child[8] = 0
+    child[24] = 2
+    child[32] = 1
+    child[33] = 3
+    r_assoc = np.ones(108, dtype=np.int32) * -1
+    r_collg = np.ones(108, dtype=np.int32) * -1
+    r_assoc[55] = 3
+    r_collg[55] = 1
+    r_assoc[81] = 1
+    r_collg[81] = 1
+    sfc, index_r, parent, child, r_assoc, r_collg = wrap(
+        sfc, index_r, parent, child, r_assoc, r_collg,
+        backend=backend)
+
+    assoc = ary.empty(108, dtype=np.int32, backend=backend)
+    assoc.fill(-1)
+    collg = ary.empty(108, dtype=np.int32, backend=backend)
+    collg.fill(-1)
+
+    eassoc_coarse = Elementwise(assoc_coarse, backend=backend)
+    eassoc_coarse(sfc[2:4], parent, child, index_r, assoc, collg, offset)
+
+    np.testing.assert_array_equal(r_assoc, assoc)
+    np.testing.assert_array_equal(r_collg, collg)

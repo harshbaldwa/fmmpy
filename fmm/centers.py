@@ -1,5 +1,6 @@
 from compyle.api import annotate, Elementwise, get_config, Scan
 import compyle.array as ary
+from compyle.low_level import atomic_inc
 from compyle.sort import radix_sort
 import numpy as np
 import time
@@ -112,11 +113,11 @@ def set_prob(N, max_depth, part_x, part_y, part_z, x_min,
                           backend=backend)
 
     level_ls = ary.zeros(cells, dtype=np.int32, backend=backend)
-    lev_n = ary.zeros(max_depth, dtype=np.int32,
+    lev_n = ary.zeros(max_depth+1, dtype=np.int32,
                       backend=backend)
-    lev_nr = ary.zeros(max_depth, dtype=np.int32,
+    lev_nr = ary.zeros(max_depth+1, dtype=np.int32,
                        backend=backend)
-    lev_cs = ary.zeros(max_depth, dtype=np.int32,
+    lev_cs = ary.zeros(max_depth+1, dtype=np.int32,
                        backend=backend)
 
     temp_d = pickle.load(resources.open_binary(
@@ -130,7 +131,8 @@ def set_prob(N, max_depth, part_x, part_y, part_z, x_min,
     elevel_info = Elementwise(level_info, backend=backend)
     cumsum = Scan(input_expr, output_expr, 'a+b',
                   dtype=np.int32, backend=backend)
-    ereverse = ReverseArrays('ereverse', ['a', 'b']).function
+    reverse = ReverseArrays('reverse', ['a', 'b']).function
+    ereverse = Elementwise(reverse, backend=backend)
 
     ecalc_center(sfc, level, cx, cy, cz,
                  x_min, y_min, z_min, length)
@@ -152,25 +154,3 @@ def set_prob(N, max_depth, part_x, part_y, part_z, x_min,
     return index, level_ls, sfc, level, idx, index_r, \
         parent, child,  cx, cy, cz, out_x, out_y, out_z, \
         out_vl, in_x, in_y, in_z, in_vl, sph_pts, order, lev_cs
-
-
-if __name__ == "__main__":
-    backend = 'cython'
-    N = 10
-    max_depth = 2
-    x_min = 0
-    y_min = 0
-    z_min = 0
-    length = 1
-    num_p2 = 6
-    np.random.seed(4)
-    part_x = np.random.random(N)*length + x_min
-    part_y = np.random.random(N)*length + y_min
-    part_z = np.random.random(N)*length + z_min
-
-    sfc, level, idx, parent, child, cx, cy, cz, \
-        out_x, out_y, out_z, out_vl, in_x, in_y, \
-        in_z,  in_vl, sph_pts, order = set_prob(
-            N, max_depth, part_x, part_y, part_z,
-            x_min, y_min, z_min, length, num_p2,
-            backend)
