@@ -215,7 +215,9 @@ def get_relations(i, pc_sfc, pc_level, temp_idx, rel_idx,
         return
 
     for j in range(8):
-        if (pc_sfc[i] != pc_sfc[i-j-1] or pc_level[i] != pc_level[i-j-1]):
+        if (pc_sfc[i] != pc_sfc[i-j-1] or
+            pc_level[i] != pc_level[i-j-1] or
+                temp_idx[i-j-1] == -1):
             return
         else:
             parent_idx[temp_idx[i-j-1]] = rel_idx[i]
@@ -224,8 +226,14 @@ def get_relations(i, pc_sfc, pc_level, temp_idx, rel_idx,
 
 @annotate(i="int", gintp="level, parent_idx, level_diff")
 def find_level_diff(i, level, parent_idx, level_diff):
+    ld = declare("int")
     if parent_idx[i] != -1:
-        level_diff[i] = level[i] - level[parent_idx[i]] - 1
+        ld = level[i] - level[parent_idx[i]] - 1
+        if ld == -1:
+            level_diff[i] = 0
+        else:
+            level_diff[i] = ld
+        # level_diff[i] = level[i] - level[parent_idx[i]]
 
 
 @annotate(i="int", level="gintp", return_="int")
@@ -252,11 +260,7 @@ def complete_tree(i, level_diff, cumsum_diff, sfc, level, idx, parent,
     new_sfc[offset] = sfc[i]
     new_level[offset] = level[i]
     new_idx[offset] = idx[i]
-    # for j in range(8):
-    #     if child[8*i + j] != -1:
-    #         new_child[8*offset+j] = child[8*i+j] + cumsum_diff[child[8*i+j]]
-    #     else:
-    #         break
+
     if level_diff[i] == 0:
         if parent[i] != -1:
             new_parent[offset] = parent[i] + cumsum_diff[parent[i]]
@@ -499,7 +503,6 @@ def build(N, max_depth, part_x, part_y, part_z, x_min,
 
     esfc_real(pc_sfc[:-(2*count_repeated+1)],
               pc_level[:-(2*count_repeated+1)], max_depth)
-
     eget_relations(pc_sfc, pc_level, temp_idx, rel_idx,
                    parent_idx, child_idx)
 
@@ -548,4 +551,12 @@ if __name__ == "__main__":
     backend = args.backend
     N = int(args.n)
     max_depth = int(args.l)
-    build(N, max_depth, backend)
+    part_x = np.random.random(N)
+    part_y = np.random.random(N)
+    part_z = np.random.random(N)
+    x_min = 0
+    y_min = 0
+    z_min = 0
+    length = 1
+    build(N, max_depth, part_x, part_y, part_z,
+          x_min, y_min, z_min, length, backend)
