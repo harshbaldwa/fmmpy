@@ -26,7 +26,7 @@ def lgndre(lst, cos_g, lst_len, id):
 def calc_p2_fine(i, out_val, out_x, out_y, out_z, part_val, part_x,
                  part_y, part_z, cx, cy, cz, num_p2, length, index,
                  leg_lim, leg_lst, max_depth, idx):
-    l, cid, pid, sid = declare("int", 4)
+    leg, cid, pid, sid = declare("int", 4)
     p2c, m2c = declare("matrix(3)", 2)
     m2c_l, p2c_l, cos_g, rr, leg_res, out_res = declare("float", 6)
     cid = cast(floor(i*1.0/num_p2), "int")
@@ -48,10 +48,10 @@ def calc_p2_fine(i, out_val, out_x, out_y, out_z, part_val, part_x,
         cos_g = (m2c[0]*p2c[0] + m2c[1]*p2c[1] +
                  m2c[2]*p2c[2]) / (p2c_l * m2c_l)
         sid = 0
-        for l in range(1, leg_lim):
-            leg_res = lgndre(leg_lst, cos_g, l+1, sid)
-            out_res += leg_res*(2*l+1)*(rr**l)*part_val[pid]
-            sid += l+1
+        for leg in range(1, leg_lim):
+            leg_res = lgndre(leg_lst, cos_g, leg+1, sid)
+            out_res += leg_res*(2*leg+1)*(rr**leg)*part_val[pid]
+            sid += leg+1
 
     out_val[i] += out_res/num_p2
 
@@ -63,7 +63,7 @@ def calc_p2_fine(i, out_val, out_x, out_y, out_z, part_val, part_x,
 def calc_p2(i, out_val, out_x, out_y, out_z, outc_val, outc_x,
             outc_y, outc_z, cx, cy, cz, num_p2, length, index,
             index_r, leg_lim, leg_lst, child, level, level_cs):
-    j, k, l, tid, cid, pid, sid = declare("int", 7)
+    j, k, leg, tid, cid, pid, sid = declare("int", 7)
     p2c, m2c = declare("matrix(3)", 2)
     m2c_l, p2c_l, cos_g, rr, leg_res, out_res = declare("float", 6)
     cid = cast(floor(i*1.0/num_p2), "int")
@@ -91,10 +91,10 @@ def calc_p2(i, out_val, out_x, out_y, out_z, outc_val, outc_x,
                     cos_g = (m2c[0]*p2c[0] + m2c[1]*p2c[1] +
                              m2c[2]*p2c[2]) / (p2c_l * m2c_l)
                     sid = 0
-                    for l in range(1, leg_lim):
-                        leg_res = lgndre(leg_lst, cos_g, l+1, sid)
-                        out_res += leg_res*(2*l+1)*(rr**l)*outc_val[tid]
-                        sid += l+1
+                    for leg in range(1, leg_lim):
+                        leg_res = lgndre(leg_lst, cos_g, leg+1, sid)
+                        out_res += leg_res*(2*leg+1)*(rr**leg)*outc_val[tid]
+                        sid += leg+1
 
     out_val[i] = out_res/num_p2
 

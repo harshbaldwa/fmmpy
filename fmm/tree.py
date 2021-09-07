@@ -247,7 +247,7 @@ def output_expr(i, item, cs_level):
           )
 def complete_tree(i, level_diff, cumsum_diff, sfc, level, idx, parent,
                   child, new_sfc, new_level, new_idx, new_parent, new_child):
-    offset, j, k, l = declare("int", 4)
+    offset, j, k, lid = declare("int", 4)
     offset = i + cumsum_diff[i]
     new_sfc[offset] = sfc[i]
     new_level[offset] = level[i]
@@ -267,12 +267,12 @@ def complete_tree(i, level_diff, cumsum_diff, sfc, level, idx, parent,
     new_parent[offset] = offset + 1
 
     for k in range(1, level_diff[i]+1):
-        l = offset + k
-        new_sfc[l] = sfc[i] >> 3
-        new_level[l] = level[i] - k
-        new_idx[l] = -1
-        new_parent[l] = l + 1
-        new_child[8*l] = l - 1
+        lid = offset + k
+        new_sfc[lid] = sfc[i] >> 3
+        new_level[lid] = level[i] - k
+        new_idx[lid] = -1
+        new_parent[lid] = lid + 1
+        new_child[8*lid] = lid - 1
 
     new_parent[offset+level_diff[i]] = parent[i] + cumsum_diff[parent[i]]
     for j in range(8):
@@ -282,7 +282,8 @@ def complete_tree(i, level_diff, cumsum_diff, sfc, level, idx, parent,
             break
 
 
-def build(N, max_depth, part_x, part_y, part_z, x_min, y_min, z_min, length, backend):
+def build(N, max_depth, part_x, part_y, part_z, x_min,
+          y_min, z_min, length, backend):
     max_index = 2 ** max_depth
 
     part_x, part_y, part_z = wrap(part_x, part_y, part_z, backend=backend)
@@ -516,10 +517,12 @@ def build(N, max_depth, part_x, part_y, part_z, x_min, y_min, z_min, length, bac
     child = ary.zeros(8*count, dtype=np.int32, backend=backend)
     child.fill(-1)
 
-    ecomplete_tree(level_diff[:-count_repeated], cumsum_diff[:-count_repeated],
-                   all_sfc[:-count_repeated], all_level[:-count_repeated],
-                   all_idx[:-count_repeated], parent_idx[:-count_repeated],
-                   child_idx[:-8*count_repeated], sfc, level, idx, parent, child)
+    ecomplete_tree(level_diff[:-count_repeated],
+                   cumsum_diff[:-count_repeated], all_sfc[:-count_repeated],
+                   all_level[:-count_repeated], all_idx[:-count_repeated],
+                   parent_idx[:-count_repeated],
+                   child_idx[:-8*count_repeated], sfc, level, idx, parent,
+                   child)
 
     return count, sfc, level, idx, parent, child
 
