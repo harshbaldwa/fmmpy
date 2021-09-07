@@ -1,7 +1,7 @@
 from compyle.api import annotate, declare, wrap, Elementwise
 from compyle.low_level import cast
 import compyle.array as ary
-from math import floor, sqrt
+from math import floor, sqrt, fabs
 from scipy.special import legendre
 from .centers import set_prob
 import numpy as np
@@ -126,9 +126,9 @@ def direct_solv(i, val, x, y, z, res, N):
           return_="int")
 def is_adj(cx, cy, cz, cr, ax, ay, az, ar):
     dis_x, dis_y, dis_z, rr = declare("double", 4)
-    dis_x = abs(cx - ax)
-    dis_y = abs(cy - ay)
-    dis_z = abs(cz - az)
+    dis_x = fabs(cx - ax)
+    dis_y = fabs(cy - ay)
+    dis_z = fabs(cz - az)
     rr = cr + ar
 
     if dis_x > rr or dis_y > rr or dis_z > rr:
@@ -155,9 +155,45 @@ def assoc_coarse(i, sfc, parent, child, index_r, assoc, collg,
             continue
 
 
-# TODO: find associates of a given cell
-# have to find associates layer by layer
-# each cell will have at most 26 associates or colleagues cells
+# TODO: try to parallelize this whole thing, each associate parallel
+@annotate(int="i, offset", length="double",
+          gintp="sfc, level, assoc, collg, child, "
+                "parent, index, index_r",
+          gfloatp="cx, cy, cz")
+def find_assoc(i, sfc, cx, cy, cz, level, assoc,
+               collg, child, parent, offset,
+               index, index_r, length):
 
+    bid, rid, pid, aid, cid, count, lev, j, k, adj = declare("int", 10)
+    bid = i + offset
+    rid = index_r[bid]
+    pid = index[parent[rid]]
+    count = 0
+    lev = level[rid]
+    for j in range(27):
+        aid = assoc[27*pid+j]
+
+        if aid == -1:
+            continue
+
+        for k in range(8):
+            cid = child[8*aid+k]
+            if cid == -1:
+                break
+            adj = is_adj(cx[cid], cy[cid], cz[cid],
+                         length/(2.0**(level[cid]+1)),
+                         cx[rid], cy[rid], cz[rid],
+                         length/(2.0**(lev+1)))
+            if adj == 0:
+                continue
+            else:
+                assoc[27*bid+count] = cid
+                # TODO: this makes no sense unless single
+                #       child parents are made nodes
+                if level[cid] <= lev:
+                    collg[27*bid+count] = 1
+                else:
+                    collg[27*bid+count] = 0
+                count += 1
 
 # TODO: interaction lists for all the cells

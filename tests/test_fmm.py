@@ -179,3 +179,46 @@ def test_assoc_coarse(backend):
 
     np.testing.assert_array_equal(r_assoc, assoc)
     np.testing.assert_array_equal(r_collg, collg)
+
+
+@check_all_backends
+def test_find_assoc(backend):
+    check_import(backend)
+# def test_find_assoc():
+#     backend = 'cython'
+    sfc = np.array([1, 8, 0, 1, 0], dtype=np.int32)
+    level = np.array([2, 1, 2, 1, 0], dtype=np.int32)
+    # offset = level_cs[2]
+    offset = 0
+    length = 1.0
+    cx = np.array([0.375, 0.25, 0.625, 0.75, 0.5],
+                  dtype=np.float32)
+    cy = np.array([0.125, 0.25, 0.125, 0.75, 0.5],
+                  dtype=np.float32)
+    cz = np.array([0.125, 0.25, 0.125, 0.75, 0.5],
+                  dtype=np.float32)
+    index = np.array([0, 2, 1, 3, 4], dtype=np.int32)
+    index_r = np.array([0, 2, 1, 3, 4], dtype=np.int32)
+    parent = np.array([1, 4, 3, 4, -1], dtype=np.int32)
+    child = np.ones(40, dtype=np.int32) * -1
+    child[8] = 0
+    child[24] = 2
+    child[32] = 1
+    child[33] = 3
+    assoc = np.ones(108, dtype=np.int32) * -1
+    collg = np.ones(108, dtype=np.int32) * -1
+    assoc[55] = 3
+    collg[55] = 1
+    assoc[81] = 1
+    collg[81] = 1
+    sfc, level, cx, cy, cz, index, index_r, parent, child, \
+        assoc, collg = wrap(
+            sfc, level, cx, cy, cz, index, index_r, parent,
+            child, assoc, collg, backend=backend)
+
+    efind_assoc = Elementwise(find_assoc, backend=backend)
+    efind_assoc(sfc[0:2], cx, cy, cz, level, assoc, collg,
+                child, parent, offset, index, index_r, length)
+
+    assert assoc[0] == 2 and assoc[27] == 0
+    assert collg[0] == 1 and collg[27] == 1

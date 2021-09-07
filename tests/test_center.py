@@ -17,6 +17,7 @@ def check_import(backend):
 def test_deinterleave(backend):
     check_import(backend)
     idx = 38
+    # '100110' -> 38
     x = deinterleave(idx)
     y = deinterleave(idx >> 1)
     z = deinterleave(idx >> 2)
