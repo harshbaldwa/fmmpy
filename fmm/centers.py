@@ -1,13 +1,13 @@
-from compyle.api import annotate, Elementwise, get_config, Scan
+import pickle
+import time
+
 import compyle.array as ary
+import numpy as np
+from compyle.api import Elementwise, Scan, annotate, get_config
 from compyle.low_level import atomic_inc
 from compyle.sort import radix_sort
-import numpy as np
-import time
-from .tree import build, ReverseArrays
-import pickle
 
-# TODO: Use cumsum built in compyle
+from .tree import ReverseArrays, build
 
 
 @annotate(i="int", lev_nr="gintp", return_="int")
@@ -150,7 +150,7 @@ def set_prob(N, max_depth, part_x, part_y, part_z, x_min,
     ereverse(lev_nr, lev_n, max_depth)
     cumsum(lev_nr=lev_nr, lev_cs=lev_cs)
 
-    # TODO: Is level_ls needed for further implementation
+    # TODO: Is level_ls needed for further implementation ?
     return index, level_ls, sfc, level, idx, index_r, \
         parent, child,  cx, cy, cz, out_x, out_y, out_z, \
         out_vl, in_x, in_y, in_z, in_vl, sph_pts, order, lev_cs

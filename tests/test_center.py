@@ -1,8 +1,9 @@
+import pickle
+from importlib import resources
+
 import pytest
 from compyle.api import wrap
 from fmm.centers import *
-from importlib import resources
-import pickle
 
 check_all_backends = pytest.mark.parametrize('backend',
                                              ['cython', 'opencl'])

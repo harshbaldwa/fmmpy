@@ -1,20 +1,22 @@
-from compyle.api import annotate, declare, wrap, Elementwise
-from compyle.low_level import cast
+from math import fabs, floor, sqrt
+
 import compyle.array as ary
-from math import floor, sqrt, fabs
-from scipy.special import legendre
-from .centers import set_prob
 import numpy as np
+from compyle.api import Elementwise, annotate, declare, wrap
+from compyle.low_level import cast
+from scipy.special import legendre
+
+from .centers import set_prob
 
 
-@annotate(int="lst_len, id", cos_g="float",
+@annotate(int="lst_len, idx", cos_g="float",
           lst="gfloatp", return_="float")
-def lgndre(lst, cos_g, lst_len, id):
+def lgndre(lst, cos_g, lst_len, idx):
     i = declare("int")
     result = declare("float")
     result = 0
     for i in range(lst_len):
-        result += lst[id+i]*(cos_g**i)
+        result += lst[idx+i]*(cos_g**i)
 
     return result
 
@@ -172,7 +174,6 @@ def find_assoc(i, sfc, cx, cy, cz, level, assoc,
     lev = level[rid]
     for j in range(27):
         aid = assoc[27*pid+j]
-
         if aid == -1:
             continue
 

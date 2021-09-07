@@ -1,13 +1,14 @@
-from compyle.api import declare, Elementwise, \
-    annotate, wrap, Reduction, get_config, Scan
-from compyle.low_level import cast
-from compyle.sort import radix_sort
-import numpy as np
-import compyle.array as ary
-from math import floor
-from compyle.template import Template
 import argparse
 import time
+from math import floor
+
+import compyle.array as ary
+import numpy as np
+from compyle.api import (Elementwise, Reduction, Scan, annotate,
+                         declare, get_config, wrap)
+from compyle.low_level import cast
+from compyle.sort import radix_sort
+from compyle.template import Template
 
 np.set_printoptions(linewidth=np.inf)
 

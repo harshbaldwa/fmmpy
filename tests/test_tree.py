@@ -1,7 +1,5 @@
 import pytest
-
 from fmm.tree import *
-
 
 check_all_backends = pytest.mark.parametrize('backend',
                                              ['cython', 'opencl'])

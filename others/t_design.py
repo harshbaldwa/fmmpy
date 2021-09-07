@@ -1,8 +1,9 @@
+import pickle
+import re
+
 import numpy as np
 import requests
 from bs4 import BeautifulSoup
-import re
-import pickle
 
 t_design = {}
 
