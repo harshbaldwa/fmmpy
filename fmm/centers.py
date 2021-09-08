@@ -1,9 +1,10 @@
-import pickle
+import importlib.resources
 import time
 
 import compyle.array as ary
 import numpy as np
-from compyle.api import Elementwise, Scan, annotate, get_config
+import yaml
+from compyle.api import Elementwise, Scan, annotate, get_config, wrap
 from compyle.low_level import atomic_inc
 from compyle.sort import radix_sort
 
@@ -67,90 +68,96 @@ def setting_p2(i, cx, cy, cz, out_x, out_y,
         in_z[i*num_p2+j] = cz[i]+sph_pts[3*j+2]*0.5*sz_cell
 
 
-@annotate(i="int", gintp="level, lev_n")
-def level_info(i, level, lev_n):
-    idx = declare("int")
-    idx = atomic_inc(lev_n[level[i]])
+@annotate(int="i, max_depth", gintp="level, lev_n, idx")
+def level_info(i, level, idx, lev_n, max_depth):
+    ix = declare("int")
+    if idx[i] == -1:
+        ix = atomic_inc(lev_n[level[i]])
+    else:
+        ix = atomic_inc(lev_n[max_depth])
 
 
+# TODO: test this function as well
 def set_prob(N, max_depth, part_x, part_y, part_z, x_min,
              y_min, z_min, length, num_p2, backend):
-
-    # TODO: collect all the declarations in a single
-    #       list in a single file
     cells, sfc, level, idx, parent, child = build(
         N, max_depth, part_x, part_y, part_z, x_min,
         y_min, z_min, length, backend)
 
+    index = ary.arange(0, cells, 1, dtype=np.int32, backend=backend)
+    index_r = ary.arange(0, cells, 1, dtype=np.int32, backend=backend)
+
+    s1_index = ary.zeros(cells, dtype=np.int32, backend=backend)
+    s2_index = ary.zeros(cells, dtype=np.int32, backend=backend)
+    s1_lev = ary.zeros(cells, dtype=np.int32, backend=backend)
+    s2_lev = ary.zeros(cells, dtype=np.int32, backend=backend)
+    s1_idx = ary.zeros(cells, dtype=np.int32, backend=backend)
+    s2_idx = ary.zeros(cells, dtype=np.int32, backend=backend)
+
+    lev_n = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
+    lev_nr = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
+    lev_cs = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
+
     cx = ary.zeros(cells, dtype=np.float32, backend=backend)
     cy = ary.zeros(cells, dtype=np.float32, backend=backend)
     cz = ary.zeros(cells, dtype=np.float32, backend=backend)
-    out_x = ary.zeros(cells*num_p2, dtype=np.float32,
-                      backend=backend)
-    out_y = ary.zeros(cells*num_p2, dtype=np.float32,
-                      backend=backend)
-    out_z = ary.zeros(cells*num_p2, dtype=np.float32,
-                      backend=backend)
-    out_vl = ary.zeros(cells*num_p2, dtype=np.float32,
-                       backend=backend)
-    in_x = ary.zeros(cells*num_p2, dtype=np.float32,
-                     backend=backend)
-    in_y = ary.zeros(cells*num_p2, dtype=np.float32,
-                     backend=backend)
-    in_z = ary.zeros(cells*num_p2, dtype=np.float32,
-                     backend=backend)
-    in_vl = ary.zeros(cells*num_p2, dtype=np.float32,
-                      backend=backend)
 
-    # TODO: Have to check everything in this function
-    index = ary.arange(0, cells, 1, dtype=np.int32,
-                       backend=backend)
-    index_t2 = ary.empty(cells, dtype=np.int32,
-                         backend=backend)
-    index_r = ary.zeros(cells, dtype=np.int32,
-                        backend=backend)
-    index_t1 = ary.arange(0, cells, 1, dtype=np.int32,
-                          backend=backend)
+    out_x = ary.zeros(cells*num_p2, dtype=np.float32, backend=backend)
+    out_y = ary.zeros(cells*num_p2, dtype=np.float32, backend=backend)
+    out_z = ary.zeros(cells*num_p2, dtype=np.float32, backend=backend)
+    out_vl = ary.zeros(cells*num_p2, dtype=np.float32, backend=backend)
+    in_x = ary.zeros(cells*num_p2, dtype=np.float32, backend=backend)
+    in_y = ary.zeros(cells*num_p2, dtype=np.float32, backend=backend)
+    in_z = ary.zeros(cells*num_p2, dtype=np.float32, backend=backend)
+    in_vl = ary.zeros(cells*num_p2, dtype=np.float32, backend=backend)
 
-    level_ls = ary.zeros(cells, dtype=np.int32, backend=backend)
-    lev_n = ary.zeros(max_depth+1, dtype=np.int32,
-                      backend=backend)
-    lev_nr = ary.zeros(max_depth+1, dtype=np.int32,
-                       backend=backend)
-    lev_cs = ary.zeros(max_depth+1, dtype=np.int32,
-                       backend=backend)
-
-    temp_d = pickle.load(resources.open_binary(
-        "fmm", "t_design.pickle"))[num_p2]
-    sph_pts = temp_d['array']
-    order = temp_d['order']
+    with importlib.resources.open_text("fmm", "t_design.yaml") as file:
+        data = yaml.load(file)[num_p2]
+    sph_pts = np.array(data['array'], dtype=np.float32)
+    order = data['order']
     sph_pts = wrap(sph_pts, backend=backend)
 
     ecalc_center = Elementwise(calc_center, backend=backend)
     esetting_p2 = Elementwise(setting_p2, backend=backend)
-    elevel_info = Elementwise(level_info, backend=backend)
+    reverse1 = ReverseArrays('reverse1', ['a', 'b']).function
+    reverse2 = ReverseArrays('reverse2', ['a1', 'a2', 'b1', 'b2']).function
+    ereverse1 = Elementwise(reverse1, backend=backend)
+    ereverse2 = Elementwise(reverse2, backend=backend)
+    elev_info = Elementwise(level_info, backend=backend)
     cumsum = Scan(input_expr, output_expr, 'a+b',
                   dtype=np.int32, backend=backend)
-    reverse = ReverseArrays('reverse', ['a', 'b']).function
-    ereverse = Elementwise(reverse, backend=backend)
 
     ecalc_center(sfc, level, cx, cy, cz,
                  x_min, y_min, z_min, length)
     esetting_p2(cx, cy, cz, out_x, out_y, out_z, in_x,
                 in_y, in_z, sph_pts, length, level, num_p2)
 
-    # TODO: Can do this in tree file as well, would be better
-    [level_ls, index], _ = radix_sort(
-        [level, index], backend=backend)
+    [s1_lev, s1_idx, s1_index], _ = radix_sort([level, idx, index],
+                                               backend=backend)
+    [s2_idx, s2_lev, s2_index], _ = radix_sort([s1_idx, s1_lev, s1_index],
+                                               backend=backend)
+    ereverse2(s1_lev, s1_index, s2_lev, s2_index, cells)
 
-    [index_t2, index_r], _ = radix_sort(
-        [index, index_t1], backend=backend)
-
-    elevel_info(level_ls, lev_n)
-    ereverse(lev_nr, lev_n, max_depth)
+    elev_info(level, idx, lev_n, max_depth)
+    ereverse1(lev_nr, lev_n, max_depth+1)
     cumsum(lev_nr=lev_nr, lev_cs=lev_cs)
 
-    # TODO: Is level_ls needed for further implementation ?
-    return index, level_ls, sfc, level, idx, index_r, \
-        parent, child,  cx, cy, cz, out_x, out_y, out_z, \
-        out_vl, in_x, in_y, in_z, in_vl, sph_pts, order, lev_cs
+    return cells, sfc, level, idx, parent, child, lev_cs, index, index_r, \
+        cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_vl, in_vl
+
+
+if __name__ == "__main__":
+    backend = 'opencl'
+    N = 10
+    max_depth = 3
+    np.random.seed(4)
+    part_x = np.random.random(N)
+    part_y = np.random.random(N)
+    part_z = np.random.random(N)
+    x_min = 0
+    y_min = 0
+    z_min = 0
+    length = 1
+    num_p2 = 6
+    set_prob(N, max_depth, part_x, part_y, part_z, x_min, y_min, z_min,
+             length, num_p2, backend)

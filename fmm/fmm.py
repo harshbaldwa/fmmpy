@@ -21,13 +21,12 @@ def lgndre(lst, cos_g, lst_len, idx):
     return result
 
 
-@annotate(int="i, num_p2, max_depth, leg_lim",
-          gintp="index, idx", length="float",
+@annotate(int="i, num_p2, leg_lim", gintp="index, idx, level", length="float",
           gfloatp="out_val, out_x, out_y, out_z, part_val, "
                   "part_x, part_y, part_z, cx, cy, cz, leg_lst")
 def calc_p2_fine(i, out_val, out_x, out_y, out_z, part_val, part_x,
                  part_y, part_z, cx, cy, cz, num_p2, length, index,
-                 leg_lim, leg_lst, max_depth, idx):
+                 leg_lim, leg_lst, level, idx):
     leg, cid, pid, sid = declare("int", 4)
     p2c, m2c = declare("matrix(3)", 2)
     m2c_l, p2c_l, cos_g, rr, leg_res, out_res = declare("float", 6)
@@ -36,7 +35,7 @@ def calc_p2_fine(i, out_val, out_x, out_y, out_z, part_val, part_x,
     m2c[0] = out_x[i] - cx[cid]
     m2c[1] = out_y[i] - cy[cid]
     m2c[2] = out_z[i] - cz[cid]
-    m2c_l = length/(2.0**(max_depth+1))*3
+    m2c_l = 3*length/(2.0**(level[cid]+1))
     out_res = 0
     out_val[i] = 0
     pid = idx[cid]

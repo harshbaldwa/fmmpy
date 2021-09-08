@@ -81,7 +81,6 @@ class ReverseArrays(Template):
 @annotate(i="int",
           gintp="sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx"
           )
-# compute lowest common ancestor (LCA) of two nodes
 def internal_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level,
                    lca_idx):
     level_diff, xor, i1, i2, level, j = declare("int", 6)
@@ -125,7 +124,6 @@ def internal_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level,
           gintp="sfc1, sfc2, level1, level2, lca_sfc, all_idx, "
                 "lca_level, lca_idx, temp_idx"
           )
-# compute lowest common ancestor (LCA) of two nodes
 def find_parents(i, sfc1, sfc2, level1, level2, all_idx, lca_sfc,
                  lca_level, lca_idx, temp_idx):
     level_diff, xor, i1, i2, level, j = declare("int", 6)
@@ -169,19 +167,16 @@ def find_parents(i, sfc1, sfc2, level1, level2, all_idx, lca_sfc,
 
 
 @annotate(int="i, max_level", gintp="sfc, level")
-# make the sfc of all elements of same length
 def sfc_same(i, sfc, level, max_level):
     sfc[i] = ((sfc[i] + 1) << 3 * (max_level - level[i])) - 1
 
 
 @annotate(int="i, max_level", gintp="sfc, level")
-# make the sfc of all elements of their respective length
 def sfc_real(i, sfc, level, max_level):
     sfc[i] = ((sfc[i] + 1) >> 3 * (max_level - level[i])) - 1
 
 
 @annotate(i="int", gintp="sfc, level, dp_idx")
-# find the duplicate items in the array
 def id_duplicates(i, sfc, level, dp_idx):
     if i == 0:
         dp_idx[i] = 0
@@ -191,7 +186,6 @@ def id_duplicates(i, sfc, level, dp_idx):
 
 
 @annotate(i="int", gintp="dp_idx, sfc, level")
-# removing the duplicate items from the array
 def remove_duplicates(i, dp_idx, sfc, level):
     if dp_idx[i] == 1:
         sfc[i] = -1
@@ -199,7 +193,6 @@ def remove_duplicates(i, dp_idx, sfc, level):
 
 
 @annotate(i="int", x="gintp")
-# mapping for reduction (calculating sum of all elements)
 def map_sum(i, x):
     return x[i]
 
@@ -227,70 +220,25 @@ def get_relations(i, pc_sfc, pc_level, temp_idx, rel_idx,
 
 @annotate(i="int", gintp="level, parent_idx, level_diff")
 def find_level_diff(i, level, parent_idx, level_diff):
-    ld = declare("int")
     if parent_idx[i] != -1:
-        ld = level[i] - level[parent_idx[i]] - 1
-        if ld == -1:
-            level_diff[i] = 0
-        else:
-            level_diff[i] = ld
-        # level_diff[i] = level[i] - level[parent_idx[i]]
-
-
-@annotate(i="int", level="gintp", return_="int")
-def input_expr(i, level):
-    if i == 0:
-        return 0
-    else:
-        return level[i - 1]
-
-
-@annotate(int="i, item", cs_level="gintp")
-def output_expr(i, item, cs_level):
-    cs_level[i] = item
+        level_diff[i] = level[i] - level[parent_idx[i]] - 1
 
 
 @annotate(i="int",
-          gintp="level_diff, cumsum_diff, sfc, level, idx, parent, "
-                "child, new_sfc, new_level, new_idx, new_parent, new_child"
+          gintp="level_diff, sfc, level"
           )
-def complete_tree(i, level_diff, cumsum_diff, sfc, level, idx, parent,
-                  child, new_sfc, new_level, new_idx, new_parent, new_child):
-    offset, j, k, lid = declare("int", 4)
-    offset = i + cumsum_diff[i]
-    new_sfc[offset] = sfc[i]
-    new_level[offset] = level[i]
-    new_idx[offset] = idx[i]
-
-    if level_diff[i] == 0:
-        if parent[i] != -1:
-            new_parent[offset] = parent[i] + cumsum_diff[parent[i]]
-        else:
-            new_parent[offset] = -1
+def complete_tree(i, level_diff, sfc, level):
+    if level_diff[i] < 1:
         return
-
-    new_parent[offset] = offset + 1
-
-    for k in range(1, level_diff[i]+1):
-        lid = offset + k
-        new_sfc[lid] = sfc[i] >> 3
-        new_level[lid] = level[i] - k
-        new_idx[lid] = -1
-        new_parent[lid] = lid + 1
-        new_child[8*lid] = lid - 1
-
-    new_parent[offset+level_diff[i]] = parent[i] + cumsum_diff[parent[i]]
-    for j in range(8):
-        if child[8*parent[i]+j] == i:
-            new_child[8*(parent[i] + cumsum_diff[parent[i]]) +
-                      j] = offset + level_diff[i]
-            break
+    else:
+        sfc[i] = sfc[i] >> 3 * level_diff[i]
+        level[i] = level[i] - level_diff[i]
 
 
+# TODO: test this function as well
 def build(N, max_depth, part_x, part_y, part_z, x_min,
           y_min, z_min, length, backend):
     max_index = 2 ** max_depth
-
     part_x, part_y, part_z = wrap(part_x, part_y, part_z, backend=backend)
 
     leaf_sfc = ary.zeros(N, dtype=np.int32, backend=backend)
@@ -315,29 +263,29 @@ def build(N, max_depth, part_x, part_y, part_z, x_min,
     dp_idx = ary.zeros(N-1, dtype=np.int32, backend=backend)
     dp_idx_sorted = ary.zeros(N-1, dtype=np.int32, backend=backend)
 
-    all_sfc = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
-    all_level = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
-    all_idx = ary.empty(2*N-1, dtype=np.int32, backend=backend)
-    all_idx.fill(-1)
+    sfc = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
+    level = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
+    idx = ary.empty(2*N-1, dtype=np.int32, backend=backend)
+    idx.fill(-1)
 
-    all_sfc_sorted = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
-    all_level_sorted = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
-    all_idx_sorted = ary.empty(2*N-1, dtype=np.int32, backend=backend)
-    all_idx_sorted.fill(-1)
+    sfc_sorted = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
+    level_sorted = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
+    idx_sorted = ary.empty(2*N-1, dtype=np.int32, backend=backend)
+    idx_sorted.fill(-1)
 
     pc_sfc = ary.empty(4*N-2, dtype=np.int32, backend=backend)
     pc_level = ary.empty(4*N-2, dtype=np.int32, backend=backend)
     pc_idx = ary.empty(4*N-2, dtype=np.int32, backend=backend)
     temp_idx = ary.empty(4*N-2, dtype=np.int32, backend=backend)
-    parent_idx = ary.empty(2*N-1, dtype=np.int32, backend=backend)
-    child_idx = ary.empty(8*(2*N-1), dtype=np.int32, backend=backend)
+    parent = ary.empty(2*N-1, dtype=np.int32, backend=backend)
+    child = ary.empty(8*(2*N-1), dtype=np.int32, backend=backend)
     rel_idx = ary.empty(4*N-2, dtype=np.int32, backend=backend)
     pc_sfc.fill(-1)
     pc_level.fill(-1)
     pc_idx.fill(-1)
     temp_idx.fill(-1)
-    parent_idx.fill(-1)
-    child_idx.fill(-1)
+    parent.fill(-1)
+    child.fill(-1)
     rel_idx.fill(-1)
 
     sort_pc_sfc = ary.zeros(4*N-2, dtype=np.int32, backend=backend)
@@ -401,8 +349,8 @@ def build(N, max_depth, part_x, part_y, part_z, x_min,
     eget_relations = Elementwise(get_relations, backend=backend)
 
     efind_level_diff = Elementwise(find_level_diff, backend=backend)
-    eget_cumsum_diff = Scan(input_expr, output_expr,
-                            'a+b', dtype=np.int32, backend=backend)
+    # eget_cumsum_diff = Scan(input_expr, output_expr,
+    #                         'a+b', dtype=np.int32, backend=backend)
     ecomplete_tree = Elementwise(complete_tree, backend=backend)
 
     # making the adaptive oct tree from bottom up
@@ -418,8 +366,6 @@ def build(N, max_depth, part_x, part_y, part_z, x_min,
 
     # finds the LCA of all particles
 
-    # ecopy_arrs_3(leaf_sfc, leaf_level, leaf_idx,
-    #              nodes_sfc, nodes_level, nodes_idx)
     einternal_nodes(leaf_sfc[:-1], leaf_sfc[1:], leaf_level[:-1],
                     leaf_level[1:], nodes_sfc, nodes_level,
                     nodes_idx)
@@ -453,31 +399,40 @@ def build(N, max_depth, part_x, part_y, part_z, x_min,
                  nodes_sfc, nodes_level, nodes_idx)
 
     # number of repeated internal nodes
-    count_repeated = int(n_duplicates(dp_idx_sorted))
+    rep_cnt = int(n_duplicates(dp_idx_sorted))
+    cells = 2*N-1 - rep_cnt
 
     # full sorted arrays (sfc, level, idx)
 
     ecopy_arrs_6(leaf_sfc, nodes_sfc, leaf_level, nodes_level,
-                 leaf_idx, nodes_idx, all_sfc[:N], all_sfc[N:],
-                 all_level[:N], all_level[N:], all_idx[:N], all_idx[N:])
+                 leaf_idx, nodes_idx, sfc[:N], sfc[N:],
+                 level[:N], level[N:], idx[:N], idx[N:])
 
-    [all_sfc_sorted, all_level_sorted, all_idx_sorted], _ = radix_sort(
-        [all_sfc, all_level, all_idx], backend=backend)
+    [sfc_sorted, level_sorted, idx_sorted], _ = radix_sort(
+        [sfc, level, idx], backend=backend)
 
-    ecopy_arrs_3(all_sfc_sorted, all_level_sorted, all_idx_sorted,
-                 all_sfc, all_level, all_idx)
+    ecopy_arrs_3(sfc_sorted, level_sorted, idx_sorted,
+                 sfc, level, idx)
 
-    esfc_real(all_sfc, all_level, max_depth)
+    esfc_real(sfc, level, max_depth)
+
+    sfc.resize(cells)
+    level.resize(cells)
+    idx.resize(cells)
+    leaf_nodes_idx.resize(cells)
+    parent.resize(cells)
+    child.resize(8*cells)
+    level_diff.resize(cells)
 
     # finding parent child relationships
-    ecopy_arrs_4(all_sfc, all_level, all_idx, leaf_nodes_idx,
+    ecopy_arrs_4(sfc, level, idx, leaf_nodes_idx,
                  pc_sfc, pc_level, pc_idx, rel_idx)
 
-    efind_parents(all_sfc[:-count_repeated-1],
-                  all_sfc[1:-count_repeated],
-                  all_level[:-count_repeated-1],
-                  all_level[1:-count_repeated],
-                  leaf_nodes_idx[:-count_repeated-1],
+    efind_parents(sfc[:-1],
+                  sfc[1:],
+                  level[:-1],
+                  level[1:],
+                  leaf_nodes_idx[:-1],
                   pc_sfc[2*N-1:], pc_level[2*N-1:],
                   pc_idx[2*N-1:], temp_idx[2*N-1:])
 
@@ -490,8 +445,8 @@ def build(N, max_depth, part_x, part_y, part_z, x_min,
                     temp_idx, sort_pc_level, sort_pc_sfc,
                     sort_pc_idx, sort_rel_idx, sort_temp_idx, 4*N-2)
 
-    esfc_same(pc_sfc[2*count_repeated+1:],
-              pc_level[2*count_repeated+1:], max_depth)
+    esfc_same(pc_sfc[2*rep_cnt+1:],
+              pc_level[2*rep_cnt+1:], max_depth)
 
     [sort_pc_sfc, sort_pc_level, sort_pc_idx, sort_rel_idx,
      sort_temp_idx], _ = radix_sort([pc_sfc, pc_level,
@@ -502,62 +457,14 @@ def build(N, max_depth, part_x, part_y, part_z, x_min,
                  sort_rel_idx, sort_temp_idx, pc_sfc, pc_level,
                  pc_idx, rel_idx, temp_idx)
 
-    esfc_real(pc_sfc[:-(2*count_repeated+1)],
-              pc_level[:-(2*count_repeated+1)], max_depth)
+    esfc_real(pc_sfc[:-(2*rep_cnt+1)],
+              pc_level[:-(2*rep_cnt+1)], max_depth)
+
     eget_relations(pc_sfc, pc_level, temp_idx, rel_idx,
-                   parent_idx, child_idx)
+                   parent, child)
 
-    efind_level_diff(all_level[:-count_repeated],
-                     parent_idx[:-count_repeated],
-                     level_diff[:-count_repeated])
+    efind_level_diff(level, parent, level_diff)
 
-    eget_cumsum_diff(level=level_diff, cs_level=cumsum_diff)
+    ecomplete_tree(level_diff, sfc, level)
 
-    count = 2*N - 1 - count_repeated + cumsum_diff[-count_repeated-1]
-    sfc = ary.zeros(count, dtype=np.int32, backend=backend)
-    level = ary.zeros(count, dtype=np.int32, backend=backend)
-    idx = ary.zeros(count, dtype=np.int32, backend=backend)
-    parent = ary.zeros(count, dtype=np.int32, backend=backend)
-    child = ary.zeros(8*count, dtype=np.int32, backend=backend)
-    child.fill(-1)
-
-    ecomplete_tree(level_diff[:-count_repeated],
-                   cumsum_diff[:-count_repeated], all_sfc[:-count_repeated],
-                   all_level[:-count_repeated], all_idx[:-count_repeated],
-                   parent_idx[:-count_repeated],
-                   child_idx[:-8*count_repeated], sfc, level, idx, parent,
-                   child)
-
-    return count, sfc, level, idx, parent, child
-
-
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-n", help="backend to use", default=10)
-    parser.add_argument("-l", help="max depth for tree",
-                        default=2)
-    parser.add_argument("--seed", help="Random Seed", default=4)
-    parser.add_argument("-b", "--backend", help="backend to use",
-                        default='cython')
-    parser.add_argument("-omp", "--openmp",
-                        help="use openmp for calculations",
-                        action="store_true")
-    args = parser.parse_args()
-
-    if args.openmp:
-        get_config().use_openmp = True
-
-    np.random.seed(int(args.seed))
-    backend = args.backend
-    N = int(args.n)
-    max_depth = int(args.l)
-    part_x = np.random.random(N)
-    part_y = np.random.random(N)
-    part_z = np.random.random(N)
-    x_min = 0
-    y_min = 0
-    z_min = 0
-    length = 1
-    build(N, max_depth, part_x, part_y, part_z,
-          x_min, y_min, z_min, length, backend)
+    return cells, sfc, level, idx, parent, child
