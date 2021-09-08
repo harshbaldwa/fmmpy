@@ -57,6 +57,7 @@ def test_calc_p2_fine(backend):
 
     out_val = ary.zeros(2*num_p2, dtype=np.float32, backend=backend)
 
+    e = Elementwise(calc_p2_fine, backend=backend)
     e(out_val, out_x, out_y, out_z, part_val, part_x, part_y, part_z,
       cx, cy, cz, num_p2, length, index, leg_lim, leg_lst, level, idx)
 
