@@ -31,6 +31,7 @@ def test_calc_p2_fine(backend):
                      0.75, 1.5, 0, 0.75, 0.75], dtype=np.float32)
     out_z = np.array([0.25, 0.25, 0.25, 0.25, 1, -0.5, 0.75,
                      0.75, 0.75, 0.75, 1.5, 0], dtype=np.float32)
+    level = np.array([1, 1], dtype=np.int32)
     part_val = np.array([1.0, 3.0], dtype=np.float32)
     part_x = np.array([0.3, 0.8], dtype=np.float32)
     part_y = np.array([0.25, 0.75], dtype=np.float32)
@@ -50,15 +51,15 @@ def test_calc_p2_fine(backend):
                          0.6, 0.4, 0.5, 0.5, 0.5, 0.5], dtype=np.float32)
 
     out_x, out_y, out_z, part_val, part_x, part_y, part_z, r_out_val, \
-        cx, cy, cz, index, leg_lst, idx = wrap(
+        cx, cy, cz, index, leg_lst, idx, level = wrap(
             out_x, out_y, out_z, part_val, part_x, part_y, part_z, r_out_val,
-            cx, cy, cz, index, leg_lst, idx, backend=backend)
+            cx, cy, cz, index, leg_lst, idx, level, backend=backend)
 
     out_val = ary.zeros(2*num_p2, dtype=np.float32, backend=backend)
 
     e = Elementwise(calc_p2_fine, backend=backend)
     e(out_val, out_x, out_y, out_z, part_val, part_x, part_y, part_z,
-      cx, cy, cz, num_p2, length, index, leg_lim, leg_lst, max_depth, idx)
+      cx, cy, cz, num_p2, length, index, leg_lim, leg_lst, level, idx)
 
     np.testing.assert_array_almost_equal(r_out_val, out_val)
 
@@ -184,8 +185,6 @@ def test_assoc_coarse(backend):
 @check_all_backends
 def test_find_assoc(backend):
     check_import(backend)
-# def test_find_assoc():
-#     backend = 'cython'
     sfc = np.array([1, 8, 0, 1, 0], dtype=np.int32)
     level = np.array([2, 1, 2, 1, 0], dtype=np.int32)
     # offset = level_cs[2]

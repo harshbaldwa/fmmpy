@@ -1,8 +1,9 @@
+import importlib.resources
+
 import pytest
+import yaml
 from compyle.api import wrap
 from fmm.centers import *
-from importlib import resources
-import pickle
 
 check_all_backends = pytest.mark.parametrize('backend',
                                              ['cython', 'opencl'])
@@ -17,7 +18,6 @@ def check_import(backend):
 def test_deinterleave(backend):
     check_import(backend)
     idx = 38
-    # '100110' -> 38
     x = deinterleave(idx)
     y = deinterleave(idx >> 1)
     z = deinterleave(idx >> 2)
@@ -62,9 +62,9 @@ def test_setting_p2(backend):
     cz = np.array([0.25], dtype=np.float32)
     num_p2 = 6
     length = 1
-    temp_d = pickle.load(resources.open_binary(
-        "fmm", "t_design.pickle"))[num_p2]
-    sph_pts = temp_d['array']
+    with importlib.resources.open_text("fmm", "t_design.yaml") as file:
+        data = yaml.load(file)[num_p2]
+    sph_pts = np.array(data['array'], dtype=np.float32)
     r_out_x = np.array([1, -0.5, 0.25, 0.25, 0.25, 0.25],
                        dtype=np.float32)
     r_out_y = np.array([0.25, 0.25, 1, -0.5, 0.25, 0.25],
@@ -106,15 +106,17 @@ def test_setting_p2(backend):
 @check_all_backends
 def test_level_info(backend):
     check_import(backend)
+    max_depth = 3
     level = np.array([3, 3, 2, 2, 1, 1, 1, 0], dtype=np.int32)
-    r_level_n = np.array([1, 3, 2, 2], dtype=np.int32)
-    level, r_level_n = wrap(level, r_level_n, backend=backend)
-    level_n = ary.zeros(4, dtype=np.int32, backend=backend)
+    idx = np.array([0, 1, -1, 2, -1, -1, -1, -1], dtype=np.int32)
+    r_lev_n = np.array([1, 3, 1, 3], dtype=np.int32)
+    level, idx, r_lev_n = wrap(level, idx, r_lev_n, backend=backend)
+    lev_n = ary.zeros(4, dtype=np.int32, backend=backend)
 
     e = Elementwise(level_info, backend=backend)
-    e(level, level_n)
+    e(level, idx, lev_n, max_depth)
 
-    np.testing.assert_array_equal(r_level_n, level_n)
+    np.testing.assert_array_equal(r_lev_n, lev_n)
 
 
 @check_all_backends

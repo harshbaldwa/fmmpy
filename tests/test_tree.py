@@ -1,7 +1,5 @@
 import pytest
-
 from fmm.tree import *
-
 
 check_all_backends = pytest.mark.parametrize('backend',
                                              ['cython', 'opencl'])
@@ -228,64 +226,66 @@ def test_find_level_diff(backend):
 
 
 @check_all_backends
-def test_cumsum_level_diff(backend):
-    check_import(backend)
-    level_diff = np.array([1, 1, 0], dtype=np.int32)
-    r_cumsum_level_diff = np.array([0, 1, 2], dtype=np.int32)
-    level_diff, r_cumsum_level_diff = wrap(
-        level_diff, r_cumsum_level_diff, backend=backend)
-    cumsum_level_diff = ary.zeros(3, dtype=np.int32, backend=backend)
-    scan = Scan(input_expr, output_expr, 'a+b',
-                dtype=np.int32, backend=backend)
-
-    scan(level=level_diff, cs_level=cumsum_level_diff)
-
-    np.testing.assert_array_equal(
-        r_cumsum_level_diff, cumsum_level_diff)
-
-
-@check_all_backends
 def test_complete_tree(backend):
     check_import(backend)
     sfc = np.array([1, 8, 0], dtype=np.int32)
     level = np.array([2, 2, 0], dtype=np.int32)
-    idx = np.array([0, 1, -1], dtype=np.int32)
-    parent = np.array([2, 2, -1], dtype=np.int32)
-    child = np.ones(24, dtype=np.int32) * -1
-    child[16] = 0
-    child[17] = 1
     level_diff = np.array([1, 1, 0], dtype=np.int32)
-    cum_level_diff = np.array([0, 1, 2], dtype=np.int32)
-    r_new_sfc = np.array([1, 0, 8, 1, 0], dtype=np.int32)
-    r_new_level = np.array([2, 1, 2, 1, 0], dtype=np.int32)
-    r_new_idx = np.array([0, -1, 1, -1, -1], dtype=np.int32)
-    r_new_parent = np.array([1, 4, 3, 4, -1], dtype=np.int32)
-    r_new_child = np.ones(40, dtype=np.int32)*-1
-    r_new_child[8] = 0
-    r_new_child[24] = 2
-    r_new_child[32] = 1
-    r_new_child[33] = 3
+    r_sfc = np.array([0, 1, 0], dtype=np.int32)
+    r_level = np.array([1, 1, 0], dtype=np.int32)
 
-    sfc, level, idx, parent, child, level_diff, cum_level_diff, \
-        r_new_sfc, r_new_level, r_new_idx, r_new_parent, \
-        r_new_child = wrap(
-            sfc, level, idx, parent, child, level_diff,
-            cum_level_diff, r_new_sfc, r_new_level, r_new_idx,
-            r_new_parent, r_new_child, backend=backend)
-
-    new_sfc = ary.zeros(5, dtype=np.int32, backend=backend)
-    new_level = ary.zeros(5, dtype=np.int32, backend=backend)
-    new_idx = ary.zeros(5, dtype=np.int32, backend=backend)
-    new_parent = ary.zeros(5, dtype=np.int32, backend=backend)
-    new_child = ary.empty(40, dtype=np.int32, backend=backend)
-    new_child.fill(-1)
+    sfc, level, level_diff, r_sfc, r_level = wrap(
+        sfc, level, level_diff, r_sfc, r_level, backend=backend)
 
     e = Elementwise(complete_tree, backend=backend)
-    e(level_diff, cum_level_diff, sfc, level, idx, parent,
-      child, new_sfc, new_level, new_idx, new_parent, new_child)
+    e(level_diff, sfc, level)
 
-    np.testing.assert_array_equal(r_new_sfc, new_sfc)
-    np.testing.assert_array_equal(r_new_level, new_level)
-    np.testing.assert_array_equal(r_new_idx, new_idx)
-    np.testing.assert_array_equal(r_new_parent, new_parent)
-    np.testing.assert_array_equal(r_new_child, new_child)
+    np.testing.assert_array_equal(r_sfc, sfc)
+    np.testing.assert_array_equal(r_level, level)
+
+
+@check_all_backends
+def test_tree(backend):
+    check_import(backend)
+    N = 10
+    max_depth = 3
+    np.random.seed(4)
+    part_x = np.random.random(N)
+    part_y = np.random.random(N)
+    part_z = np.random.random(N)
+    x_min = 0
+    y_min = 0
+    z_min = 0
+    length = 1
+    r_sfc = np.array([0, 1, 16, 23, 2, 3, 4, 41, 44, 5, 62, 63, 7, 0],
+                     dtype=np.int32)
+    r_level = np.array([1, 1, 2, 2, 1, 1, 1, 2, 2, 1, 2, 2, 1, 0],
+                       dtype=np.int32)
+    r_idx = np.array([7, 4, 5, 9, -1, 0, 8, 6, 1, -1, 3, 2, -1, -1],
+                     dtype=np.int32)
+    r_parent = np.array([13, 13, 4, 4, 13, 13, 13, 9, 9, 13, 12, 12, 13, -1],
+                        dtype=np.int32)
+    r_child = np.ones(8*14, dtype=np.int32) * -1
+    r_child[32] = 2
+    r_child[33] = 3
+    r_child[72] = 7
+    r_child[73] = 8
+    r_child[96] = 10
+    r_child[97] = 11
+    r_child[104] = 0
+    r_child[105] = 1
+    r_child[106] = 4
+    r_child[107] = 5
+    r_child[108] = 6
+    r_child[109] = 9
+    r_child[110] = 12
+
+    cells, sfc, level, idx, parent, child = build(
+        N, max_depth, part_x, part_y, part_z, x_min,
+        y_min, z_min, length, backend)
+
+    np.testing.assert_array_equal(r_sfc, sfc)
+    np.testing.assert_array_equal(r_level, level)
+    np.testing.assert_array_equal(r_idx, idx)
+    np.testing.assert_array_equal(r_parent, parent)
+    np.testing.assert_array_equal(r_child, child)
