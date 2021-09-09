@@ -1,8 +1,8 @@
 # Parallel Fast Multipole methods
 
-No official name as of yet! (*FMMPy* looks like a good name :P)\
-Works on **multi-core CPU** as well as on **GPU** \
-Being developed by ***Harshvardhan Baldwa***
+- No official name as of yet! (*FMMPy* looks like a good name :P)\
+- Works on **multi-core CPU** as well as on **GPU** \
+- Being developed by ***Harshvardhan Baldwa***
 
 ---
 ## Work
