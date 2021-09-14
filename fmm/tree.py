@@ -273,23 +273,22 @@ def calc_center(i, sfc, level, cx, cy, cz,
     cz[i] = z_min + length*(z + 0.5)/(2.0 ** level[i])
 
 
-@annotate(int="i, num_p2", level="gintp",
-          length="double",
+@annotate(int="i, num_p2", level="gintp", length="double",
           gfloatp="cx, cy, cz, out_x, out_y, out_z, "
                   "in_x, in_y, in_z, sph_pts")
-def setting_p2(i, cx, cy, cz, out_x, out_y,
-               out_z, in_x, in_y, in_z, sph_pts,
-               length, level, num_p2):
-    j = declare("int")
+def setting_p2(i, out_x, out_y, out_z, in_x, in_y, in_z, 
+               sph_pts, cx, cy, cz, length, level, num_p2):
+    cid, sid = declare("int", 2)
     sz_cell = declare("double")
-    sz_cell = length/(2.0**(level[i]+1))
-    for j in range(num_p2):
-        out_x[i*num_p2+j] = cx[i]+sph_pts[3*j]*3*sz_cell
-        out_y[i*num_p2+j] = cy[i]+sph_pts[3*j+1]*3*sz_cell
-        out_z[i*num_p2+j] = cz[i]+sph_pts[3*j+2]*3*sz_cell
-        in_x[i*num_p2+j] = cx[i]+sph_pts[3*j]*0.5*sz_cell
-        in_y[i*num_p2+j] = cy[i]+sph_pts[3*j+1]*0.5*sz_cell
-        in_z[i*num_p2+j] = cz[i]+sph_pts[3*j+2]*0.5*sz_cell
+    cid = cast(floor(i*1.0/num_p2), "int")
+    sid = i % num_p2
+    sz_cell = length/(2.0**(level[cid]+1))
+    out_x[i] = cx[cid] + 3*sz_cell*sph_pts[3*sid]
+    out_y[i] = cy[cid] + 3*sz_cell*sph_pts[3*sid+1]
+    out_z[i] = cz[cid] + 3*sz_cell*sph_pts[3*sid+2]
+    in_x[i] = cx[cid] + 0.5*sz_cell*sph_pts[3*sid]
+    in_y[i] = cy[cid] + 0.5*sz_cell*sph_pts[3*sid+1]
+    in_z[i] = cz[cid] + 0.5*sz_cell*sph_pts[3*sid+2]
 
 
 @annotate(int="i, max_depth", gintp="level, lev_n, idx")
