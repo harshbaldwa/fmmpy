@@ -83,7 +83,7 @@ class ReverseArrays(Template):
           )
 def internal_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level,
                    lca_idx):
-    level_diff, xor, i1, i2, level, j = declare("int", 6)
+    level_diff, xor_id, i1, i2, level, j = declare("int", 6)
     level_diff = cast(abs(level1[i] - level2[i]), "int")
 
     if level1[i] - level2[i] > 0:
@@ -99,16 +99,16 @@ def internal_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level,
         i2 = sfc2[i]
         level = level1[i]
 
-    xor = i1 ^ i2
+    xor_id = i1 ^ i2
 
-    if xor == 0:
+    if xor_id == 0:
         lca_sfc[i] = i1 >> 3 * level_diff
         lca_level[i] = level - level_diff
         lca_idx[i] = -1
         return
 
     for j in range(level + 1, 0, -1):
-        if xor > ((1 << (j - 1) * 3) - 1):
+        if xor_id > ((1 << (j - 1) * 3) - 1):
             lca_sfc[i] = i1 >> 3 * j
             lca_level[i] = level - j
             lca_idx[i] = -1
@@ -126,7 +126,7 @@ def internal_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level,
           )
 def find_parents(i, sfc1, sfc2, level1, level2, all_idx, lca_sfc,
                  lca_level, lca_idx, temp_idx):
-    level_diff, xor, i1, i2, level, j = declare("int", 6)
+    level_diff, xor_id, i1, i2, level, j = declare("int", 6)
     level_diff = cast(abs(level1[i] - level2[i]), "int")
 
     if level1[i] - level2[i] > 0:
@@ -142,9 +142,9 @@ def find_parents(i, sfc1, sfc2, level1, level2, all_idx, lca_sfc,
         i2 = sfc2[i]
         level = level1[i]
 
-    xor = i1 ^ i2
+    xor_id = i1 ^ i2
 
-    if xor == 0:
+    if xor_id == 0:
         lca_sfc[i] = i1 >> 3 * level_diff
         lca_level[i] = level - level_diff
         lca_idx[i] = -1
@@ -152,7 +152,7 @@ def find_parents(i, sfc1, sfc2, level1, level2, all_idx, lca_sfc,
         return
 
     for j in range(level + 1, 0, -1):
-        if xor > ((1 << (j - 1) * 3) - 1):
+        if xor_id > ((1 << (j - 1) * 3) - 1):
             lca_sfc[i] = i1 >> 3 * j
             lca_level[i] = level - j
             lca_idx[i] = -1

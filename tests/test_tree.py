@@ -10,11 +10,6 @@ def check_import(backend):
         pytest.importorskip('pyopencl')
 
 
-def skipcuda(backend):
-    if backend == 'cuda':
-        pytest.skip('this is broken')
-
-
 @check_all_backends
 def test_get_particle_index(backend):
     check_import(backend)
@@ -66,7 +61,6 @@ def test_reverse_arr(backend):
 @check_all_backends
 def test_internal_nodes(backend):
     check_import(backend)
-    # skipcuda(backend)
     sfc = np.array([52, 53], dtype=np.int32)
     level = np.array([2, 2], dtype=np.int32)
     r_lca_sfc = np.array([6], dtype=np.int32)
@@ -92,7 +86,6 @@ def test_internal_nodes(backend):
 @check_all_backends
 def test_find_parents(backend):
     check_import(backend)
-    # skipcuda(backend)
     sfc = np.array([52, 53], dtype=np.int32)
     level = np.array([2, 2], dtype=np.int32)
     all_idx = np.arange(2, dtype=np.int32)
