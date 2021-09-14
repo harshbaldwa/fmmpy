@@ -8,6 +8,8 @@ check_all_backends = pytest.mark.parametrize('backend',
 def check_import(backend):
     if backend == 'opencl':
         pytest.importorskip('pyopencl')
+    elif backend == 'cuda':
+        pytest.importorskip('pycuda')
 
 
 @check_all_backends
