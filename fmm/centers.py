@@ -132,18 +132,32 @@ def set_prob(N, max_depth, part_x, part_y, part_z, x_min,
     esetting_p2(cx, cy, cz, out_x, out_y, out_z, in_x,
                 in_y, in_z, sph_pts, length, level, num_p2)
 
+    print(level)
+    print(idx)
+
     [s1_lev, s1_idx, s1_index], _ = radix_sort([level, idx, index],
                                                backend=backend)
+
+    print(s1_lev)
+    print(s1_idx)
+
     [s2_idx, s2_lev, s2_index], _ = radix_sort([s1_idx, s1_lev, s1_index],
                                                backend=backend)
+
+    print(s2_level)
+    print(s2_idx)
+
     ereverse2(s1_lev, s1_index, s2_lev, s2_index, cells)
 
-    elev_info(level, idx, lev_n, max_depth)
-    ereverse1(lev_nr, lev_n, max_depth+1)
-    cumsum(lev_nr=lev_nr, lev_cs=lev_cs)
+    print(s1_lev)
+    print(s1_idx)
 
-    return cells, sfc, level, idx, parent, child, lev_cs, index, index_r, \
-        cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_vl, in_vl
+    # elev_info(level, idx, lev_n, max_depth)
+    # ereverse1(lev_nr, lev_n, max_depth+1)
+    # cumsum(lev_nr=lev_nr, lev_cs=lev_cs)
+
+    # return cells, sfc, level, idx, parent, child, lev_cs, index, index_r, \
+    #     cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_vl, in_vl
 
 
 if __name__ == "__main__":

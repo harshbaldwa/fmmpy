@@ -1,12 +1,12 @@
-import argparse
-import time
+import importlib.resources
 from math import floor
 
 import compyle.array as ary
 import numpy as np
-from compyle.api import (Elementwise, Reduction, Scan, annotate,
-                         declare, get_config, wrap)
-from compyle.low_level import cast
+import yaml
+from compyle.api import (Elementwise, Reduction, Scan, annotate, declare,
+                         get_config, wrap)
+from compyle.low_level import cast, atomic_inc
 from compyle.sort import radix_sort
 from compyle.template import Template
 
@@ -235,9 +235,74 @@ def complete_tree(i, level_diff, sfc, level):
         level[i] = level[i] - level_diff[i]
 
 
-# TODO: test this function as well
+@annotate(i="int", lev_nr="gintp", return_="int")
+def input_expr(i, lev_nr):
+    if i == 0:
+        return 0
+    else:
+        return lev_nr[i - 1]
+
+
+@annotate(int="i, item", lev_cs="gintp")
+def output_expr(i, item, lev_cs):
+    lev_cs[i] = item
+
+
+@annotate(x="int", return_="int")
+def deinterleave(x):
+    x = x & 0x49249249
+    x = (x | (x >> 2)) & 0xC30C30C3
+    x = (x | (x >> 4)) & 0xF00F00F
+    x = (x | (x >> 8)) & 0xFF0000FF
+    x = (x | (x >> 16)) & 0x0000FFFF
+    return x
+
+
+@annotate(i="int", gintp="sfc, level",
+          gfloatp="cx, cy, cz",
+          double="x_min, y_min, z_min, length")
+def calc_center(i, sfc, level, cx, cy, cz,
+                x_min, y_min, z_min, length):
+    x, y, z = declare("int", 3)
+    x = deinterleave(sfc[i])
+    y = deinterleave(sfc[i] >> 1)
+    z = deinterleave(sfc[i] >> 2)
+
+    cx[i] = x_min + length*(x + 0.5)/(2.0 ** level[i])
+    cy[i] = y_min + length*(y + 0.5)/(2.0 ** level[i])
+    cz[i] = z_min + length*(z + 0.5)/(2.0 ** level[i])
+
+
+@annotate(int="i, num_p2", level="gintp",
+          length="double",
+          gfloatp="cx, cy, cz, out_x, out_y, out_z, "
+                  "in_x, in_y, in_z, sph_pts")
+def setting_p2(i, cx, cy, cz, out_x, out_y,
+               out_z, in_x, in_y, in_z, sph_pts,
+               length, level, num_p2):
+    j = declare("int")
+    sz_cell = declare("double")
+    sz_cell = length/(2.0**(level[i]+1))
+    for j in range(num_p2):
+        out_x[i*num_p2+j] = cx[i]+sph_pts[3*j]*3*sz_cell
+        out_y[i*num_p2+j] = cy[i]+sph_pts[3*j+1]*3*sz_cell
+        out_z[i*num_p2+j] = cz[i]+sph_pts[3*j+2]*3*sz_cell
+        in_x[i*num_p2+j] = cx[i]+sph_pts[3*j]*0.5*sz_cell
+        in_y[i*num_p2+j] = cy[i]+sph_pts[3*j+1]*0.5*sz_cell
+        in_z[i*num_p2+j] = cz[i]+sph_pts[3*j+2]*0.5*sz_cell
+
+
+@annotate(int="i, max_depth", gintp="level, lev_n, idx")
+def level_info(i, level, idx, lev_n, max_depth):
+    ix = declare("int")
+    if idx[i] == -1:
+        ix = atomic_inc(lev_n[level[i]])
+    else:
+        ix = atomic_inc(lev_n[max_depth])
+
+
 def build(N, max_depth, part_x, part_y, part_z, x_min,
-          y_min, z_min, length, backend):
+          y_min, z_min, length, num_p2, backend):
     max_index = 2 ** max_depth
     part_x, part_y, part_z = wrap(part_x, part_y, part_z, backend=backend)
 
@@ -297,46 +362,55 @@ def build(N, max_depth, part_x, part_y, part_z, x_min,
     level_diff = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
     cumsum_diff = ary.zeros(2*N-1, dtype=np.int32, backend=backend)
 
+    # with importlib.resources.open_text("fmm", "t_design.yaml") as file:
+    #     data = yaml.load(file)[num_p2]
+    data = yaml.load(open("t_design.yaml"), Loader=yaml.FullLoader)[num_p2]
+    sph_pts = np.array(data['array'], dtype=np.float32)
+    order = data['order']
+    sph_pts = wrap(sph_pts, backend=backend)
+
     # different functions start from here
     eget_particle_index = Elementwise(get_particle_index, backend=backend)
 
-    copy_arrs_2 = CopyArrays('copy_arrs_2', [
+    copy2 = CopyArrays('copy2', [
         'a1', 'a2',
         'b1', 'b2']).function
-    copy_arrs_3 = CopyArrays('copy_arrs_3', [
+    copy3 = CopyArrays('copy3', [
         'a1', 'a2', 'a3',
         'b1', 'b2', 'b3']).function
-    copy_arrs_4 = CopyArrays('copy_arrs_4', [
+    copy4 = CopyArrays('copy4', [
         'a1', 'a2', 'a3', 'a4',
         'b1', 'b2', 'b3', 'b4']).function
-    copy_arrs_5 = CopyArrays('copy_arrs_5', [
+    copy5 = CopyArrays('copy5', [
         'a1', 'a2', 'a3', 'a4', 'a5',
         'b1', 'b2', 'b3', 'b4', 'b5']).function
-    copy_arrs_6 = CopyArrays('copy_arrs_6', [
+    copy6 = CopyArrays('copy6', [
         'a1', 'a2', 'a3', 'a4', 'a5', 'a6',
         'b1', 'b2', 'b3', 'b4', 'b5', 'b6']).function
 
-    ecopy_arrs_2 = Elementwise(copy_arrs_2, backend=backend)
-    ecopy_arrs_3 = Elementwise(copy_arrs_3, backend=backend)
-    ecopy_arrs_4 = Elementwise(copy_arrs_4, backend=backend)
-    ecopy_arrs_5 = Elementwise(copy_arrs_5, backend=backend)
-    ecopy_arrs_6 = Elementwise(copy_arrs_6, backend=backend)
+    ecopy2 = Elementwise(copy2, backend=backend)
+    ecopy3 = Elementwise(copy3, backend=backend)
+    ecopy4 = Elementwise(copy4, backend=backend)
+    ecopy5 = Elementwise(copy5, backend=backend)
+    ecopy6 = Elementwise(copy6, backend=backend)
 
     einternal_nodes = Elementwise(internal_nodes, backend=backend)
 
-    reverse_arr_3 = ReverseArrays('reverse_arr_3', [
+    reverse1 = ReverseArrays('reverse1', ['a', 'b']).function
+    reverse2 = ReverseArrays('reverse2', [
+        'a1', 'a2',
+        'b1', 'b2']).function
+    reverse3 = ReverseArrays('reverse3', [
         'a1', 'a2', 'a3',
         'b1', 'b2', 'b3']).function
-    reverse_arr_4 = ReverseArrays('reverse_arr_4', [
-        'a1', 'a2', 'a3', 'a4',
-        'b1', 'b2', 'b3', 'b4']).function
-    reverse_arr_5 = ReverseArrays('reverse_arr_5', [
+    reverse5 = ReverseArrays('reverse5', [
         'a1', 'a2', 'a3', 'a4', 'a5',
         'b1', 'b2', 'b3', 'b4', 'b5']).function
 
-    ereverse_arrs_3 = Elementwise(reverse_arr_3, backend=backend)
-    ereverse_arrs_4 = Elementwise(reverse_arr_4, backend=backend)
-    ereverse_arrs_5 = Elementwise(reverse_arr_5, backend=backend)
+    ereverse1 = Elementwise(reverse1, backend=backend)
+    ereverse2 = Elementwise(reverse2, backend=backend)
+    ereverse3 = Elementwise(reverse3, backend=backend)
+    ereverse5 = Elementwise(reverse5, backend=backend)
 
     esfc_same = Elementwise(sfc_same, backend=backend)
     esfc_real = Elementwise(sfc_real, backend=backend)
@@ -349,45 +423,46 @@ def build(N, max_depth, part_x, part_y, part_z, x_min,
     eget_relations = Elementwise(get_relations, backend=backend)
 
     efind_level_diff = Elementwise(find_level_diff, backend=backend)
-    # eget_cumsum_diff = Scan(input_expr, output_expr,
-    #                         'a+b', dtype=np.int32, backend=backend)
     ecomplete_tree = Elementwise(complete_tree, backend=backend)
 
-    # making the adaptive oct tree from bottom up
-    # calculates sfc of all particles at the $max_depth level
+    ecalc_center = Elementwise(calc_center, backend=backend)
+    esetting_p2 = Elementwise(setting_p2, backend=backend)
+    elev_info = Elementwise(level_info, backend=backend)
+    cumsum = Scan(input_expr, output_expr, 'a+b',
+                  dtype=np.int32, backend=backend)
+
     eget_particle_index(leaf_sfc, part_x, part_y,
                         part_z, max_index, length,
                         x_min, y_min, z_min)
 
-    # sorts based on sfc array
     [leaf_sfc_sorted, leaf_idx_sorted], _ = radix_sort(
         [leaf_sfc, leaf_idx], backend=backend)
-    ecopy_arrs_2(leaf_sfc_sorted, leaf_idx_sorted, leaf_sfc, leaf_idx)
+    ecopy2(leaf_sfc_sorted, leaf_idx_sorted, leaf_sfc, leaf_idx)
 
-    # finds the LCA of all particles
+    leaf_sfc_sorted.resize(0)
+    leaf_idx_sorted.resize(0)
 
     einternal_nodes(leaf_sfc[:-1], leaf_sfc[1:], leaf_level[:-1],
                     leaf_level[1:], nodes_sfc, nodes_level,
                     nodes_idx)
 
-    # sorts internal nodes array across level
     [nodes_level_sorted, nodes_sfc_sorted, nodes_idx_sorted], _ = radix_sort(
         [nodes_level, nodes_sfc, nodes_idx], backend=backend)
 
-    ereverse_arrs_3(nodes_level, nodes_sfc, nodes_idx,
-                    nodes_level_sorted, nodes_sfc_sorted,
-                    nodes_idx_sorted, N-1)
+    ereverse3(nodes_level, nodes_sfc, nodes_idx,
+              nodes_level_sorted, nodes_sfc_sorted,
+              nodes_idx_sorted, N-1)
 
     esfc_same(nodes_sfc, nodes_level, max_depth)
 
     [nodes_sfc_sorted, nodes_level_sorted, nodes_idx_sorted], _ = radix_sort(
         [nodes_sfc, nodes_level, nodes_idx], backend=backend)
 
-    ecopy_arrs_3(nodes_sfc_sorted, nodes_level_sorted, nodes_idx_sorted,
-                 nodes_sfc, nodes_level, nodes_idx)
+    ecopy3(nodes_sfc_sorted, nodes_level_sorted, nodes_idx_sorted,
+           nodes_sfc, nodes_level, nodes_idx)
 
-    # deletes all duplicate nodes
     eid_duplicates(nodes_sfc[:-1], nodes_level[:-1], dp_idx)
+
     eremove_duplicates(dp_idx, nodes_sfc, nodes_level)
 
     [dp_idx_sorted, nodes_sfc_sorted, nodes_level_sorted,
@@ -395,8 +470,12 @@ def build(N, max_depth, part_x, part_y, part_z, x_min,
         [dp_idx, nodes_sfc, nodes_level, nodes_idx],
         backend=backend)
 
-    ecopy_arrs_3(nodes_sfc_sorted, nodes_level_sorted, nodes_idx_sorted,
-                 nodes_sfc, nodes_level, nodes_idx)
+    ecopy3(nodes_sfc_sorted, nodes_level_sorted, nodes_idx_sorted,
+           nodes_sfc, nodes_level, nodes_idx)
+
+    nodes_sfc_sorted.resize(0)
+    nodes_level_sorted.resize(0)
+    nodes_idx_sorted.resize(0)
 
     # number of repeated internal nodes
     rep_cnt = int(n_duplicates(dp_idx_sorted))
@@ -404,17 +483,21 @@ def build(N, max_depth, part_x, part_y, part_z, x_min,
 
     # full sorted arrays (sfc, level, idx)
 
-    ecopy_arrs_6(leaf_sfc, nodes_sfc, leaf_level, nodes_level,
-                 leaf_idx, nodes_idx, sfc[:N], sfc[N:],
-                 level[:N], level[N:], idx[:N], idx[N:])
+    ecopy6(leaf_sfc, nodes_sfc, leaf_level, nodes_level,
+           leaf_idx, nodes_idx, sfc[:N], sfc[N:],
+           level[:N], level[N:], idx[:N], idx[N:])
 
     [sfc_sorted, level_sorted, idx_sorted], _ = radix_sort(
         [sfc, level, idx], backend=backend)
 
-    ecopy_arrs_3(sfc_sorted, level_sorted, idx_sorted,
-                 sfc, level, idx)
+    ecopy3(sfc_sorted, level_sorted, idx_sorted,
+           sfc, level, idx)
 
     esfc_real(sfc, level, max_depth)
+
+    sfc_sorted.resize(0)
+    level_sorted.resize(0)
+    idx_sorted.resize(0)
 
     sfc.resize(cells)
     level.resize(cells)
@@ -425,25 +508,21 @@ def build(N, max_depth, part_x, part_y, part_z, x_min,
     level_diff.resize(cells)
 
     # finding parent child relationships
-    ecopy_arrs_4(sfc, level, idx, leaf_nodes_idx,
-                 pc_sfc, pc_level, pc_idx, rel_idx)
+    ecopy4(sfc, level, idx, leaf_nodes_idx,
+           pc_sfc, pc_level, pc_idx, rel_idx)
 
-    efind_parents(sfc[:-1],
-                  sfc[1:],
-                  level[:-1],
-                  level[1:],
-                  leaf_nodes_idx[:-1],
-                  pc_sfc[2*N-1:], pc_level[2*N-1:],
-                  pc_idx[2*N-1:], temp_idx[2*N-1:])
+    efind_parents(sfc[:-1], sfc[1:], level[:-1], level[1:], leaf_nodes_idx[:-1],
+                  pc_sfc[2*N-1:], pc_level[2*N-1:], pc_idx[2*N-1:],
+                  temp_idx[2*N-1:])
 
     [sort_pc_level, sort_pc_sfc, sort_pc_idx, sort_rel_idx,
      sort_temp_idx], _ = radix_sort([pc_level, pc_sfc,
                                      pc_idx, rel_idx, temp_idx],
                                     backend=backend)
 
-    ereverse_arrs_5(pc_level, pc_sfc, pc_idx, rel_idx,
-                    temp_idx, sort_pc_level, sort_pc_sfc,
-                    sort_pc_idx, sort_rel_idx, sort_temp_idx, 4*N-2)
+    ereverse5(pc_level, pc_sfc, pc_idx, rel_idx,
+              temp_idx, sort_pc_level, sort_pc_sfc,
+              sort_pc_idx, sort_rel_idx, sort_temp_idx, 4*N-2)
 
     esfc_same(pc_sfc[2*rep_cnt+1:],
               pc_level[2*rep_cnt+1:], max_depth)
@@ -453,10 +532,15 @@ def build(N, max_depth, part_x, part_y, part_z, x_min,
                                      pc_idx, rel_idx, temp_idx],
                                     backend=backend)
 
-    ecopy_arrs_5(sort_pc_sfc, sort_pc_level, sort_pc_idx,
-                 sort_rel_idx, sort_temp_idx, pc_sfc, pc_level,
-                 pc_idx, rel_idx, temp_idx)
+    ecopy5(sort_pc_sfc, sort_pc_level, sort_pc_idx,
+           sort_rel_idx, sort_temp_idx, pc_sfc, pc_level,
+           pc_idx, rel_idx, temp_idx)
 
+    sort_pc_sfc.resize(0)
+    sort_pc_level.resize(0)
+    sort_pc_idx.resize(0)
+    sort_rel_idx.resize(0)
+    sort_temp_idx.resize(0)
     esfc_real(pc_sfc[:-(2*rep_cnt+1)],
               pc_level[:-(2*rep_cnt+1)], max_depth)
 
@@ -467,4 +551,77 @@ def build(N, max_depth, part_x, part_y, part_z, x_min,
 
     ecomplete_tree(level_diff, sfc, level)
 
-    return cells, sfc, level, idx, parent, child
+    index = ary.arange(0, cells, 1, dtype=np.int32, backend=backend)
+
+    s1_index = ary.zeros(cells, dtype=np.int32, backend=backend)
+    s1r_index = ary.zeros(cells, dtype=np.int32, backend=backend)
+    s2_index = ary.zeros(cells, dtype=np.int32, backend=backend)
+    s1_lev = ary.zeros(cells, dtype=np.int32, backend=backend)
+    s2_lev = ary.zeros(cells, dtype=np.int32, backend=backend)
+    s1_idx = ary.zeros(cells, dtype=np.int32, backend=backend)
+    s2_idx = ary.zeros(cells, dtype=np.int32, backend=backend)
+
+    lev_n = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
+    lev_nr = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
+    lev_cs = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
+
+    cx = ary.zeros(cells, dtype=np.float32, backend=backend)
+    cy = ary.zeros(cells, dtype=np.float32, backend=backend)
+    cz = ary.zeros(cells, dtype=np.float32, backend=backend)
+
+    out_x = ary.zeros(cells*num_p2, dtype=np.float32, backend=backend)
+    out_y = ary.zeros(cells*num_p2, dtype=np.float32, backend=backend)
+    out_z = ary.zeros(cells*num_p2, dtype=np.float32, backend=backend)
+    out_vl = ary.zeros(cells*num_p2, dtype=np.float32, backend=backend)
+    in_x = ary.zeros(cells*num_p2, dtype=np.float32, backend=backend)
+    in_y = ary.zeros(cells*num_p2, dtype=np.float32, backend=backend)
+    in_z = ary.zeros(cells*num_p2, dtype=np.float32, backend=backend)
+    in_vl = ary.zeros(cells*num_p2, dtype=np.float32, backend=backend)
+
+    assoc = ary.zeros(cells*26, dtype=np.int32, backend=backend)
+
+    ecalc_center(sfc, level, cx, cy, cz,
+                 x_min, y_min, z_min, length)
+    esetting_p2(cx, cy, cz, out_x, out_y, out_z, in_x,
+                in_y, in_z, sph_pts, length, level, num_p2)
+
+    [s1_lev, s1_idx, s1_index], _ = radix_sort([level, idx, index],
+                                               backend=backend)
+    ereverse3(s2_idx, s2_lev, s2_index, s1_idx, s1_lev, s1_index, cells)
+    [s1_idx, s1_lev, s1_index], _ = radix_sort([s2_idx, s2_lev, s2_index],
+                                               backend=backend)
+
+    [s2_index, s1r_index], _ = radix_sort([s1_index, index], backend=backend)
+
+    s2_idx.resize(0)
+    s2_lev.resize(0)
+    s2_index.resize(0)
+
+    s1_lev.resize(0)
+    s1_idx.resize(0)
+    index.resize(0)
+
+    elev_info(level, idx, lev_n, max_depth)
+    ereverse1(lev_nr, lev_n, max_depth+1)
+    cumsum(lev_nr=lev_nr, lev_cs=lev_cs)
+    ereverse1(lev_cs, lev_n, max_depth+1)
+
+    return cells, sfc, level, idx, parent, child, lev_n, s1_index, s1r_index, \
+        cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_vl, in_vl
+
+
+if __name__ == "__main__":
+    backend = 'opencl'
+    N = 1000000
+    max_depth = 5
+    np.random.seed(4)
+    part_x = np.random.random(N)
+    part_y = np.random.random(N)
+    part_z = np.random.random(N)
+    x_min = 0
+    y_min = 0
+    z_min = 0
+    length = 1
+    num_p2 = 6
+    build(N, max_depth, part_x, part_y, part_z, x_min,
+          y_min, z_min, length, num_p2, backend)

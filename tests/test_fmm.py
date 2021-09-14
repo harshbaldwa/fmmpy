@@ -2,7 +2,7 @@ import pytest
 from fmm.fmm import *
 
 check_all_backends = pytest.mark.parametrize('backend',
-                                             ['cython', 'opencl'])
+                                             ['cython', 'opencl', 'cuda'])
 
 
 def check_import(backend):
@@ -91,7 +91,7 @@ def test_calc_p2(backend):
     cz = np.array([0.125, 0.25, 0.875, 0.75, 0.5],
                   dtype=np.float32)
     num_p2 = 6
-    length = 1.0
+    length = 3 * 1.0 / 4
     index = np.array([0, 2, 1, 3, 4], dtype=np.int32)
     index_r = np.array([0, 2, 1, 3, 4], dtype=np.int32)
     leg_lim = 2
@@ -104,6 +104,7 @@ def test_calc_p2(backend):
     child[33] = 3
     level = 1
     level_cs = np.array([4, 2, 0], dtype=np.int32)
+    offset = level_cs[level]
     r_out_val = np.array([0.5, 1.5, 0.5, 1.5, 0.5, 1.5,
                          1.5, 0.5, 1.5, 0.5, 1.5, 0.5, ],
                          dtype=np.float32)
@@ -111,15 +112,15 @@ def test_calc_p2(backend):
 
     out_x, out_y, out_z, outc_val, outc_x, outc_y, outc_z, \
         r_out_val, cx, cy, cz, index, index_r, child, out_val, \
-        leg_lst, level_cs = wrap(
+        leg_lst = wrap(
             out_x, out_y, out_z, outc_val, outc_x, outc_y, outc_z,
             r_out_val, cx, cy, cz, index, index_r, child, out_val,
-            leg_lst, level_cs, backend=backend)
+            leg_lst, backend=backend)
 
     e = Elementwise(calc_p2, backend=backend)
     e(out_val, out_x, out_y, out_z, outc_val, outc_x, outc_y, outc_z,
-      cx, cy, cz, num_p2, length, index, index_r, leg_lim, leg_lst,
-      child, level, level_cs)
+      cx, cy, cz, num_p2, index, index_r, leg_lim, leg_lst,
+      child, offset, length)
 
     np.testing.assert_array_almost_equal(r_out_val, out_val)
 
@@ -134,17 +135,32 @@ def test_is_adj(backend):
 
     adj1 = is_adj(cx[0], cy[0], cz[0], r[0],
                   cx[1], cy[1], cz[1], r[1])
-
     adj2 = is_adj(cx[3], cy[3], cz[3], r[3],
                   cx[2], cy[2], cz[2], r[2])
-
     adj3 = is_adj(cx[1], cy[1], cz[1], r[1],
                   cx[3], cy[3], cz[3], r[3])
-
     adj4 = is_adj(cx[2], cy[2], cz[2], r[2],
                   cx[1], cy[1], cz[1], r[1])
 
     assert adj1 == 1 and adj2 == 1 and adj3 == 0 and adj4 == 1
+
+
+@check_all_backends
+def test_well_sep(backend):
+    check_import(backend)
+    cx = np.array([0.125, 0.625, 0.375, 0.625], dtype=np.float32)
+    cy = np.array([0.125, 0.125, 0.375, 0.625], dtype=np.float32)
+    cz = np.array([0.125, 0.125, 0.375, 0.625], dtype=np.float32)
+    cr = np.array([0.125, 0.125, 0.125, 0.125], dtype=np.float32)
+
+    well1 = well_sep(cx[0], cy[0], cz[0], cr[0],
+                     cx[1], cy[1], cz[1], cr[1])
+    well2 = well_sep(cx[0], cy[0], cz[0], cr[0],
+                     cx[2], cy[2], cz[2], cr[2])
+    well3 = well_sep(cx[0], cy[0], cz[0], cr[0],
+                     cx[3], cy[3], cz[3], cr[3])
+
+    assert well1 == 0 and well2 == 0 and well3 == 1
 
 
 @check_all_backends
@@ -153,33 +169,56 @@ def test_assoc_coarse(backend):
     sfc = np.array([1, 8, 0, 1, 0], dtype=np.int32)
     # offset = level_cs[1]
     offset = 2
-    index_r = np.array([0, 2, 1, 3, 4], dtype=np.int32)
+    index = np.array([0, 2, 1, 3, 4], dtype=np.int32)
     parent = np.array([1, 4, 3, 4, -1], dtype=np.int32)
     child = np.ones(40, dtype=np.int32) * -1
     child[8] = 0
     child[24] = 2
     child[32] = 1
     child[33] = 3
-    r_assoc = np.ones(108, dtype=np.int32) * -1
-    r_collg = np.ones(108, dtype=np.int32) * -1
-    r_assoc[55] = 3
-    r_collg[55] = 1
-    r_assoc[81] = 1
-    r_collg[81] = 1
-    sfc, index_r, parent, child, r_assoc, r_collg = wrap(
-        sfc, index_r, parent, child, r_assoc, r_collg,
+    r_assoc = np.ones(104, dtype=np.int32) * -1
+    r_assoc[52] = 3
+    r_assoc[78] = 1
+    sfc, index, parent, child, r_assoc = wrap(
+        sfc, index, parent, child, r_assoc,
         backend=backend)
 
-    assoc = ary.empty(108, dtype=np.int32, backend=backend)
+    assoc = ary.empty(104, dtype=np.int32, backend=backend)
     assoc.fill(-1)
-    collg = ary.empty(108, dtype=np.int32, backend=backend)
-    collg.fill(-1)
 
     eassoc_coarse = Elementwise(assoc_coarse, backend=backend)
-    eassoc_coarse(sfc[2:4], parent, child, index_r, assoc, collg, offset)
+    eassoc_coarse(sfc[2:4], parent, child, index, assoc, offset)
 
     np.testing.assert_array_equal(r_assoc, assoc)
-    np.testing.assert_array_equal(r_collg, collg)
+
+
+# @check_all_backends
+# def test_assoc_coarse(backend):
+#     check_import(backend)
+#     sfc = np.array([1, 8, 0, 1, 0], dtype=np.int32)
+#     # offset = level_cs[1]
+#     offset = 2
+#     index = np.array([0, 2, 1, 3, 4], dtype=np.int32)
+#     parent = np.array([1, 4, 3, 4, -1], dtype=np.int32)
+#     child = np.ones(40, dtype=np.int32) * -1
+#     child[8] = 0
+#     child[24] = 2
+#     child[32] = 1
+#     child[33] = 3
+#     r_assoc = np.ones(104, dtype=np.int32) * -1
+#     r_assoc[53] = 3
+#     r_assoc[78] = 1
+#     sfc, index, parent, child, r_assoc = wrap(
+#         sfc, index, parent, child, r_assoc,
+#         backend=backend)
+
+#     assoc = ary.empty(104, dtype=np.int32, backend=backend)
+#     assoc.fill(-1)
+
+#     eassoc_coarse = Elementwise(assoc_coarse, backend=backend)
+#     eassoc_coarse(assoc[52:104], parent, child, index, offset)
+
+#     np.testing.assert_array_equal(r_assoc, assoc)
 
 
 @check_all_backends
@@ -204,20 +243,16 @@ def test_find_assoc(backend):
     child[24] = 2
     child[32] = 1
     child[33] = 3
-    assoc = np.ones(108, dtype=np.int32) * -1
-    collg = np.ones(108, dtype=np.int32) * -1
-    assoc[55] = 3
-    collg[55] = 1
-    assoc[81] = 1
-    collg[81] = 1
+    assoc = np.ones(104, dtype=np.int32) * -1
+    assoc[52] = 3
+    assoc[78] = 1
     sfc, level, cx, cy, cz, index, index_r, parent, child, \
-        assoc, collg = wrap(
+        assoc = wrap(
             sfc, level, cx, cy, cz, index, index_r, parent,
-            child, assoc, collg, backend=backend)
+            child, assoc, backend=backend)
 
     efind_assoc = Elementwise(find_assoc, backend=backend)
-    efind_assoc(sfc[0:2], cx, cy, cz, level, assoc, collg,
-                child, parent, offset, index, index_r, length)
+    efind_assoc(sfc[0:2], cx, cy, cz, level, assoc, child,
+                parent, offset, index, index_r, length)
 
-    assert assoc[0] == 2 and assoc[27] == 0
-    assert collg[0] == 1 and collg[27] == 1
+    assert assoc[0] == 2 and assoc[26] == 0

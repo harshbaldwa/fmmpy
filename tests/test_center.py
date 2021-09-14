@@ -6,7 +6,7 @@ from compyle.api import wrap
 from fmm.centers import *
 
 check_all_backends = pytest.mark.parametrize('backend',
-                                             ['cython', 'opencl'])
+                                             ['cython', 'opencl', 'cuda'])
 
 
 def check_import(backend):
