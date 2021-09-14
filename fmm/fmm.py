@@ -289,7 +289,7 @@ def loc_coeff(i, in_val, in_x, in_y, in_z, out_vl, out_x, out_y, out_z,
 # TODO: test case for this function
 @annotate(int="offset, leg_lim, num_p2", float="cx, cy, cz, px, py, pz, i2c_l",
           gfloatp="in_val, in_x, in_y, in_z, leg_lst", return_="float")
-def loc_exp(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2, i2c_l, 
+def loc_exp(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2, i2c_l,
             offset, leg_lst, leg_lim):
     j, leg, s1id, sid = declare("int", 4)
     p2c, i2c = declare("matrix(3)", 2)
@@ -335,8 +335,3 @@ def trans_loc(i, inc_val, inc_x, inc_y, inc_z, in_val, in_x, in_y, in_z,
     inc_val[i] += loc_exp(in_val, in_x, in_y, in_z, cx[pid], cy[pid], cz[pid],
                           inc_x[i], inc_y[i], inc_z[i], num_p2, level, length,
                           tid, leg_lst, leg_lim)
-
-
-def comp_val(i, cx, cy, cz, part_val, part_x, part_y, part_z, in_val, in_x,
-             in_y, in_z, out_val, out_x, out_y, out_z, num_p2):
-    return

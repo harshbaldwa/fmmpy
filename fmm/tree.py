@@ -276,7 +276,7 @@ def calc_center(i, sfc, level, cx, cy, cz,
 @annotate(int="i, num_p2", level="gintp", length="double",
           gfloatp="cx, cy, cz, out_x, out_y, out_z, "
                   "in_x, in_y, in_z, sph_pts")
-def setting_p2(i, out_x, out_y, out_z, in_x, in_y, in_z, 
+def setting_p2(i, out_x, out_y, out_z, in_x, in_y, in_z,
                sph_pts, cx, cy, cz, length, level, num_p2):
     cid, sid = declare("int", 2)
     sz_cell = declare("double")
@@ -510,9 +510,9 @@ def build(N, max_depth, part_x, part_y, part_z, x_min,
     ecopy4(sfc, level, idx, leaf_nodes_idx,
            pc_sfc, pc_level, pc_idx, rel_idx)
 
-    efind_parents(sfc[:-1], sfc[1:], level[:-1], level[1:], leaf_nodes_idx[:-1],
-                  pc_sfc[2*N-1:], pc_level[2*N-1:], pc_idx[2*N-1:],
-                  temp_idx[2*N-1:])
+    efind_parents(sfc[:-1], sfc[1:], level[:-1], level[1:],
+                  leaf_nodes_idx[:-1], pc_sfc[2*N-1:], pc_level[2*N-1:],
+                  pc_idx[2*N-1:], temp_idx[2*N-1:])
 
     [sort_pc_level, sort_pc_sfc, sort_pc_idx, sort_rel_idx,
      sort_temp_idx], _ = radix_sort([pc_level, pc_sfc,

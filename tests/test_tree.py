@@ -322,7 +322,7 @@ def test_setting_p2(backend):
     in_z = ary.zeros(num_p2, dtype=np.float32, backend=backend)
 
     e = Elementwise(setting_p2, backend=backend)
-    e(out_x, out_y, out_z, in_x, in_y, in_z, sph_pts, cx, cy, cz, 
+    e(out_x, out_y, out_z, in_x, in_y, in_z, sph_pts, cx, cy, cz,
       length, level, num_p2)
 
     np.testing.assert_array_almost_equal(r_out_x, out_x)
