@@ -150,7 +150,6 @@ def well_sep(cx, cy, cz, cr, ax, ay, az, ar):
         return 0
 
 
-# TODO: fully parallel will help a lot in higher levels
 @annotate(int="i, offset", gintp="sfc, parent, child, index, assoc")
 def assoc_coarse(i, sfc, parent, child, index, assoc, offset):
     cid, rid, pid, j, count = declare("int", 5)
@@ -168,22 +167,6 @@ def assoc_coarse(i, sfc, parent, child, index, assoc, offset):
             continue
 
 
-# @annotate(int="i, offset", gintp="parent, child, index, assoc")
-# def assoc_coarse(i, assoc, parent, child, index, offset):
-#     cid, rid, pid, j = declare("int", 4)
-#     j = i % 26
-#     if j > 7:
-#         return
-#     cid = cast(floor(i*1.0/26 + offset), "int")
-#     rid = index[cid]
-#     pid = parent[rid] * 8
-#     if child[pid+j] == -1:
-#         return
-#     elif child[pid+j] != rid:
-#         assoc[i] = child[pid+j]
-
-
-# TODO: try to parallelize this whole thing, each associate parallel
 @annotate(int="i, offset", length="double", gfloatp="cx, cy, cz",
           gintp="sfc, level, assoc, child, parent, index, index_r")
 def find_assoc(i, sfc, cx, cy, cz, level, assoc, child, parent, offset,
