@@ -45,7 +45,7 @@ def test_calc_p2_fine(backend):
     length = 1.0
     index = np.array([0, 1], dtype=np.int32)
     leg_lim = 2
-    # TODO: Fix this, use legendre function
+    # FIXME: Use legendre function
     leg_lst = np.array([0, 1], dtype=np.float32)
     idx = np.array([0, 1], dtype=np.int32)
 
@@ -97,7 +97,7 @@ def test_calc_p2(backend):
     index = np.array([0, 2, 1, 3, 4], dtype=np.int32)
     index_r = np.array([0, 2, 1, 3, 4], dtype=np.int32)
     leg_lim = 2
-    # TODO: Fix this, use legendre function
+    # FIXME: Use legendre function
     leg_lst = np.array([0, 1], dtype=np.float32)
     child = np.ones(40, dtype=np.int32) * -1
     child[8] = 0

@@ -65,13 +65,13 @@ def calc_p2(i, out_val, out_x, out_y, out_z, outc_val, outc_x, outc_y, outc_z,
     p2c, m2c = declare("matrix(3)", 2)
     p2c_l, cos_g, rr, leg_res, out_res = declare("float", 5)
     cid = cast(floor(i*1.0/num_p2), "int")
-    # TODO: offset here is level_cs[level]
+    # REM: offset here is level_cs[level]
     cid = index[offset+cid]
     m2c[0] = out_x[i] - cx[cid]
     m2c[1] = out_y[i] - cy[cid]
     m2c[2] = out_z[i] - cz[cid]
     # this is same for all the cells,
-    # TODO: precomputed and passed as a variable m2c_l
+    # REM: precomputed and passed as a variable m2c_l
     # m2c_l = length/(2.0**(level+1))*3
     out_res = 0
     out_val[i] = 0
@@ -100,7 +100,7 @@ def calc_p2(i, out_val, out_x, out_y, out_z, outc_val, outc_x, outc_y, outc_z,
     out_val[i] = out_res/num_p2
 
 
-# TODO: test case for this function
+# TEST: direct computation
 @annotate(double="part_val, part_x, part_y, part_z, px, py, pz",
           return_="double")
 def direct_comp(part_val, part_x, part_y, part_z, px, py, pz):
@@ -112,7 +112,7 @@ def direct_comp(part_val, part_x, part_y, part_z, px, py, pz):
     return value
 
 
-# TODO: test case for this function
+# TEST: direct solve
 @annotate(int="i, N", gfloatp="val, x, y, z, res")
 def direct_solv(i, val, x, y, z, res, N):
     j = declare("int")
@@ -198,7 +198,7 @@ def find_assoc(i, sfc, cx, cy, cz, level, assoc, child, parent, offset,
                 count += 1
 
 
-# TODO: test case for this function
+# TEST: v_list
 @annotate(int="chid, num_p2", float="in_x, in_y, in_z",
           gfloatp="out_val, out_x, out_y, out_z", return_="float")
 def v_list(in_x, in_y, in_z, out_val, out_x, out_y, out_z, num_p2, chid):
@@ -213,7 +213,7 @@ def v_list(in_x, in_y, in_z, out_val, out_x, out_y, out_z, num_p2, chid):
     return res
 
 
-# TODO: test case for this function
+# TEST: z_list
 @annotate(float="in_x, in_y, in_z, part_val, part_x, part_y, part_z",
           return_="float")
 def z_list(in_x, in_y, in_z, part_val, part_x, part_y, part_z):
@@ -225,7 +225,7 @@ def z_list(in_x, in_y, in_z, part_val, part_x, part_y, part_z):
 
 # TODO: missing the cells which are same size as that of b
 # and are neither well separated nor adjacent
-# TODO: test case for this function
+# TEST: loc_coeff
 @annotate(int="i, num_p2", gintp="assoc, child, parent, index, index_r, idx",
           gfloatp="in_val, in_x, in_y, in_z, out_val, out_x, out_y, out_z, "
                   "part_val, part_x, part_y, part_z, cx, cy, cz", cr="float")
@@ -234,7 +234,7 @@ def loc_coeff(i, in_val, in_x, in_y, in_z, out_vl, out_x, out_y, out_z,
               parent, num_p2, cr, index, index_r, idx):
     j, k, cid, pid, aid, chid, well, adj, paid = declare("int", 9)
     cr = declare("double")
-    # TODO: pass cr as this (no need to pass two variables for this)
+    # REM: pass cr as this (no need to pass two variables for this)
     # cr = sqrt(3)*length/(2.0**(level[i]+1))
     cid = cast(floor(i*1.0/num_p2), "int")
     cid = index[cid]
@@ -269,7 +269,7 @@ def loc_coeff(i, in_val, in_x, in_y, in_z, out_vl, out_x, out_y, out_z,
             break
 
 
-# TODO: test case for this function
+# TEST: loc_exp
 @annotate(int="offset, leg_lim, num_p2", float="cx, cy, cz, px, py, pz, i2c_l",
           gfloatp="in_val, in_x, in_y, in_z, leg_lst", return_="float")
 def loc_exp(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2, i2c_l,
@@ -282,7 +282,7 @@ def loc_exp(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2, i2c_l,
     p2c[2] = pz - cz
     p2c_l = sqrt(p2c[0]**2 + p2c[1]**2 + p2c[2]**2)
     res = 0
-    # TODO: store length in form of this -> length/(2.0**(level+1))
+    # REM: store length in form of this -> length/(2.0**(level+1))
     # i2c_l = 0.5*length/(2.0**(level+1))
     for j in range(num_p2):
         s1id = offset + j
@@ -303,7 +303,7 @@ def loc_exp(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2, i2c_l,
     return res / num_p2
 
 
-# TODO: test case for this function
+# TEST: trans_loc
 @annotate(int="i, level, num_p2, leg_lim", gintp="index, index_r, parent",
           gfloatp="inc_val, inc_x, inc_y, inc_z, in_val, cx, cy, cz"
                   "in_x, in_y, in_z, leg_lst")
