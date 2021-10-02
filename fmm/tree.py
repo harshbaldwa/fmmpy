@@ -604,7 +604,7 @@ if __name__ == "__main__":
     backend = 'opencl'
     N = 1000000
     max_depth = 5
-    np.random.seed(4)
+    np.random.seed(8)
     part_x = np.random.random(N)
     part_y = np.random.random(N)
     part_z = np.random.random(N)
