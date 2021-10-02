@@ -1,3 +1,6 @@
+# TODO: Add support for U list
+# TODO: Add support for W list
+
 from math import fabs, floor, sqrt
 
 import compyle.array as ary
@@ -223,7 +226,7 @@ def z_list(in_x, in_y, in_z, part_val, part_x, part_y, part_z):
     return res
 
 
-# TODO: missing the cells which are same size as that of b
+# FIXME: missing the cells which are same size as that of b
 # and are neither well separated nor adjacent
 # TEST: loc_coeff
 @annotate(int="i, num_p2", gintp="assoc, child, parent, index, index_r, idx",

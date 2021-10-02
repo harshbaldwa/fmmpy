@@ -14,8 +14,7 @@ np.set_printoptions(linewidth=np.inf)
 
 
 @annotate(i="int", index="gintp", gdoublep="x, y, z",
-          double="max_index, length, x_min, y_min, z_min"
-          )
+          double="max_index, length, x_min, y_min, z_min")
 def get_particle_index(i, index, x, y, z, max_index,
                        length, x_min, y_min, z_min):
     nx, ny, nz = declare("int", 3)
@@ -79,8 +78,7 @@ class ReverseArrays(Template):
 
 
 @annotate(i="int",
-          gintp="sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx"
-          )
+          gintp="sfc1, sfc2, level1, level2, lca_sfc, lca_level, lca_idx")
 def internal_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level,
                    lca_idx):
     level_diff, xor_id, i1, i2, level, j = declare("int", 6)
@@ -120,10 +118,8 @@ def internal_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level,
     return
 
 
-@annotate(i="int",
-          gintp="sfc1, sfc2, level1, level2, lca_sfc, all_idx, "
-                "lca_level, lca_idx, temp_idx"
-          )
+@annotate(i="int", gintp="sfc1, sfc2, level1, level2, lca_sfc, all_idx, "
+                         "lca_level, lca_idx, temp_idx")
 def find_parents(i, sfc1, sfc2, level1, level2, all_idx, lca_sfc,
                  lca_level, lca_idx, temp_idx):
     level_diff, xor_id, i1, i2, level, j = declare("int", 6)
@@ -197,10 +193,8 @@ def map_sum(i, x):
     return x[i]
 
 
-@annotate(i="int",
-          gintp="pc_sfc, pc_level, temp_idx, rel_idx, "
-                "parent_idx, child_idx"
-          )
+@annotate(i="int", gintp="pc_sfc, pc_level, temp_idx, rel_idx, "
+                         "parent_idx, child_idx")
 def get_relations(i, pc_sfc, pc_level, temp_idx, rel_idx,
                   parent_idx, child_idx):
     j = declare("int")
@@ -224,9 +218,7 @@ def find_level_diff(i, level, parent_idx, level_diff):
         level_diff[i] = level[i] - level[parent_idx[i]] - 1
 
 
-@annotate(i="int",
-          gintp="level_diff, sfc, level"
-          )
+@annotate(i="int", gintp="level_diff, sfc, level")
 def complete_tree(i, level_diff, sfc, level):
     if level_diff[i] < 1:
         return
@@ -258,8 +250,7 @@ def deinterleave(x):
     return x
 
 
-@annotate(i="int", gintp="sfc, level",
-          gfloatp="cx, cy, cz",
+@annotate(i="int", gintp="sfc, level", gfloatp="cx, cy, cz",
           double="x_min, y_min, z_min, length")
 def calc_center(i, sfc, level, cx, cy, cz,
                 x_min, y_min, z_min, length):
