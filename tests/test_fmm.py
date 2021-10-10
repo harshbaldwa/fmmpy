@@ -268,7 +268,8 @@ def test_find_assoc(backend):
     efind_assoc(idx[0:2], cx, cy, cz, level, assoc, child,
                 parent, offset, index, index_r, length)
 
-    assert assoc[0] == 2 and assoc[1] == 4 and assoc[26] == 0 and assoc[27] == 4
+    assert assoc[0] == 2 and assoc[1] == 4 and \
+        assoc[26] == 0 and assoc[27] == 4
 
 
 @check_all_backends
