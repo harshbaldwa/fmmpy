@@ -27,6 +27,7 @@ def test_lgndre(backend):
 def test_calc_p2_fine(backend):
     check_import(backend)
     max_depth = 1
+    out_r = sqrt(3)
     out_x = np.array([1, -0.5, 0.25, 0.25, 0.25, 0.25, 1.5, 0,
                      0.75, 0.75, 0.75, 0.75], dtype=np.float32)
     out_y = np.array([0.25, 0.25, 1, -0.5, 0.25, 0.25, 0.75,
@@ -34,10 +35,10 @@ def test_calc_p2_fine(backend):
     out_z = np.array([0.25, 0.25, 0.25, 0.25, 1, -0.5, 0.75,
                      0.75, 0.75, 0.75, 1.5, 0], dtype=np.float32)
     level = np.array([1, 1], dtype=np.int32)
-    part_val = np.array([1.0, 3.0], dtype=np.float32)
-    part_x = np.array([0.3, 0.8], dtype=np.float32)
-    part_y = np.array([0.25, 0.75], dtype=np.float32)
-    part_z = np.array([0.25, 0.75], dtype=np.float32)
+    part_val = np.array([0.5, 0.5, 1.5, 1.5], dtype=np.float32)
+    part_x = np.array([0.3, 0.3, 0.8, 0.8], dtype=np.float32)
+    part_y = np.array([0.25, 0.25, 0.75, 0.75], dtype=np.float32)
+    part_z = np.array([0.25, 0.25, 0.75, 0.75], dtype=np.float32)
     cx = np.array([0.25, 0.75], dtype=np.float32)
     cy = np.array([0.25, 0.75], dtype=np.float32)
     cz = np.array([0.25, 0.75], dtype=np.float32)
@@ -46,22 +47,29 @@ def test_calc_p2_fine(backend):
     index = np.array([0, 1], dtype=np.int32)
     leg_lim = 2
     # FIXME: Use legendre function
+    # TEST: Add test for adaptive tree
     leg_lst = np.array([0, 1], dtype=np.float32)
     idx = np.array([0, 1], dtype=np.int32)
+    bin_count = np.array([2, 2], dtype=np.int32)
+    start_idx = np.array([0, 2], dtype=np.int32)
+    leaf_idx = np.array([0, 1, 2, 3], dtype=np.int32)
 
     r_out_val = np.array([3/15, 2/15, 1/6, 1/6, 1/6, 1/6,
                          0.6, 0.4, 0.5, 0.5, 0.5, 0.5], dtype=np.float32)
 
     out_x, out_y, out_z, part_val, part_x, part_y, part_z, r_out_val, \
-        cx, cy, cz, index, leg_lst, idx, level = wrap(
-            out_x, out_y, out_z, part_val, part_x, part_y, part_z, r_out_val,
-            cx, cy, cz, index, leg_lst, idx, level, backend=backend)
+        cx, cy, cz, index, leg_lst, idx, level, bin_count, start_idx, \
+            leaf_idx = wrap(
+                out_x, out_y, out_z, part_val, part_x, part_y, part_z, 
+                r_out_val, cx, cy, cz, index, leg_lst, idx, level, bin_count, 
+                start_idx, leaf_idx, backend=backend)
 
     out_val = ary.zeros(2*num_p2, dtype=np.float32, backend=backend)
 
     e = Elementwise(calc_p2_fine, backend=backend)
     e(out_val, out_x, out_y, out_z, part_val, part_x, part_y, part_z,
-      cx, cy, cz, num_p2, length, index, leg_lim, leg_lst, level, idx)
+      cx, cy, cz, num_p2, length, index, leg_lim, leg_lst, level, idx, out_r, 
+      bin_count, start_idx, leaf_idx)
 
     np.testing.assert_array_almost_equal(r_out_val, out_val)
 
@@ -226,35 +234,52 @@ def test_assoc_coarse(backend):
 @check_all_backends
 def test_find_assoc(backend):
     check_import(backend)
-    sfc = np.array([1, 8, 0, 1, 0], dtype=np.int32)
-    level = np.array([2, 1, 2, 1, 0], dtype=np.int32)
-    # offset = level_cs[2]
-    offset = 0
+    sfc = np.array([3, 0, 10, 1, 3, 0], dtype=np.int32)
+    level = np.array([2, 1, 2, 1, 1, 0], dtype=np.int32)
+    idx = np.array([0, -1, 1, -1, 2, -1], dtype=np.int32)
+    level_cs = [5, 3, 0]
+    offset = level_cs[2]
     length = 1.0
-    cx = np.array([0.375, 0.25, 0.625, 0.75, 0.5],
-                  dtype=np.float32)
-    cy = np.array([0.125, 0.25, 0.125, 0.75, 0.5],
-                  dtype=np.float32)
-    cz = np.array([0.125, 0.25, 0.125, 0.75, 0.5],
-                  dtype=np.float32)
-    index = np.array([0, 2, 1, 3, 4], dtype=np.int32)
-    index_r = np.array([0, 2, 1, 3, 4], dtype=np.int32)
-    parent = np.array([1, 4, 3, 4, -1], dtype=np.int32)
-    child = np.ones(40, dtype=np.int32) * -1
+    cx = np.array([0.375, 0.25, 0.625, 0.75, 0.75, 0.5], dtype=np.float32)
+    cy = np.array([0.375, 0.25, 0.375, 0.25, 0.75, 0.5], dtype=np.float32)
+    cz = np.array([0.125, 0.25, 0.125, 0.25, 0.25, 0.5], dtype=np.float32)
+    index = np.array([0, 2, 1, 3, 4, 5], dtype=np.int32)
+    index_r = np.array([0, 2, 1, 3, 4, 5], dtype=np.int32)
+    parent = np.array([1, 5, 3, 5, 5, -1], dtype=np.int32)
+    child = np.ones(48, dtype=np.int32) * -1
     child[8] = 0
     child[24] = 2
-    child[32] = 1
-    child[33] = 3
-    assoc = np.ones(104, dtype=np.int32) * -1
+    child[40] = 1
+    child[41] = 3
+    child[42] = 4
+    assoc = np.ones(130, dtype=np.int32) * -1
     assoc[52] = 3
+    assoc[53] = 4
     assoc[78] = 1
-    sfc, level, cx, cy, cz, index, index_r, parent, child, \
-        assoc = wrap(
-            sfc, level, cx, cy, cz, index, index_r, parent,
-            child, assoc, backend=backend)
+    assoc[79] = 4
+    assoc[104] = 1
+    assoc[105] = 3
+
+    sfc, level, cx, cy, cz, index, index_r, parent, child, assoc, \
+        idx = wrap(sfc, level, cx, cy, cz, index, index_r, parent, child, 
+                     assoc, idx, backend=backend)
 
     efind_assoc = Elementwise(find_assoc, backend=backend)
-    efind_assoc(sfc[0:2], cx, cy, cz, level, assoc, child,
+    efind_assoc(idx[0:2], cx, cy, cz, level, assoc, child,
                 parent, offset, index, index_r, length)
 
-    assert assoc[0] == 2 and assoc[26] == 0
+    assert assoc[0] == 2 and assoc[1] == 4 and assoc[26] == 0 and assoc[27] == 4
+
+
+@check_all_backends
+def test_direct_comp(backend):
+    check_import(backend)
+    part_val = np.array([1, 1])
+    part_x = np.array([0.25, 0.75])
+    part_y = np.array([0.25, 0.25])
+    part_z = np.array([0.25, 0.25])
+    
+    res = direct_comp(part_val[0], part_x[0], part_y[0], part_z[0], 
+                      part_x[1], part_y[1], part_z[1])
+    
+    assert res == 2

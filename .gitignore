@@ -130,3 +130,6 @@ dmypy.json
 
 # remove VSCode settings
 .vscode/
+
+# Testing area
+.test_area/
