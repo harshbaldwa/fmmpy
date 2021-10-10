@@ -59,16 +59,16 @@ def test_calc_p2_fine(backend):
 
     out_x, out_y, out_z, part_val, part_x, part_y, part_z, r_out_val, \
         cx, cy, cz, index, leg_lst, idx, level, bin_count, start_idx, \
-            leaf_idx = wrap(
-                out_x, out_y, out_z, part_val, part_x, part_y, part_z, 
-                r_out_val, cx, cy, cz, index, leg_lst, idx, level, bin_count, 
-                start_idx, leaf_idx, backend=backend)
+        leaf_idx = wrap(
+            out_x, out_y, out_z, part_val, part_x, part_y, part_z,
+            r_out_val, cx, cy, cz, index, leg_lst, idx, level, bin_count,
+            start_idx, leaf_idx, backend=backend)
 
     out_val = ary.zeros(2*num_p2, dtype=np.float32, backend=backend)
 
     e = Elementwise(calc_p2_fine, backend=backend)
     e(out_val, out_x, out_y, out_z, part_val, part_x, part_y, part_z,
-      cx, cy, cz, num_p2, length, index, leg_lim, leg_lst, level, idx, out_r, 
+      cx, cy, cz, num_p2, length, index, leg_lim, leg_lst, level, idx, out_r,
       bin_count, start_idx, leaf_idx)
 
     np.testing.assert_array_almost_equal(r_out_val, out_val)
@@ -261,8 +261,8 @@ def test_find_assoc(backend):
     assoc[105] = 3
 
     sfc, level, cx, cy, cz, index, index_r, parent, child, assoc, \
-        idx = wrap(sfc, level, cx, cy, cz, index, index_r, parent, child, 
-                     assoc, idx, backend=backend)
+        idx = wrap(sfc, level, cx, cy, cz, index, index_r, parent, child,
+                   assoc, idx, backend=backend)
 
     efind_assoc = Elementwise(find_assoc, backend=backend)
     efind_assoc(idx[0:2], cx, cy, cz, level, assoc, child,
@@ -278,8 +278,8 @@ def test_direct_comp(backend):
     part_x = np.array([0.25, 0.75])
     part_y = np.array([0.25, 0.25])
     part_z = np.array([0.25, 0.25])
-    
-    res = direct_comp(part_val[0], part_x[0], part_y[0], part_z[0], 
+
+    res = direct_comp(part_val[0], part_x[0], part_y[0], part_z[0],
                       part_x[1], part_y[1], part_z[1])
-    
+
     assert res == 2

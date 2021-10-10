@@ -38,7 +38,7 @@ def calc_p2_fine(i, out_val, out_x, out_y, out_z, part_val, part_x, part_y,
     m2c[0] = out_x[i] - cx[cid]
     m2c[1] = out_y[i] - cy[cid]
     m2c[2] = out_z[i] - cz[cid]
-    
+
     m2c_l = out_r*sqrt(3.0)*length/(2.0**(level[cid]+1))
     out_res = 0
     out_val[i] = 0
@@ -192,8 +192,8 @@ def find_assoc(i, idx, cx, cy, cz, level, assoc, child, parent, offset,
 
         if idx[aid] != -1:
             adj = is_adj(cx[aid], cy[aid], cz[aid],
-                            length/(2.0**(level[aid]+1)), cx[rid], cy[rid],
-                            cz[rid], length/(2.0**(lev+1)))
+                         length/(2.0**(level[aid]+1)), cx[rid], cy[rid],
+                         cz[rid], length/(2.0**(lev+1)))
             if adj == 0:
                 continue
             else:
@@ -205,9 +205,9 @@ def find_assoc(i, idx, cx, cy, cz, level, assoc, child, parent, offset,
                 if cid == -1:
                     break
                 adj = is_adj(cx[cid], cy[cid], cz[cid],
-                                length/(2.0**(level[cid]+1)),
-                                cx[rid], cy[rid], cz[rid],
-                                length/(2.0**(lev+1)))
+                             length/(2.0**(level[cid]+1)),
+                             cx[rid], cy[rid], cz[rid],
+                             length/(2.0**(lev+1)))
                 if adj == 0:
                     continue
                 else:
@@ -224,9 +224,10 @@ def own_cell(part_val, part_x, part_y, part_z, leaf_idx, num_own, sid, pid):
     for n in range(num_own):
         oid = leaf_idx[sid + n]
         if oid != pid:
-            res += direct_comp(part_val[oid], part_x[oid], part_y[oid], 
-                           part_z[oid], part_x[pid], part_y[pid], part_z[pid])
-    
+            res += direct_comp(part_val[oid], part_x[oid], part_y[oid],
+                               part_z[oid], part_x[pid], part_y[pid],
+                               part_z[pid])
+
     return res
 
 
@@ -238,23 +239,23 @@ def u_list(part_val, part_x, part_y, part_z, leaf_idx, num_u, sid, pid):
     res = 0
     for n in range(num_u):
         uid = leaf_idx[sid + n]
-        res += direct_comp(part_val[uid], part_x[uid], part_y[uid], 
+        res += direct_comp(part_val[uid], part_x[uid], part_y[uid],
                            part_z[uid], part_x[pid], part_y[pid], part_z[pid])
-            
+
     return res
 
 
-@annotate(gfloatp="out_val, out_x, out_y, out_z, part_x, part_y, part_z", 
+@annotate(gfloatp="out_val, out_x, out_y, out_z, part_x, part_y, part_z",
           int="num_p2, wid, pid", return_="float")
-def w_list(out_val, out_x, out_y, out_z, part_x, part_y, part_z, 
+def w_list(out_val, out_x, out_y, out_z, part_x, part_y, part_z,
            wid, num_p2, pid):
     n, wid = declare("int", 2)
     res = declare("float")
     res = 0
     for n in range(num_p2):
-        res += direct_comp(out_val[wid+n], out_x[wid+n], out_y[wid+n], 
+        res += direct_comp(out_val[wid+n], out_x[wid+n], out_y[wid+n],
                            out_z[wid+n], part_x[pid], part_y[pid], part_z[pid])
-    
+
     return res
 
 
@@ -313,7 +314,7 @@ def loc_coeff(i, in_val, in_x, in_y, in_z, out_vl, out_x, out_y, out_z,
                     chid = child[8*aid+k]
                     if chid == -1:
                         break
-                    
+
                     # HACK: put cells which are neither well seperated
                     # nor adjacent in v_list
                     else:
@@ -396,21 +397,21 @@ def trans_loc(i, inc_val, inc_x, inc_y, inc_z, in_val, in_x, in_y, in_z,
           gfloatp="part_val, part_x, part_y, part_z, out_val, out_x, out_y, "
                   "out_z, in_val, in_x, in_y, in_z, cx, cy, cz, result, "
                   "leg_lst", int="i, num_p2, leg_lim", float="in_r, length")
-def compute(i, part2bin, part_val, part_x, part_y, part_z, level, idx, parent, 
-            child, assoc, index_r, leaf_idx, bin_count, start_idx, level_cs, 
-            out_val, out_x, out_y, out_z, in_val, in_x, in_y, in_z, cx, cy, cz, 
+def compute(i, part2bin, part_val, part_x, part_y, part_z, level, idx, parent,
+            child, assoc, index_r, leaf_idx, bin_count, start_idx, level_cs,
+            out_val, out_x, out_y, out_z, in_val, in_x, in_y, in_z, cx, cy, cz,
             result, leg_lst, num_p2, leg_lim, in_r, length):
     h = declare('matrix(10, "int")')
     bid, brid, lev, pid = declare("int", 4)
     i2c_l = declare("float")
-    
+
     bid = part2bin[i]
     brid = index_r[bid]
     lev = level[bid]
     pid = leaf_idx[i]
     i2c_l = in_r*sqrt(3.0)*length/(2.0**(lev+1))
 
-    own_cell(part_val, part_x, part_y, part_z, leaf_idx, bin_count[idx[bid]], 
+    own_cell(part_val, part_x, part_y, part_z, leaf_idx, bin_count[idx[bid]],
              start_idx[idx[bid]], pid)
 
     # calculation of potential using U and W interaction lists
@@ -422,7 +423,7 @@ def compute(i, part2bin, part_val, part_x, part_y, part_z, level, idx, parent,
 
         if level[aid] < lev:
             result[pid] += u_list(
-                result, part_val, part_x, part_y, part_z, leaf_idx, 
+                result, part_val, part_x, part_y, part_z, leaf_idx,
                 bin_count[idx[aid]], start_idx[idx[aid]], pid)
         else:
             while True:
@@ -436,7 +437,7 @@ def compute(i, part2bin, part_val, part_x, part_y, part_z, level, idx, parent,
                         adj = is_adj(chid, bid)
                         if adj == 0:
                             result[pid] += w_list(
-                                out_val, out_x, out_y, out_z, part_x, part_y, 
+                                out_val, out_x, out_y, out_z, part_x, part_y,
                                 part_z, index_r[num_p2*chid], num_p2, pid)
                         else:
                             h[level[aid]] = n+1
@@ -453,18 +454,18 @@ def compute(i, part2bin, part_val, part_x, part_y, part_z, level, idx, parent,
                     adj = is_adj(aid, bid)
                     if adj == 1:
                         result[pid] += u_list(
-                            result, part_val, part_x, part_y, part_z, leaf_idx, 
+                            result, part_val, part_x, part_y, part_z, leaf_idx,
                             bin_count[idx[aid]], start_idx[idx[aid]], pid)
                     else:
                         result[pid] += w_list(
-                            out_val, out_x, out_y, out_z, part_x, part_y, 
+                            out_val, out_x, out_y, out_z, part_x, part_y,
                             part_z, index_r[num_p2*aid], num_p2, pid)
                     if level[aid] >= lev:
                         break
                     else:
                         aid = parent[aid]
-    
+
     # calculation using the local expansions
-    result[pid] += loc_exp(in_val, in_x, in_y, in_z, cx[bid], cy[bid], 
-                           cz[bid], part_x[pid], part_y[pid], part_z[pid], 
+    result[pid] += loc_exp(in_val, in_x, in_y, in_z, cx[bid], cy[bid],
+                           cz[bid], part_x[pid], part_y[pid], part_z[pid],
                            num_p2, i2c_l, brid*num_p2, leg_lst, leg_lim)

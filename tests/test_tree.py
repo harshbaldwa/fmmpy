@@ -67,19 +67,19 @@ def test_single_node(backend):
     leaf_sfc = np.array([0, 0, 1, 1, 2, 2, 3, 3, 3], dtype=np.int32)
     bin_count = np.ones(n, dtype=np.int32)
     bin_idx = np.zeros(n, dtype=np.int32)
-    
+
     r_bin_count = np.array([2, 1, 2, 1, 2, 1, 3, 1, 1], dtype=np.int32)
     r_bin_idx = np.array([0, 1, 0, 1, 0, 1, 0, 1, 1], dtype=np.int32)
-    
+
     leaf_sfc, bin_count, bin_idx, r_bin_count, r_bin_idx = wrap(
         leaf_sfc, bin_count, bin_idx, r_bin_count, r_bin_idx, backend=backend)
-    
+
     e = Elementwise(single_node, backend=backend)
     e(leaf_sfc[:-1], leaf_sfc[1:], bin_count, bin_idx)
-    
+
     np.testing.assert_array_equal(r_bin_count, bin_count)
     np.testing.assert_array_equal(r_bin_idx, bin_idx)
-    
+
 
 @check_all_backends
 def test_internal_nodes(backend):
@@ -113,7 +113,7 @@ def test_find_parents(backend):
     r_lca_level = np.array([1], dtype=np.int32)
     r_temp_idx = np.array([0], dtype=np.int32)
     sfc, level, r_lca_sfc, r_lca_level, all_idx, r_temp_idx = wrap(
-        sfc, level, r_lca_sfc, r_lca_level, all_idx, r_temp_idx, 
+        sfc, level, r_lca_sfc, r_lca_level, all_idx, r_temp_idx,
         backend=backend)
 
     lca_sfc = ary.empty(1, dtype=np.int32, backend=backend)
@@ -273,10 +273,10 @@ def test_p2bin(backend):
     part2bin = np.zeros(6, dtype=np.int32)
     idx, bin_count, start_idx, r_part2bin, part2bin = wrap(
         idx, bin_count, start_idx, r_part2bin, part2bin, backend=backend)
-    
+
     e = Elementwise(p2bin, backend=backend)
     e(idx, bin_count, start_idx, part2bin)
-    
+
     np.testing.assert_array_equal(r_part2bin, part2bin)
 
 

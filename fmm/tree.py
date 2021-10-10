@@ -595,7 +595,7 @@ def build(N, max_depth, part_x, part_y, part_z, x_min, y_min, z_min,
                                                backend=backend)
 
     [s2_index, s1r_index], _ = radix_sort([s1_index, index], backend=backend)
-    
+
     # FIXME: Need another index and index_r for associates identification
 
     s2_idx.resize(0)
