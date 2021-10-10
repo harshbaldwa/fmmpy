@@ -468,13 +468,3 @@ def compute(i, part2bin, part_val, part_x, part_y, part_z, level, idx, parent,
     result[pid] += loc_exp(in_val, in_x, in_y, in_z, cx[bid], cy[bid], 
                            cz[bid], part_x[pid], part_y[pid], part_z[pid], 
                            num_p2, i2c_l, brid*num_p2, leg_lst, leg_lim)
-
-backend = "opencl"
-ecalc_p2_fine = Elementwise(calc_p2_fine, backend=backend)
-ecalc_p2 = Elementwise(calc_p2, backend=backend)
-edirect_solv = Elementwise(direct_solv, backend=backend)
-eassoc_coarse = Elementwise(assoc_coarse, backend=backend)
-efind_assoc = Elementwise(find_assoc, backend=backend)
-eloc_coeff = Elementwise(loc_coeff, backend=backend)
-etrans_loc = Elementwise(trans_loc, backend=backend)
-ecompute = Elementwise(compute, backend=backend)
