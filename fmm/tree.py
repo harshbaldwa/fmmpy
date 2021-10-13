@@ -11,11 +11,9 @@ import numpy as np
 import yaml
 from compyle.api import (Elementwise, Reduction, Scan, annotate, declare,
                          get_config, wrap)
-from compyle.low_level import cast, atomic_inc
+from compyle.low_level import atomic_inc, cast
 from compyle.sort import radix_sort
 from compyle.template import Template
-
-import time
 
 np.set_printoptions(linewidth=np.inf)
 
@@ -318,7 +316,7 @@ def level_info(i, level, idx, lev_n, max_depth):
         ix = atomic_inc(lev_n[level[i]])
     else:
         ix = atomic_inc(lev_n[max_depth])
-        
+
 
 @annotate(i="int", gintp="level, lev_n")
 def levwise_info(i, level, lev_n):
@@ -326,14 +324,13 @@ def levwise_info(i, level, lev_n):
     ix = atomic_inc(lev_n[level[i]])
 
 
-# TEST: complete test for this (start to finish)
 def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
           out_r, in_r, length, num_p2, backend, dimension):
 
     max_index = 2 ** max_depth
 
     # defining the arrays
-    # part_val, part_x, part_y, part_z = wrap(part_val, part_x, part_y, part_z, 
+    # part_val, part_x, part_y, part_z = wrap(part_val, part_x, part_y, part_z,
     #                                         backend=backend)
     leaf_sfc = ary.zeros(N, dtype=np.int32, backend=backend)
     leaf_idx = ary.arange(0, N, 1, dtype=np.int32, backend=backend)
@@ -604,14 +601,14 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     [s1_lev, s1_idx, s1_index], _ = radix_sort([level_s, idx_s, index],
                                                backend=backend)
     ereverse3(s2_idx, s2_lev, s2_index, s1_idx, s1_lev, s1_index, cells)
-    
+
     lev_index = s2_index[:]
     [_, lev_index_r], _ = radix_sort([lev_index, index], backend=backend)
-    
+
     [s1_idx, s1_lev, s1_index], _ = radix_sort([s2_idx, s2_lev, s2_index],
                                                backend=backend)
 
-    [s2_index, s1r_index], _ = radix_sort([s1_index, index], 
+    [s2_index, s1r_index], _ = radix_sort([s1_index, index],
                                           backend=backend)
 
     s2_idx.resize(0)
@@ -632,10 +629,9 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     esetting_p2(out_x, out_y, out_z, in_x, in_y, in_z, sph_pts, cx, cy, cz,
                 out_r, in_r, length, level, num_p2, s1_index)
 
-
-    return (cells, sfc_s, level_s, idx_s, bin_count, start_idx, leaf_idx, 
+    return (cells, sfc_s, level_s, idx_s, bin_count, start_idx, leaf_idx,
             parent, child, part2bin, lev_n, levwise_n, s1_index, s1r_index,
-            lev_index, lev_index_r, cx, cy, cz, out_x, out_y, out_z, 
+            lev_index, lev_index_r, cx, cy, cz, out_x, out_y, out_z,
             in_x, in_y, in_z, out_vl, in_vl, order)
 
 
@@ -658,7 +654,11 @@ if __name__ == "__main__":
     length = 1
     num_p2 = 6
     dimension = 3
-    out_r = 1.5
+    out_r = 1.1
     in_r = 1.06
-    build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, 
-          z_min, out_r, in_r, length, num_p2, backend, dimension)
+    (cells, sfc, level, idx, bin_count, start_idx, leaf_idx,
+     parent, child, part2bin, lev_cs, levwise_cs, index, index_r,
+     lev_index, lev_index_r, cx, cy, cz, out_x, out_y, out_z,
+     in_x, in_y, in_z, out_val, in_val, order) = build(
+         N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
+         out_r, in_r, length, num_p2, backend, dimension)
