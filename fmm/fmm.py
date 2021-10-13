@@ -586,10 +586,10 @@ if __name__ == "__main__":
                     assoc, child, parent, levwise_cs[lev], lev_index,
                     lev_index_r, length)
 
-    eloc_coeff(in_val[:lev_cs[1]*num_p2], in_x, in_y, in_z, out_val, out_x, 
-               out_y, out_z, part_val, part_x, part_y, part_z, cx, cy, cz, 
-               assoc, child, parent, num_p2, level, index, index_r, 
-               lev_index_r, idx, result, leaf_idx, start_idx, bin_count, 
+    eloc_coeff(in_val[:lev_cs[1]*num_p2], in_x, in_y, in_z, out_val, out_x,
+               out_y, out_z, part_val, part_x, part_y, part_z, cx, cy, cz,
+               assoc, child, parent, num_p2, level, index, index_r,
+               lev_index_r, idx, result, leaf_idx, start_idx, bin_count,
                length)
 
     for lev in range(2, max_depth):
