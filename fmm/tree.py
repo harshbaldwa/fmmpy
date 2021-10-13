@@ -21,7 +21,7 @@ np.set_printoptions(linewidth=np.inf)
 
 
 # TODO: Make dimension independent
-@annotate(i="int", index="gintp", gdoublep="x, y, z",
+@annotate(i="int", index="gintp", gfloatp="x, y, z",
           double="max_index, length, x_min, y_min, z_min")
 def get_particle_index(i, index, x, y, z, max_index,
                        length, x_min, y_min, z_min):
@@ -292,14 +292,15 @@ def calc_center(i, sfc, level, cx, cy, cz,
     cz[i] = z_min + length*(z + 0.5)/(2.0 ** level[i])
 
 
-# TODO: can make dimension a parameter, template for this function
-@annotate(int="i, num_p2", level="gintp", double="length, out_r, in_r",
-          gfloatp="cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, sph_pts")
+@annotate(int="i, num_p2", gintp="level, index", double="length, out_r, in_r",
+          gfloatp="cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, "
+                  "sph_pts")
 def setting_p2(i, out_x, out_y, out_z, in_x, in_y, in_z, sph_pts, cx, cy, cz,
-               out_r, in_r, length, level, num_p2):
+               out_r, in_r, length, level, num_p2, index):
     cid, sid = declare("int", 2)
     sz_cell = declare("double")
     cid = cast(floor(i*1.0/num_p2), "int")
+    cid = index[cid]
     sid = i % num_p2
     sz_cell = sqrt(3.0)*length/(2.0**(level[cid]+1))
     out_x[i] = cx[cid] + out_r*sz_cell*sph_pts[3*sid]
@@ -317,25 +318,32 @@ def level_info(i, level, idx, lev_n, max_depth):
         ix = atomic_inc(lev_n[level[i]])
     else:
         ix = atomic_inc(lev_n[max_depth])
+        
+
+@annotate(i="int", gintp="level, lev_n")
+def levwise_info(i, level, lev_n):
+    ix = declare("int")
+    ix = atomic_inc(lev_n[level[i]])
 
 
 # TEST: complete test for this (start to finish)
-def build(N, max_depth, part_x, part_y, part_z, x_min, y_min, z_min,
+def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
           out_r, in_r, length, num_p2, backend, dimension):
 
     max_index = 2 ** max_depth
 
     # defining the arrays
-    part_x, part_y, part_z = wrap(part_x, part_y, part_z, backend=backend)
+    # part_val, part_x, part_y, part_z = wrap(part_val, part_x, part_y, part_z, 
+    #                                         backend=backend)
     leaf_sfc = ary.zeros(N, dtype=np.int32, backend=backend)
     leaf_idx = ary.arange(0, N, 1, dtype=np.int32, backend=backend)
     bin_count = ary.ones(N, dtype=np.int32, backend=backend)
     bin_idx = ary.zeros(N, dtype=np.int32, backend=backend)
     start_idx = ary.zeros(N, dtype=np.int32, backend=backend)
 
-    # with importlib.resources.open_text("fmm", "t_design.yaml") as file:
-    #     data = yaml.load(file)[num_p2]
-    data = yaml.load(open("t_design.yaml"), Loader=yaml.FullLoader)[num_p2]
+    with importlib.resources.open_text("fmm", "t_design.yaml") as file:
+        data = yaml.load(file)[num_p2]
+    # data = yaml.load(open("t_design.yaml"), Loader=yaml.FullLoader)[num_p2]
     sph_pts = np.array(data['array'], dtype=np.float32)
     order = data['order']
     sph_pts = wrap(sph_pts, backend=backend)
@@ -404,6 +412,7 @@ def build(N, max_depth, part_x, part_y, part_z, x_min, y_min, z_min,
     ecalc_center = Elementwise(calc_center, backend=backend)
     esetting_p2 = Elementwise(setting_p2, backend=backend)
     elev_info = Elementwise(level_info, backend=backend)
+    elevwise_info = Elementwise(levwise_info, backend=backend)
 
     # calculations
     eget_particle_index(leaf_sfc, part_x, part_y,
@@ -560,10 +569,15 @@ def build(N, max_depth, part_x, part_y, part_z, x_min, y_min, z_min,
     s2_lev = ary.zeros(cells, dtype=np.int32, backend=backend)
     s1_idx = ary.zeros(cells, dtype=np.int32, backend=backend)
     s2_idx = ary.zeros(cells, dtype=np.int32, backend=backend)
+    lev_index = ary.zeros(cells, dtype=np.int32, backend=backend)
+    lev_index_r = ary.zeros(cells, dtype=np.int32, backend=backend)
 
     lev_n = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
+    levwise_n = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
     lev_nr = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
+    levwise_nr = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
     lev_cs = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
+    levwise_cs = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
 
     cx = ary.zeros(cells, dtype=np.float32, backend=backend)
     cy = ary.zeros(cells, dtype=np.float32, backend=backend)
@@ -585,18 +599,20 @@ def build(N, max_depth, part_x, part_y, part_z, x_min, y_min, z_min,
 
     ecalc_center(sfc_s, level_s, cx, cy, cz,
                  x_min, y_min, z_min, length)
-    esetting_p2(out_x, out_y, out_z, in_x, in_y, in_z, sph_pts, cx, cy, cz,
-                out_r, in_r, length, level, num_p2)
 
+    # FIXME: Remove unnecessary copies
     [s1_lev, s1_idx, s1_index], _ = radix_sort([level_s, idx_s, index],
                                                backend=backend)
     ereverse3(s2_idx, s2_lev, s2_index, s1_idx, s1_lev, s1_index, cells)
+    
+    lev_index = s2_index[:]
+    [_, lev_index_r], _ = radix_sort([lev_index, index], backend=backend)
+    
     [s1_idx, s1_lev, s1_index], _ = radix_sort([s2_idx, s2_lev, s2_index],
                                                backend=backend)
 
-    [s2_index, s1r_index], _ = radix_sort([s1_index, index], backend=backend)
-
-    # FIXME: Need another index and index_r for associates identification
+    [s2_index, s1r_index], _ = radix_sort([s1_index, index], 
+                                          backend=backend)
 
     s2_idx.resize(0)
     s2_lev.resize(0)
@@ -606,29 +622,36 @@ def build(N, max_depth, part_x, part_y, part_z, x_min, y_min, z_min,
     s1_idx.resize(0)
     index.resize(0)
 
-    # FIXME: Add the real level info as well (childless in respective levels)
-
     elev_info(level_s, idx_s, lev_n, max_depth)
-    ereverse1(lev_nr, lev_n, max_depth+1)
+    elevwise_info(level_s, levwise_n)
+    ereverse2(lev_nr, levwise_nr, lev_n, levwise_n, max_depth+1)
     cumsum(in_arr=lev_nr, out_arr=lev_cs)
-    ereverse1(lev_n, lev_cs, max_depth+1)
+    cumsum(in_arr=levwise_nr, out_arr=levwise_cs)
+    ereverse2(lev_n, levwise_n, lev_cs, levwise_cs, max_depth+1)
 
-    return cells, sfc_s, level_s, idx_s, bin_count, start_idx, leaf_idx, \
-        parent, child, part2bin, lev_n, s1_index, s1r_index, cx, cy, cz, \
-        out_x, out_y, out_z, in_x, in_y, in_z, out_vl, in_vl
+    esetting_p2(out_x, out_y, out_z, in_x, in_y, in_z, sph_pts, cx, cy, cz,
+                out_r, in_r, length, level, num_p2, s1_index)
+
+
+    return (cells, sfc_s, level_s, idx_s, bin_count, start_idx, leaf_idx, 
+            parent, child, part2bin, lev_n, levwise_n, s1_index, s1r_index,
+            lev_index, lev_index_r, cx, cy, cz, out_x, out_y, out_z, 
+            in_x, in_y, in_z, out_vl, in_vl, order)
 
 
 if __name__ == "__main__":
-    backend = 'opencl'
-    N = 15
+    backend = 'cython'
+    N = 1000
     max_depth = 2
     np.random.seed(4)
-    # part_x = np.random.normal(0.5, 0.2, N)
-    # part_y = np.random.normal(0.5, 0.2, N)
-    # part_z = np.random.normal(0.5, 0.2, N)
-    part_x = np.random.random(N)*0.5
+    part_val = np.ones(N)
+    part_x = np.random.random(N)
     part_y = np.random.random(N)
     part_z = np.random.random(N)
+    part_val = part_val.astype(np.float32)
+    part_x = part_x.astype(np.float32)
+    part_y = part_y.astype(np.float32)
+    part_z = part_z.astype(np.float32)
     x_min = 0
     y_min = 0
     z_min = 0
@@ -637,5 +660,5 @@ if __name__ == "__main__":
     dimension = 3
     out_r = 1.5
     in_r = 1.06
-    build(N, max_depth, part_x, part_y, part_z, x_min, y_min, z_min,
-          out_r, in_r, length, num_p2, backend, dimension)
+    build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, 
+          z_min, out_r, in_r, length, num_p2, backend, dimension)
