@@ -62,11 +62,10 @@ def calc_p2_fine(i, out_val, out_x, out_y, out_z, part_val, part_x, part_y,
 
 
 @annotate(int="i, num_p2, leg_lim, offset", gintp="index, index_r, child",
-          gfloatp="out_temp, out_val, out_x, out_y, out_z, outc_val, outc_x, "
-                  "outc_y, outc_z, cx, cy, cz, leg_lst", m2c_l="float")
-def calc_p2(i, out_temp, out_val, out_x, out_y, out_z, outc_val, outc_x, outc_y, outc_z,
-            cx, cy, cz, num_p2, index, index_r, leg_lim, leg_lst,
-            child, offset, m2c_l):
+          gfloatp="out_temp, out_val, out_x, out_y, out_z, cx, cy, cz, "
+                  "leg_lst", m2c_l="float")
+def calc_p2(i, out_temp, out_val, out_x, out_y, out_z, cx, cy, cz, num_p2, 
+            index, index_r, leg_lim, leg_lst, child, offset, m2c_l):
     j, k, leg, tid, cid, pid, sid, outid = declare("int", 8)
     p2c, m2c = declare("matrix(3)", 2)
     p2c_l, cos_g, rr, leg_res, out_res = declare("float", 5)
@@ -88,11 +87,11 @@ def calc_p2(i, out_temp, out_val, out_x, out_y, out_z, outc_val, outc_x, outc_y,
         else:
             for k in range(num_p2):
                 tid = index_r[child[pid+j]]*num_p2+k
-                p2c[0] = outc_x[tid] - cx[cid]
-                p2c[1] = outc_y[tid] - cy[cid]
-                p2c[2] = outc_z[tid] - cz[cid]
+                p2c[0] = out_x[tid] - cx[cid]
+                p2c[1] = out_y[tid] - cy[cid]
+                p2c[2] = out_z[tid] - cz[cid]
                 p2c_l = sqrt(p2c[0]**2 + p2c[1]**2 + p2c[2]**2)
-                out_res += outc_val[tid]
+                out_res += out_val[tid]
                 if p2c_l != 0:
                     rr = p2c_l/m2c_l
                     cos_g = (m2c[0]*p2c[0] + m2c[1]*p2c[1] +
@@ -100,7 +99,7 @@ def calc_p2(i, out_temp, out_val, out_x, out_y, out_z, outc_val, outc_x, outc_y,
                     sid = 0
                     for leg in range(1, leg_lim):
                         leg_res = lgndre(leg_lst, cos_g, leg+1, sid)
-                        out_res += leg_res*(2*leg+1)*(rr**leg)*outc_val[tid]
+                        out_res += leg_res*(2*leg+1)*(rr**leg)*out_val[tid]
                         sid += leg+1
 
     out_val[outid] = out_res/num_p2
@@ -513,11 +512,6 @@ if __name__ == "__main__":
     part_y = np.random.random(N)
     part_z = np.random.random(N)
 
-    # part_val = np.array([1, 1, 1, 1, 1], dtype=np.float32)
-    # part_x = np.array([0.12, 0.12, 0.88, 0.88, 0.8], dtype=np.float32)
-    # part_y = np.array([0.12, 0.37, 0.13, 0.38, 0.8], dtype=np.float32)
-    # part_z = np.array([0.12, 0.12, 0.13, 0.13, 0.3], dtype=np.float32)
-
     part_val = part_val.astype(np.float32)
     part_x = part_x.astype(np.float32)
     part_y = part_y.astype(np.float32)
@@ -573,10 +567,9 @@ if __name__ == "__main__":
         lev_offset = lev_cs[lev-1]-lev_cs[lev]
         if lev_offset == 0:
             continue
-        ecalc_p2(out_val[:lev_offset*num_p2], out_val,
-                 out_x, out_y, out_z, out_val, out_x, out_y, out_z,
-                 cx, cy, cz, num_p2, index, index_r, leg_lim, leg_lst,
-                 child, lev_cs[lev], m2c_l)
+        ecalc_p2(out_val[:lev_offset*num_p2], out_val, out_x, out_y, out_z, 
+                 cx, cy, cz, num_p2, index, index_r, leg_lim, leg_lst, child, 
+                 lev_cs[lev], m2c_l)
 
 
     eassoc_coarse(sfc[levwise_cs[1]:levwise_cs[0]], parent, child, lev_index,
