@@ -255,14 +255,16 @@ def complete_tree(i, level_diff, sfc, level, dimension):
         level[i] = level[i] - level_diff[i]
 
 
-@annotate(i="int", gintp="idx, bin_count, start_idx, part2bin")
-def p2bin(i, idx, bin_count, start_idx, part2bin):
+@annotate(i="int", gintp="idx, bin_count, start_idx, part2bin, p2b_offset, "
+                         "leaf_idx")
+def p2bin(i, idx, bin_count, start_idx, part2bin, p2b_offset, leaf_idx):
     n = declare("int")
     if idx[i] == -1:
         return
     else:
         for n in range(bin_count[idx[i]]):
-            part2bin[start_idx[idx[i]] + n] = i
+            part2bin[leaf_idx[start_idx[idx[i]] + n]] = i
+            p2b_offset[leaf_idx[start_idx[idx[i]] + n]] = n
 
 
 # TODO: make dimension a parameter
@@ -338,9 +340,9 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     bin_idx = ary.zeros(N, dtype=np.int32, backend=backend)
     start_idx = ary.zeros(N, dtype=np.int32, backend=backend)
 
-    with importlib.resources.open_text("fmm", "t_design.yaml") as file:
-        data = yaml.load(file)[num_p2]
-    # data = yaml.load(open("t_design.yaml"), Loader=yaml.FullLoader)[num_p2]
+    # with importlib.resources.open_text("fmm", "t_design.yaml") as file:
+    #     data = yaml.load(file)[num_p2]
+    data = yaml.load(open("t_design.yaml"), Loader=yaml.FullLoader)[num_p2]
     sph_pts = np.array(data['array'], dtype=np.float32)
     order = data['order']
     sph_pts = wrap(sph_pts, backend=backend)
@@ -591,8 +593,9 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
 
     assoc = ary.zeros(cells*26, dtype=np.int32, backend=backend)
     part2bin = ary.zeros(N, dtype=np.int32, backend=backend)
+    p2b_offset = ary.zeros(N, dtype=np.int32, backend=backend)
 
-    ep2bin(idx_s, bin_count, start_idx, part2bin)
+    ep2bin(idx_s, bin_count, start_idx, part2bin, p2b_offset, leaf_idx)
 
     ecalc_center(sfc_s, level_s, cx, cy, cz,
                  x_min, y_min, z_min, length)
@@ -627,23 +630,29 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     ereverse2(lev_n, levwise_n, lev_cs, levwise_cs, max_depth+1)
 
     esetting_p2(out_x, out_y, out_z, in_x, in_y, in_z, sph_pts, cx, cy, cz,
-                out_r, in_r, length, level, num_p2, s1_index)
+                out_r, in_r, length, level_s, num_p2, s1_index)
 
     return (cells, sfc_s, level_s, idx_s, bin_count, start_idx, leaf_idx,
-            parent, child, part2bin, lev_n, levwise_n, s1_index, s1r_index,
-            lev_index, lev_index_r, cx, cy, cz, out_x, out_y, out_z,
+            parent, child, part2bin, p2b_offset, lev_n, levwise_n, s1_index, 
+            s1r_index, lev_index, lev_index_r, cx, cy, cz, out_x, out_y, out_z,
             in_x, in_y, in_z, out_vl, in_vl, order)
 
 
 if __name__ == "__main__":
     backend = 'cython'
-    N = 1000
+    N = 5
     max_depth = 2
     np.random.seed(4)
-    part_val = np.ones(N)
-    part_x = np.random.random(N)
-    part_y = np.random.random(N)
-    part_z = np.random.random(N)
+    # part_val = np.ones(N)
+    # part_x = np.random.random(N)
+    # part_y = np.random.random(N)
+    # part_z = np.random.random(N)
+    
+    part_val = np.array([1, 1, 1, 1, 1], dtype=np.float32)
+    part_x = np.array([0.37, 0.37, 0.88, 0.88, 0.8], dtype=np.float32)
+    part_y = np.array([0.12, 0.37, 0.13, 0.38, 0.8], dtype=np.float32)
+    part_z = np.array([0.12, 0.12, 0.13, 0.13, 0.3], dtype=np.float32)
+    
     part_val = part_val.astype(np.float32)
     part_x = part_x.astype(np.float32)
     part_y = part_y.astype(np.float32)
