@@ -64,7 +64,7 @@ def calc_p2_fine(i, out_val, out_x, out_y, out_z, part_val, part_x, part_y,
 @annotate(int="i, num_p2, leg_lim, offset", gintp="index, index_r, child",
           gfloatp="out_temp, out_val, out_x, out_y, out_z, cx, cy, cz, "
                   "leg_lst", m2c_l="float")
-def calc_p2(i, out_temp, out_val, out_x, out_y, out_z, cx, cy, cz, num_p2, 
+def calc_p2(i, out_temp, out_val, out_x, out_y, out_z, cx, cy, cz, num_p2,
             index, index_r, leg_lim, leg_lst, child, offset, m2c_l):
     j, k, leg, tid, cid, pid, sid, outid = declare("int", 8)
     p2c, m2c = declare("matrix(3)", 2)
@@ -72,7 +72,7 @@ def calc_p2(i, out_temp, out_val, out_x, out_y, out_z, cx, cy, cz, num_p2,
     cid = cast(floor(i*1.0/num_p2), "int")
     # REM: offset here is level_cs[level]
     cid = index[offset+cid]
-    outid = index_r[cid]*num_p2 + i%num_p2
+    outid = index_r[cid]*num_p2 + i % num_p2
     m2c[0] = out_x[outid] - cx[cid]
     m2c[1] = out_y[outid] - cy[cid]
     m2c[2] = out_z[outid] - cz[cid]
@@ -203,17 +203,7 @@ def find_assoc(i, idx, cx, cy, cz, level, assoc, child, parent, offset,
                 cid = child[8*aid+k]
                 if cid == -1:
                     break
-                # Change here is_adj to well separated
-                # adj = is_adj(cx[cid], cy[cid], cz[cid],
-                #              length/(2.0**(level[cid]+1)),
-                #              cx[rid], cy[rid], cz[rid],
-                #              length/(2.0**(lev+1)))
-                # if adj == 0:
-                #     continue
-                # else:
-                #     assoc[26*bid+count] = cid
-                #     count += 1
-                well = well_sep(cx[cid], cy[cid], cz[cid], cR, 
+                well = well_sep(cx[cid], cy[cid], cz[cid], cR,
                                 cx[rid], cy[rid], cz[rid])
                 if well == 1:
                     continue
@@ -313,10 +303,11 @@ def loc_coeff(i, in_val, in_x, in_y, in_z, out_val, out_x, out_y, out_z,
               parent, num_p2, level, index, index_r, lev_index_r, idx,
               leaf_idx, start_idx, bin_count, length):
     j, k, cid, pid, aid, chid, well, adj, paid, inid = declare("int", 10)
-    cr = declare("float")
+    cr, cR = declare("float", 2)
     cid = cast(floor(i*1.0/num_p2), "int")
     cid = index[cid]
     cr = length/(2.0**(level[cid]+1))
+    cR = sqrt(3.0) * cr
     pid = lev_index_r[parent[cid]]
     inid = index_r[cid]*num_p2 + i % num_p2
     in_val[inid] = 0
@@ -331,15 +322,14 @@ def loc_coeff(i, in_val, in_x, in_y, in_z, out_val, out_x, out_y, out_z,
                         break
 
                     # HACK: cells which are neither well seperated
-                    # nor adjacent are computed directly
+                    # nor adjacent are considered associate
                     else:
-                        # Change here is_adj to well separated
-                        adj = is_adj(cx[cid], cy[cid], cz[cid], cr,
-                                     cx[chid], cy[chid], cz[chid], cr)
-                        if adj != 1:
+                        well = well_sep(cx[cid], cy[cid], cz[cid], cR,
+                                        cx[chid], cy[chid], cz[chid])
+                        if well == 1:
                             in_val[inid] += v_list(
-                                in_x[inid], in_y[inid], in_z[inid], out_val, 
-                                out_x, out_y, out_z, num_p2, 
+                                in_x[inid], in_y[inid], in_z[inid], out_val,
+                                out_x, out_y, out_z, num_p2,
                                 num_p2*index_r[chid])
 
             else:
@@ -347,7 +337,7 @@ def loc_coeff(i, in_val, in_x, in_y, in_z, out_val, out_x, out_y, out_z,
                              cz[aid], length/(2.0**(level[aid]+1)))
                 if adj != 1:
                     in_val[inid] += z_list(
-                        in_x[inid], in_y[inid], in_z[inid], part_val, part_x, 
+                        in_x[inid], in_y[inid], in_z[inid], part_val, part_x,
                         part_y, part_z, start_idx[idx[aid]], leaf_idx,
                         bin_count[idx[aid]])
         else:
@@ -389,9 +379,9 @@ def loc_exp(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2, i2c_l,
 
 # TEST: trans_loc
 @annotate(int="i, num_p2, leg_lim, offset", i2c_l="float",
-          gfloatp="in_temp, in_val, cx, cy, cz, in_x, in_y, in_z, leg_lst", 
+          gfloatp="in_temp, in_val, cx, cy, cz, in_x, in_y, in_z, leg_lst",
           gintp="index, index_r, parent")
-def trans_loc(i, in_temp, in_val, in_x, in_y, in_z, cx, cy, cz, i2c_l, num_p2, 
+def trans_loc(i, in_temp, in_val, in_x, in_y, in_z, cx, cy, cz, i2c_l, num_p2,
               leg_lst, leg_lim, index, index_r, parent, offset):
     pid, cid, tid, inid = declare("int", 4)
     cid = cast(floor(i*1.0/num_p2), "int")
@@ -399,8 +389,8 @@ def trans_loc(i, in_temp, in_val, in_x, in_y, in_z, cx, cy, cz, i2c_l, num_p2,
     inid = index_r[cid]*num_p2 + i % num_p2
     pid = parent[cid]
     tid = index_r[pid]*num_p2
-    in_val[inid] += loc_exp(in_val, in_x, in_y, in_z, cx[pid], cy[pid], 
-                            cz[pid], in_x[inid], in_y[inid], in_z[inid], 
+    in_val[inid] += loc_exp(in_val, in_x, in_y, in_z, cx[pid], cy[pid],
+                            cz[pid], in_x[inid], in_y[inid], in_z[inid],
                             num_p2, i2c_l, tid, leg_lst, leg_lim)
 
 
@@ -410,10 +400,10 @@ def trans_loc(i, in_temp, in_val, in_x, in_y, in_z, cx, cy, cz, i2c_l, num_p2,
           gfloatp="part_val, part_x, part_y, part_z, out_val, out_x, out_y, "
                   "out_z, in_val, in_x, in_y, in_z, cx, cy, cz, result, "
                   "leg_lst", int="i, num_p2, leg_lim", float="in_r, length")
-def compute(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z, level, 
-            idx, parent, child, assoc, index_r, lev_index_r, leaf_idx, 
-            bin_count, start_idx, out_val, out_x, out_y, out_z, in_val, in_x, 
-            in_y, in_z, cx, cy, cz, result, leg_lst, num_p2, leg_lim, in_r, 
+def compute(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
+            idx, parent, child, assoc, index_r, lev_index_r, leaf_idx,
+            bin_count, start_idx, out_val, out_x, out_y, out_z, in_val, in_x,
+            in_y, in_z, cx, cy, cz, result, leg_lst, num_p2, leg_lim, in_r,
             length):
     h = declare('matrix(10, "int")')
     j, n, bid, baid, brid, lev, pid, aid, chid, t = declare("int", 10)
@@ -474,13 +464,13 @@ def compute(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
                     # Change here is_adj to well separated if the level is same
                     if level[aid] == lev:
                         result[pid] += u_list(
-                                part_val, part_x, part_y, part_z, leaf_idx,
-                                bin_count[idx[aid]], start_idx[idx[aid]], pid)
+                            part_val, part_x, part_y, part_z, leaf_idx,
+                            bin_count[idx[aid]], start_idx[idx[aid]], pid)
                         break
                     else:
                         adj = is_adj(cx[aid], cy[aid], cz[aid],
-                                    length/(2.0**(level[aid]+1)),
-                                    cx[bid], cy[bid], cz[bid], cr_bid)
+                                     length/(2.0**(level[aid]+1)),
+                                     cx[bid], cy[bid], cz[bid], cr_bid)
                         if adj == 1:
                             result[pid] += u_list(
                                 part_val, part_x, part_y, part_z, leaf_idx,
@@ -489,7 +479,7 @@ def compute(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
                             result[pid] += w_list(
                                 out_val, out_x, out_y, out_z, part_x, part_y,
                                 part_z, index_r[aid]*num_p2, num_p2, pid)
-                            
+
                         aid = parent[aid]
 
     # calculation using the local expansions
@@ -503,7 +493,7 @@ if __name__ == "__main__":
     import tree
 
     backend = "cython"
-    N = 10
+    N = 12
     max_depth = 3
     np.random.seed(4)
 
@@ -526,8 +516,8 @@ if __name__ == "__main__":
     in_r = 1.05
 
     (cells, sfc, level, idx, bin_count, start_idx, leaf_idx, parent, child,
-     part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index, 
-     lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_val, 
+     part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index,
+     lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_val,
      in_val, order) = tree.build(
          N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
          out_r, in_r, length, num_p2, backend, dimension)
@@ -567,14 +557,13 @@ if __name__ == "__main__":
         lev_offset = lev_cs[lev-1]-lev_cs[lev]
         if lev_offset == 0:
             continue
-        ecalc_p2(out_val[:lev_offset*num_p2], out_val, out_x, out_y, out_z, 
-                 cx, cy, cz, num_p2, index, index_r, leg_lim, leg_lst, child, 
+        ecalc_p2(out_val[:lev_offset*num_p2], out_val, out_x, out_y, out_z,
+                 cx, cy, cz, num_p2, index, index_r, leg_lim, leg_lst, child,
                  lev_cs[lev], m2c_l)
-
 
     eassoc_coarse(sfc[levwise_cs[1]:levwise_cs[0]], parent, child, lev_index,
                   assoc, levwise_cs[1])
-    
+
     for lev in range(2, max_depth+1):
         lev_offset = levwise_cs[lev-1] - levwise_cs[lev]
         if lev_offset == 0:
@@ -590,19 +579,21 @@ if __name__ == "__main__":
 
     for lev in range(2, max_depth):
         i2c_l = in_r*sqrt(3)*length/(2**(lev))
-        etrans_loc(in_val[levwise_cs[lev]:levwise_cs[lev-1]], in_val, in_x, 
-                   in_y, in_z, cx, cy, cz, i2c_l, num_p2, leg_lst, leg_lim,
-                   index, index_r, parent, lev_cs[lev])
+        lev_offset = levwise_cs[lev-1] - levwise_cs[lev]
+        if lev_offset == 0:
+            continue
+        etrans_loc(in_val[:lev_offset], in_val, in_x, in_y, in_z, cx, cy, cz,
+                   i2c_l, num_p2, leg_lst, leg_lim, index, index_r, parent,
+                   lev_cs[lev])
 
-    ecompute(part2bin, p2b_offset, part_val, part_x, part_y, part_z, level, 
-             idx, parent, child, assoc, index_r, lev_index_r, leaf_idx, 
-             bin_count, start_idx, out_val, out_x, out_y, out_z, in_val, in_x, 
-             in_y, in_z, cx, cy, cz, result, leg_lst, num_p2, leg_lim, in_r, 
+    ecompute(part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
+             idx, parent, child, assoc, index_r, lev_index_r, leaf_idx,
+             bin_count, start_idx, out_val, out_x, out_y, out_z, in_val, in_x,
+             in_y, in_z, cx, cy, cz, result, leg_lst, num_p2, leg_lim, in_r,
              length)
 
     edirect(part_val, part_x, part_y, part_z, res_direct, N)
-    
+
     # for i in range(N):
-    #     t = abs(result[i]-res_direct[i])/res_direct[i]
-    #     # if t > 1e-4:
+    #     t = abs(result[i] - res_direct[i]) / res_direct[i]
     #     print(i, result[i], res_direct[i], t, part2bin[i])

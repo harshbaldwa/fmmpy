@@ -136,19 +136,19 @@ def test_calc_p2(backend):
     out_x = np.zeros(5*num_p2, dtype=np.float32)
     out_y = np.zeros(5*num_p2, dtype=np.float32)
     out_z = np.zeros(5*num_p2, dtype=np.float32)
-    
+
     out_x[:num_p2] = np.array(out[0::3])/4 + 0.25
     out_x[num_p2:2*num_p2] = np.array(out[0::3])/4 + 0.75
     out_x[2*num_p2:3*num_p2] = np.array(out[0::3])/4 + 0.25
     out_x[3*num_p2:4*num_p2] = np.array(out[0::3])/4 + 0.75
     out_x[4*num_p2:5*num_p2] = np.array(out[0::3])/2 + 0.5
-    
+
     out_y[:num_p2] = np.array(out[1::3])/4 + 0.25
     out_y[num_p2:2*num_p2] = np.array(out[1::3])/4 + 0.25
     out_y[2*num_p2:3*num_p2] = np.array(out[1::3])/4 + 0.75
     out_y[3*num_p2:4*num_p2] = np.array(out[1::3])/4 + 0.75
     out_y[4*num_p2:5*num_p2] = np.array(out[1::3])/2 + 0.5
-    
+
     out_z[:num_p2] = np.array(out[2::3])/4 + 0.25
     out_z[num_p2:2*num_p2] = np.array(out[2::3])/4 + 0.25
     out_z[2*num_p2:3*num_p2] = np.array(out[2::3])/4 + 0.25
@@ -171,7 +171,7 @@ def test_calc_p2(backend):
 
     e = Elementwise(calc_p2, backend=backend)
 
-    e(out_val[4*num_p2:5*num_p2], out_x[4*num_p2:5*num_p2], 
+    e(out_val[4*num_p2:5*num_p2], out_x[4*num_p2:5*num_p2],
       out_y[4*num_p2:5*num_p2], out_z[4*num_p2:5*num_p2], out_val[:4*num_p2],
       out_x[:4*num_p2], out_y[:4*num_p2], out_z[:4*num_p2], cx, cy, cz,
       num_p2, index, index_r, leg_lim, leg_lst, child, offset, m2c_l)
@@ -261,9 +261,12 @@ def test_find_assoc(backend):
     level_cs = [6, 4, 0]
     offset = level_cs[2]
     length = 1.0
-    cx = np.array([0.375, 0.25, 0.625, 0.825, 0.75, 0.75, 0.5], dtype=np.float32)
-    cy = np.array([0.375, 0.25, 0.375, 0.375, 0.25, 0.75, 0.5], dtype=np.float32)
-    cz = np.array([0.125, 0.25, 0.125, 0.125, 0.25, 0.25, 0.5], dtype=np.float32)
+    cx = np.array([0.375, 0.25, 0.625, 0.825, 0.75, 0.75, 0.5],
+                  dtype=np.float32)
+    cy = np.array([0.375, 0.25, 0.375, 0.375, 0.25, 0.75, 0.5],
+                  dtype=np.float32)
+    cz = np.array([0.125, 0.25, 0.125, 0.125, 0.25, 0.25, 0.5],
+                  dtype=np.float32)
     index = np.array([0, 2, 3, 1, 4, 5, 6], dtype=np.int32)
     index_r = np.array([0, 3, 1, 2, 4, 5, 6], dtype=np.int32)
     parent = np.array([1, 6, 4, 4, 6, 6, -1], dtype=np.int32)
@@ -330,7 +333,7 @@ def test_loc_coeff(backend):
     child[41] = 4
     child[56] = 2
     child[57] = 5
-    
+
     assoc[0] = 6
     assoc[1] = 3
     assoc[80] = 4
@@ -343,12 +346,12 @@ def test_loc_coeff(backend):
     assoc[401] = 6
     assoc[480] = 5
     assoc[481] = 6
-    
+
     out_r = 1.1
     in_r = 1.05
     num_p2 = 12
     length = 1
-    
+
     with importlib.resources.open_text("fmm", "t_design.yaml") as file:
         data = yaml.load(file)[num_p2]
     sph_pts = np.array(data['array'], dtype=np.float32)
@@ -364,37 +367,37 @@ def test_loc_coeff(backend):
     in_x = np.zeros(8*num_p2, dtype=np.float32)
     in_y = np.zeros(8*num_p2, dtype=np.float32)
     in_z = np.zeros(8*num_p2, dtype=np.float32)
-    
+
     part_val = np.array([1, 1, 1, 1, 1], dtype=np.float32)
     part_x = np.array([0.12, 0.12, 0.88, 0.88, 0.8], dtype=np.float32)
     part_y = np.array([0.12, 0.37, 0.13, 0.38, 0.8], dtype=np.float32)
     part_z = np.array([0.12, 0.12, 0.13, 0.13, 0.3], dtype=np.float32)
-    
-    cx = np.array([0.125, 0.125, 0.875, 0.875, 0.75, 0.75, 0.25, 0.5], 
+
+    cx = np.array([0.125, 0.125, 0.875, 0.875, 0.75, 0.75, 0.25, 0.5],
                   dtype=np.float32)
-    cy = np.array([0.125, 0.375, 0.125, 0.375, 0.75, 0.25, 0.25, 0.5], 
+    cy = np.array([0.125, 0.375, 0.125, 0.375, 0.75, 0.25, 0.25, 0.5],
                   dtype=np.float32)
-    cz = np.array([0.125, 0.125, 0.125, 0.125, 0.25, 0.25, 0.25, 0.5], 
+    cz = np.array([0.125, 0.125, 0.125, 0.125, 0.25, 0.25, 0.25, 0.5],
                   dtype=np.float32)
-    
+
     l = np.array([2, 2, 2, 2, 1, 1, 1, 0], dtype=np.int32) + 1
-    
+
     for i in range(len(cx)):
         out_x[i*num_p2:(i+1)*num_p2] = np.array(out[0::3])/2**l[i] + cx[i]
         out_y[i*num_p2:(i+1)*num_p2] = np.array(out[1::3])/2**l[i] + cy[i]
         out_z[i*num_p2:(i+1)*num_p2] = np.array(out[2::3])/2**l[i] + cz[i]
-        
+
         in_x[i*num_p2:(i+1)*num_p2] = np.array(in_all[0::3])/2**l[i] + cx[i]
         in_y[i*num_p2:(i+1)*num_p2] = np.array(in_all[1::3])/2**l[i] + cy[i]
         in_z[i*num_p2:(i+1)*num_p2] = np.array(in_all[2::3])/2**l[i] + cz[i]
-    
-    cx = np.array([0.125, 0.125, 0.25, 0.875, 0.875, 0.75, 0.75, 0.5], 
+
+    cx = np.array([0.125, 0.125, 0.25, 0.875, 0.875, 0.75, 0.75, 0.5],
                   dtype=np.float32)
-    cy = np.array([0.125, 0.375, 0.25, 0.125, 0.375, 0.25, 0.75, 0.5], 
+    cy = np.array([0.125, 0.375, 0.25, 0.125, 0.375, 0.25, 0.75, 0.5],
                   dtype=np.float32)
-    cz = np.array([0.125, 0.125, 0.25, 0.125, 0.125, 0.25, 0.25, 0.5], 
+    cz = np.array([0.125, 0.125, 0.25, 0.125, 0.125, 0.25, 0.25, 0.5],
                   dtype=np.float32)
-    
+
     leg_lim = order//2 + 1
     siz_leg = leg_lim*(leg_lim+1)//2 - 1
     leg_lst = np.zeros(siz_leg, dtype=np.float32)
@@ -403,42 +406,41 @@ def test_loc_coeff(backend):
         temp_lst = np.array(legendre(i)).astype(np.float32)
         leg_lst[count:count+i+1] = temp_lst[::-1]
         count += i+1
-        
-    (level, idx, bin_count, start_idx, leaf_idx, index, index_r, out_x, out_y, 
+
+    (level, idx, bin_count, start_idx, leaf_idx, index, index_r, out_x, out_y,
      out_z, in_x, in_y, in_z, out_val, in_val, cx, cy, cz, leg_lst, part_val,
      part_x, part_y, part_z, assoc, parent, child, lev_index_r) = wrap(
-         level, idx, bin_count, start_idx, leaf_idx, index, index_r, out_x, 
+         level, idx, bin_count, start_idx, leaf_idx, index, index_r, out_x,
          out_y, out_z, in_x, in_y, in_z, out_val, in_val, cx, cy, cz, leg_lst,
-         part_val, part_x, part_y, part_z, assoc, parent, child, lev_index_r, 
+         part_val, part_x, part_y, part_z, assoc, parent, child, lev_index_r,
          backend=backend)
-    
+
     ecalc_p2_fine = Elementwise(calc_p2_fine, backend=backend)
     eloc_coeff = Elementwise(loc_coeff, backend=backend)
-    
+
     ecalc_p2_fine(out_val[:5*num_p2], out_x, out_y, out_z, part_val, part_x,
-                  part_y, part_z, cx, cy, cz, num_p2, length, index, leg_lim, 
-                  leg_lst, level, idx, out_r*sqrt(3), bin_count, start_idx, 
+                  part_y, part_z, cx, cy, cz, num_p2, length, index, leg_lim,
+                  leg_lst, level, idx, out_r*sqrt(3), bin_count, start_idx,
                   leaf_idx)
-    
-    eloc_coeff(in_val[:5*num_p2], in_x, in_y, in_z, out_val, out_x, out_y, 
-               out_z, part_val, part_x, part_y, part_z, cx, cy, cz, assoc, 
+
+    eloc_coeff(in_val[:5*num_p2], in_x, in_y, in_z, out_val, out_x, out_y,
+               out_z, part_val, part_x, part_y, part_z, cx, cy, cz, assoc,
                child, parent, num_p2, level, index, index_r, lev_index_r, idx,
                leaf_idx, start_idx, bin_count, length)
 
     i2c_l = in_r*sqrt(3)*length/8
 
-    res_loc = loc_exp(in_val, in_x, in_y, in_z, cx[0], cy[0], cz[0], part_x[0], 
+    res_loc = loc_exp(in_val, in_x, in_y, in_z, cx[0], cy[0], cz[0], part_x[0],
                       part_y[0], part_z[0], num_p2, i2c_l, 0, leg_lst, leg_lim)
-    
+
     res_direct = 0
     for i in range(2, len(part_val)):
-        res_direct += direct_comp(part_val[i], part_x[i], part_y[i], part_z[i], 
+        res_direct += direct_comp(part_val[i], part_x[i], part_y[i], part_z[i],
                                   part_x[0], part_y[0], part_z[0])
-    
 
     assert abs(res_loc - res_direct)/res_direct < 2e-4
+
 
 @check_all_backends
 def test_compute(backend):
     check_import(backend)
-    

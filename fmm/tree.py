@@ -633,7 +633,7 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
                 out_r, in_r, length, level_s, num_p2, s1_index)
 
     return (cells, sfc_s, level_s, idx_s, bin_count, start_idx, leaf_idx,
-            parent, child, part2bin, p2b_offset, lev_n, levwise_n, s1_index, 
+            parent, child, part2bin, p2b_offset, lev_n, levwise_n, s1_index,
             s1r_index, lev_index, lev_index_r, cx, cy, cz, out_x, out_y, out_z,
             in_x, in_y, in_z, out_vl, in_vl, order)
 
@@ -647,12 +647,12 @@ if __name__ == "__main__":
     # part_x = np.random.random(N)
     # part_y = np.random.random(N)
     # part_z = np.random.random(N)
-    
+
     part_val = np.array([1, 1, 1, 1, 1], dtype=np.float32)
     part_x = np.array([0.37, 0.37, 0.88, 0.88, 0.8], dtype=np.float32)
     part_y = np.array([0.12, 0.37, 0.13, 0.38, 0.8], dtype=np.float32)
     part_z = np.array([0.12, 0.12, 0.13, 0.13, 0.3], dtype=np.float32)
-    
+
     part_val = part_val.astype(np.float32)
     part_x = part_x.astype(np.float32)
     part_y = part_y.astype(np.float32)
