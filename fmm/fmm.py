@@ -1,5 +1,6 @@
 # TODO: Rearrange all the function variables
 
+import time
 from math import fabs, floor, sqrt
 
 import compyle.array as ary
@@ -492,8 +493,8 @@ if __name__ == "__main__":
 
     import tree
 
-    backend = "cython"
-    N = 2000
+    backend = "opencl"
+    N = 500000
     max_depth = 4
 
     part_val = np.ones(N)
@@ -514,12 +515,17 @@ if __name__ == "__main__":
     out_r = 1.1
     in_r = 1.05
 
+    part_val, part_x, part_y, part_z = wrap(part_val, part_x, part_y, part_z,
+                                            backend=backend)
+
     (cells, sfc, level, idx, bin_count, start_idx, leaf_idx, parent, child,
      part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index,
      lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_val,
-     in_val, order) = tree.build(
+     in_val, order, time_tree) = tree.build(
          N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
          out_r, in_r, length, num_p2, backend, dimension)
+
+    print("Tree construction took: %fs" % (time_tree))
 
     result = ary.zeros(N, dtype=np.float32, backend=backend)
     res_direct = ary.zeros(N, dtype=np.float32, backend=backend)
@@ -546,10 +552,16 @@ if __name__ == "__main__":
     ecompute = Elementwise(compute, backend=backend)
     edirect = Elementwise(direct_solv, backend=backend)
 
+    p2_fine_start = time.time()
+
     ecalc_p2_fine(out_val[:lev_cs[max_depth-1]*num_p2], out_x, out_y, out_z,
                   part_val, part_x, part_y, part_z, cx, cy, cz, num_p2,
                   length, index, leg_lim, leg_lst, level, idx, out_r*sqrt(3),
                   bin_count, start_idx, leaf_idx)
+
+    p2_fine = time.time() - p2_fine_start
+    print("P2 Fine construction took: %fs" % (p2_fine))
+    p2_start = time.time()
 
     for lev in range(max_depth-1, 0, -1):
         m2c_l = out_r*sqrt(3)*length/(2**(lev+1))
@@ -560,8 +572,16 @@ if __name__ == "__main__":
                  cx, cy, cz, num_p2, index, index_r, leg_lim, leg_lst, child,
                  lev_cs[lev], m2c_l)
 
+    p2 = time.time() - p2_start
+    print("P2 construction took: %fs" % (p2))
+    assoc_coarse_start = time.time()
+
     eassoc_coarse(sfc[levwise_cs[1]:levwise_cs[0]], parent, child, lev_index,
                   assoc, levwise_cs[1])
+
+    assoc_coarse_time = time.time() - assoc_coarse_start
+    print("Association coarse took: %fs" % (assoc_coarse_time))
+    assoc_start = time.time()
 
     for lev in range(2, max_depth+1):
         lev_offset = levwise_cs[lev-1] - levwise_cs[lev]
@@ -571,10 +591,18 @@ if __name__ == "__main__":
                     assoc, child, parent, levwise_cs[lev], lev_index,
                     lev_index_r, length)
 
+    assoc_time = time.time() - assoc_start
+    print("Association took: %fs" % (assoc_time))
+    loc_coeff_start = time.time()
+
     eloc_coeff(in_val[:lev_cs[1]*num_p2], in_x, in_y, in_z, out_val, out_x,
                out_y, out_z, part_val, part_x, part_y, part_z, cx, cy, cz,
                assoc, child, parent, num_p2, level, index, index_r,
                lev_index_r, idx, leaf_idx, start_idx, bin_count, length)
+
+    loc_coeff_time = time.time() - loc_coeff_start
+    print("Local coefficient construction took: %fs" % (loc_coeff_time))
+    trans_loc_start = time.time()
 
     for lev in range(3, max_depth+1):
         i2c_l = in_r*sqrt(3)*length/(2**(lev))
@@ -585,13 +613,30 @@ if __name__ == "__main__":
                    cy, cz, i2c_l, num_p2, leg_lst, leg_lim, index_r, lev_index,
                    parent, levwise_cs[lev])
 
+    trans_loc_time = time.time() - trans_loc_start
+    print("Transformation took: %fs" % (trans_loc_time))
+    compute_start = time.time()
+
     ecompute(part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
              idx, parent, child, assoc, index_r, lev_index_r, leaf_idx,
              bin_count, start_idx, out_val, out_x, out_y, out_z, in_val, in_x,
              in_y, in_z, cx, cy, cz, result, leg_lst, num_p2, leg_lim, in_r,
              length)
 
-    edirect(part_val, part_x, part_y, part_z, res_direct, N)
+    compute_time = time.time() - compute_start
+    print("Final Computation took: %fs" % (compute_time))
 
-    print("Mean Error - ", np.mean(np.abs(result - res_direct)/res_direct),
-          "\nMax Error - ", np.max(np.abs(result - res_direct)/res_direct))
+    fmm_time = (p2_fine + p2 + assoc_coarse_time + assoc_time + loc_coeff_time
+                + trans_loc_time + compute_time)
+    print("FMM Total Time: %fs" % (fmm_time))
+
+    # direct_start = time.time()
+
+    # edirect(part_val, part_x, part_y, part_z, res_direct, N)
+
+    # direct_stop = time.time()
+
+    # print("Direct Time taken: %fs" % (direct_stop-direct_start))
+
+    # print("Mean Error - ", np.mean(np.abs(result - res_direct)/res_direct),
+    #       "\nMax Error - ", np.max(np.abs(result - res_direct)/res_direct))

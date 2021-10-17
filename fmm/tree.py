@@ -4,6 +4,7 @@
 # LATER: add legendre polynomial list as physical file
 
 import importlib.resources
+import time
 from math import floor, sqrt
 
 import compyle.array as ary
@@ -332,8 +333,6 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     max_index = 2 ** max_depth
 
     # defining the arrays
-    # part_val, part_x, part_y, part_z = wrap(part_val, part_x, part_y, part_z,
-    #                                         backend=backend)
     leaf_sfc = ary.zeros(N, dtype=np.int32, backend=backend)
     leaf_idx = ary.arange(0, N, 1, dtype=np.int32, backend=backend)
     bin_count = ary.ones(N, dtype=np.int32, backend=backend)
@@ -414,6 +413,8 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     elevwise_info = Elementwise(levwise_info, backend=backend)
 
     # calculations
+    tree_start = time.time()
+
     eget_particle_index(leaf_sfc, part_x, part_y,
                         part_z, max_index, length,
                         x_min, y_min, z_min)
@@ -632,10 +633,12 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     esetting_p2(out_x, out_y, out_z, in_x, in_y, in_z, sph_pts, cx, cy, cz,
                 out_r, in_r, length, level_s, num_p2, s1_index)
 
+    tree_stop = time.time()
+
     return (cells, sfc_s, level_s, idx_s, bin_count, start_idx, leaf_idx,
             parent, child, part2bin, p2b_offset, lev_n, levwise_n, s1_index,
             s1r_index, lev_index, lev_index_r, cx, cy, cz, out_x, out_y, out_z,
-            in_x, in_y, in_z, out_vl, in_vl, order)
+            in_x, in_y, in_z, out_vl, in_vl, order, tree_stop - tree_start)
 
 
 if __name__ == "__main__":
