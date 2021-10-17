@@ -380,12 +380,12 @@ def loc_exp(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2, i2c_l,
 # TEST: trans_loc
 @annotate(int="i, num_p2, leg_lim, offset", i2c_l="float",
           gfloatp="in_temp, in_val, cx, cy, cz, in_x, in_y, in_z, leg_lst",
-          gintp="index, index_r, parent")
+          gintp="index_r, lev_index, parent")
 def trans_loc(i, in_temp, in_val, in_x, in_y, in_z, cx, cy, cz, i2c_l, num_p2,
-              leg_lst, leg_lim, index, index_r, parent, offset):
+              leg_lst, leg_lim, index_r, lev_index, parent, offset):
     pid, cid, tid, inid = declare("int", 4)
     cid = cast(floor(i*1.0/num_p2), "int")
-    cid = index[cid+offset]
+    cid = lev_index[cid+offset]
     inid = index_r[cid]*num_p2 + i % num_p2
     pid = parent[cid]
     tid = index_r[pid]*num_p2
@@ -493,9 +493,8 @@ if __name__ == "__main__":
     import tree
 
     backend = "cython"
-    N = 12
-    max_depth = 3
-    np.random.seed(4)
+    N = 2000
+    max_depth = 4
 
     part_val = np.ones(N)
     part_x = np.random.random(N)
@@ -577,14 +576,14 @@ if __name__ == "__main__":
                assoc, child, parent, num_p2, level, index, index_r,
                lev_index_r, idx, leaf_idx, start_idx, bin_count, length)
 
-    for lev in range(2, max_depth):
+    for lev in range(3, max_depth+1):
         i2c_l = in_r*sqrt(3)*length/(2**(lev))
         lev_offset = levwise_cs[lev-1] - levwise_cs[lev]
         if lev_offset == 0:
             continue
-        etrans_loc(in_val[:lev_offset], in_val, in_x, in_y, in_z, cx, cy, cz,
-                   i2c_l, num_p2, leg_lst, leg_lim, index, index_r, parent,
-                   lev_cs[lev])
+        etrans_loc(in_val[:lev_offset*num_p2], in_val, in_x, in_y, in_z, cx,
+                   cy, cz, i2c_l, num_p2, leg_lst, leg_lim, index_r, lev_index,
+                   parent, levwise_cs[lev])
 
     ecompute(part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
              idx, parent, child, assoc, index_r, lev_index_r, leaf_idx,
@@ -594,6 +593,5 @@ if __name__ == "__main__":
 
     edirect(part_val, part_x, part_y, part_z, res_direct, N)
 
-    # for i in range(N):
-    #     t = abs(result[i] - res_direct[i]) / res_direct[i]
-    #     print(i, result[i], res_direct[i], t, part2bin[i])
+    print("Mean Error - ", np.mean(np.abs(result - res_direct)/res_direct),
+          "\nMax Error - ", np.max(np.abs(result - res_direct)/res_direct))
