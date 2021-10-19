@@ -163,7 +163,7 @@ def assoc_coarse(i, sfc, parent, child, index, assoc, offset):
         if child[pid+j] == -1:
             break
         elif child[pid+j] != rid:
-            assoc[80*cid+count] = child[pid+j]
+            assoc[26*cid+count] = child[pid+j]
             count += 1
         else:
             continue
@@ -184,8 +184,8 @@ def find_assoc(i, idx, cx, cy, cz, level, assoc, child, parent, offset,
     lev = level[rid]
     cr = length/(2.0**(lev+1))
     cR = cr*sqrt(3.0)
-    for j in range(80):
-        aid = assoc[80*pid+j]
+    for j in range(26):
+        aid = assoc[26*pid+j]
 
         if aid == -1:
             break
@@ -197,19 +197,26 @@ def find_assoc(i, idx, cx, cy, cz, level, assoc, child, parent, offset,
             if adj == 0:
                 continue
             else:
-                assoc[80*bid+count] = aid
+                assoc[26*bid+count] = aid
                 count += 1
         else:
             for k in range(8):
                 cid = child[8*aid+k]
                 if cid == -1:
                     break
-                well = well_sep(cx[cid], cy[cid], cz[cid], cR,
-                                cx[rid], cy[rid], cz[rid])
-                if well == 1:
+                # well = well_sep(cx[cid], cy[cid], cz[cid], cR,
+                #                 cx[rid], cy[rid], cz[rid])
+                # if well == 1:
+                #     continue
+                # else:
+                #     assoc[26*bid+count] = cid
+                #     count += 1
+                adj = is_adj(cx[cid], cy[cid], cz[cid], cr, cx[rid], cy[rid],
+                             cz[rid], cr)
+                if adj == 0:
                     continue
                 else:
-                    assoc[80*bid+count] = cid
+                    assoc[26*bid+count] = cid
                     count += 1
 
     for j in range(8):
@@ -217,7 +224,7 @@ def find_assoc(i, idx, cx, cy, cz, level, assoc, child, parent, offset,
         if cid == -1:
             break
         if cid != rid:
-            assoc[80*bid+count] = cid
+            assoc[26*bid+count] = cid
             count += 1
 
 
@@ -312,8 +319,8 @@ def loc_coeff(i, in_val, in_x, in_y, in_z, out_val, out_x, out_y, out_z,
     pid = lev_index_r[parent[cid]]
     inid = index_r[cid]*num_p2 + i % num_p2
     in_val[inid] = 0
-    for j in range(80):
-        aid = assoc[80*pid+j]
+    for j in range(26):
+        aid = assoc[26*pid+j]
         if aid != -1:
             paid = idx[aid]
             if paid == -1:
@@ -323,11 +330,18 @@ def loc_coeff(i, in_val, in_x, in_y, in_z, out_val, out_x, out_y, out_z,
                         break
 
                     # HACK: cells which are neither well seperated
-                    # nor adjacent are considered associate
+                    # nor adjacent are considered v list cells
                     else:
-                        well = well_sep(cx[cid], cy[cid], cz[cid], cR,
-                                        cx[chid], cy[chid], cz[chid])
-                        if well == 1:
+                        # well = well_sep(cx[cid], cy[cid], cz[cid], cR,
+                        #                 cx[chid], cy[chid], cz[chid])
+                        # if well == 1:
+                        #     in_val[inid] += v_list(
+                        #         in_x[inid], in_y[inid], in_z[inid], out_val,
+                        #         out_x, out_y, out_z, num_p2,
+                        #         num_p2*index_r[chid])
+                        adj = is_adj(cx[cid], cy[cid], cz[cid], cr,
+                                     cx[chid], cy[chid], cz[chid], cr)
+                        if adj == 0:
                             in_val[inid] += v_list(
                                 in_x[inid], in_y[inid], in_z[inid], out_val,
                                 out_x, out_y, out_z, num_p2,
@@ -425,8 +439,8 @@ def compute(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
                             bin_count[idx[bid]], start_idx[idx[bid]], pid)
 
     # calculation of potential using U and W interaction lists
-    for j in range(80):
-        aid = assoc[80*baid+j]
+    for j in range(26):
+        aid = assoc[26*baid+j]
 
         if aid == -1:
             break
@@ -504,7 +518,7 @@ def solver(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
 
     result = ary.zeros(N, dtype=np.float32, backend=backend)
     res_direct = ary.zeros(N, dtype=np.float32, backend=backend)
-    assoc = ary.empty(80*cells, dtype=np.int32, backend=backend)
+    assoc = ary.empty(26*cells, dtype=np.int32, backend=backend)
     assoc.fill(-1)
 
     leg_lim = order//2+1
