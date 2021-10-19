@@ -639,38 +639,3 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
             parent, child, part2bin, p2b_offset, lev_n, levwise_n, s1_index,
             s1r_index, lev_index, lev_index_r, cx, cy, cz, out_x, out_y, out_z,
             in_x, in_y, in_z, out_vl, in_vl, order, tree_stop - tree_start)
-
-
-if __name__ == "__main__":
-    backend = 'cython'
-    N = 5
-    max_depth = 2
-    np.random.seed(4)
-    # part_val = np.ones(N)
-    # part_x = np.random.random(N)
-    # part_y = np.random.random(N)
-    # part_z = np.random.random(N)
-
-    part_val = np.array([1, 1, 1, 1, 1], dtype=np.float32)
-    part_x = np.array([0.37, 0.37, 0.88, 0.88, 0.8], dtype=np.float32)
-    part_y = np.array([0.12, 0.37, 0.13, 0.38, 0.8], dtype=np.float32)
-    part_z = np.array([0.12, 0.12, 0.13, 0.13, 0.3], dtype=np.float32)
-
-    part_val = part_val.astype(np.float32)
-    part_x = part_x.astype(np.float32)
-    part_y = part_y.astype(np.float32)
-    part_z = part_z.astype(np.float32)
-    x_min = 0
-    y_min = 0
-    z_min = 0
-    length = 1
-    num_p2 = 6
-    dimension = 3
-    out_r = 1.1
-    in_r = 1.06
-    (cells, sfc, level, idx, bin_count, start_idx, leaf_idx,
-     parent, child, part2bin, lev_cs, levwise_cs, index, index_r,
-     lev_index, lev_index_r, cx, cy, cz, out_x, out_y, out_z,
-     in_x, in_y, in_z, out_val, in_val, order) = build(
-         N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
-         out_r, in_r, length, num_p2, backend, dimension)
