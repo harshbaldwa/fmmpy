@@ -1,5 +1,4 @@
 # TODO: Rearrange all the function variables
-import tree
 import time
 from math import fabs, floor, sqrt
 
@@ -8,6 +7,8 @@ import numpy as np
 from compyle.api import Elementwise, annotate, declare, wrap
 from compyle.low_level import cast
 from scipy.special import legendre
+
+import tree
 
 
 @annotate(int="lst_len, idx", cos_g="float",
@@ -71,14 +72,11 @@ def calc_p2(i, out_temp, out_val, out_x, out_y, out_z, cx, cy, cz, num_p2,
     p2c, m2c = declare("matrix(3)", 2)
     p2c_l, cos_g, rr, leg_res, out_res = declare("float", 5)
     cid = cast(floor(i*1.0/num_p2), "int")
-    # REM: offset here is level_cs[level]
     cid = index[offset+cid]
     outid = index_r[cid]*num_p2 + i % num_p2
     m2c[0] = out_x[outid] - cx[cid]
     m2c[1] = out_y[outid] - cy[cid]
     m2c[2] = out_z[outid] - cz[cid]
-    # REM: precomputed and passed as a variable m2c_l
-    # m2c_l = out_r*sqrt(3.0)*length/(2.0**(level+1))
     out_res = 0
     out_val[outid] = 0
     pid = 8*cid
@@ -204,13 +202,6 @@ def find_assoc(i, idx, cx, cy, cz, level, assoc, child, parent, offset,
                 cid = child[8*aid+k]
                 if cid == -1:
                     break
-                # well = well_sep(cx[cid], cy[cid], cz[cid], cR,
-                #                 cx[rid], cy[rid], cz[rid])
-                # if well == 1:
-                #     continue
-                # else:
-                #     assoc[26*bid+count] = cid
-                #     count += 1
                 adj = is_adj(cx[cid], cy[cid], cz[cid], cr, cx[rid], cy[rid],
                              cz[rid], cr)
                 if adj == 0:
@@ -273,6 +264,72 @@ def w_list(out_val, out_x, out_y, out_z, part_x, part_y, part_z,
     return res
 
 
+#TEST: test_inner_pseudoparticle
+@annotate(gfloatp="out_val, out_x, out_y, out_z, in_val, in_x, in_y, in_z, "
+                  "leg_lst, cx, cy, cz", float="in_r, length",
+          int="osid, inid, leg_lim, num_p2, cid", level="gintp")
+def calc_inner_p2(out_val, out_x, out_y, out_z, osid, in_val, in_x, in_y, in_z,
+                  inid, leg_lst, leg_lim, num_p2, cx, cy, cz, cid, in_r,
+                  length, level):
+    i2c_l, m2c_l, rr, cg, leg_res, res = declare("float", 6)
+    i2c, m2c = declare("matrix(3)", 2)
+    j, sid, leg, oid = declare("int", 4)
+    i2c[0] = in_x[inid] - cx[cid]
+    i2c[1] = in_y[inid] - cy[cid]
+    i2c[2] = in_z[inid] - cz[cid]
+    i2c_l = in_r*sqrt(3.0)*length/(2.0**(level[cid]+1))
+    res = 0
+    for j in range(num_p2):
+        oid = osid + j
+        m2c[0] = out_x[oid] - cx[cid]
+        m2c[1] = out_y[oid] - cy[cid]
+        m2c[2] = out_z[oid] - cz[cid]
+        m2c_l = sqrt(m2c[0]**2 + m2c[1]**2 + m2c[2]**2)
+        rr = i2c_l / m2c_l
+        cg = (i2c[0]*m2c[0] + i2c[1]*m2c[1] + i2c[2]*m2c[2]) / (i2c_l*m2c_l)
+        res += rr*out_val[oid]
+        sid = 0
+        for leg in range(1, leg_lim):
+            leg_res = lgndre(leg_lst, cg, leg+1, sid)
+            res += leg_res*(2*leg+1)*(rr**(leg+1))*out_val[oid]
+            sid += leg+1
+
+    in_val[inid] += res / num_p2
+
+
+#TEST: test_inner_pseudoparticle
+@annotate(gfloatp="part_val, part_x, part_y, part_z, in_val, in_x, in_y, in_z,"
+                  " leg_lst, cx, cy, cz", float="in_r, length",
+          int="psid, inid, leg_lim, num_p2, cid", gintp="leaf_idx, level")
+def calc_inner_p2_fine(part_val, part_x, part_y, part_z, psid, in_val, in_x,
+                       in_y, in_z, inid, leg_lst, leg_lim, num_p2, cx, cy, cz,
+                       cid, in_r, length, level, leaf_idx):
+    i2c_l, p2c_l, rr, cg, leg_res, res = declare("float", 6)
+    i2c, p2c = declare("matrix(3)", 2)
+    j, sid, leg, pid = declare("int", 4)
+    i2c[0] = in_x[inid] - cx[cid]
+    i2c[1] = in_y[inid] - cy[cid]
+    i2c[2] = in_z[inid] - cz[cid]
+    i2c_l = in_r*sqrt(3.0)*length/(2.0**(level[cid]+1))
+    res = 0
+    for j in range(num_p2):
+        pid = leaf_idx[psid + j]
+        p2c[0] = part_x[pid] - cx[cid]
+        p2c[1] = part_y[pid] - cy[cid]
+        p2c[2] = part_z[pid] - cz[cid]
+        p2c_l = sqrt(p2c[0]**2 + p2c[1]**2 + p2c[2]**2)
+        rr = i2c_l / p2c_l
+        cg = (i2c[0]*p2c[0] + i2c[1]*p2c[1] + i2c[2]*p2c[2]) / (i2c_l*p2c_l)
+        res += rr*part_val[pid]
+        sid = 0
+        for leg in range(1, leg_lim):
+            leg_res = lgndre(leg_lst, cg, leg+1, sid)
+            res += leg_res*(2*leg+1)*(rr**(leg+1))*part_val[pid]
+            sid += leg+1
+
+    in_val[inid] += res / num_p2
+
+
 @annotate(int="chid, num_p2", float="in_x, in_y, in_z",
           gfloatp="out_val, out_x, out_y, out_z", return_="float")
 def v_list(in_x, in_y, in_z, out_val, out_x, out_y, out_z, num_p2, chid):
@@ -304,12 +361,12 @@ def z_list(in_x, in_y, in_z, part_val, part_x, part_y, part_z, sid,
 @annotate(gintp="assoc, child, parent, index, index_r, lev_index_r, idx, "
                 "leaf_idx, start_idx, bin_count, level",
           gfloatp="in_val, in_x, in_y, in_z, out_val, out_x, out_y, out_z, "
-                  "part_val, part_x, part_y, part_z, cx, cy, cz",
-          length="float", int="i, num_p2")
+                  "part_val, part_x, part_y, part_z, cx, cy, cz, leg_lst",
+          float="length, in_r", int="i, num_p2, leg_lim")
 def loc_coeff(i, in_val, in_x, in_y, in_z, out_val, out_x, out_y, out_z,
               part_val, part_x, part_y, part_z, cx, cy, cz, assoc, child,
               parent, num_p2, level, index, index_r, lev_index_r, idx,
-              leaf_idx, start_idx, bin_count, length):
+              leaf_idx, start_idx, bin_count, length, in_r, leg_lst, leg_lim):
     j, k, cid, pid, aid, chid, well, adj, paid, inid = declare("int", 10)
     cr, cR = declare("float", 2)
     cid = cast(floor(i*1.0/num_p2), "int")
@@ -332,81 +389,57 @@ def loc_coeff(i, in_val, in_x, in_y, in_z, out_val, out_x, out_y, out_z,
                     # HACK: cells which are neither well seperated
                     # nor adjacent are considered v list cells
                     else:
-                        # well = well_sep(cx[cid], cy[cid], cz[cid], cR,
-                        #                 cx[chid], cy[chid], cz[chid])
-                        # if well == 1:
-                        #     in_val[inid] += v_list(
-                        #         in_x[inid], in_y[inid], in_z[inid], out_val,
-                        #         out_x, out_y, out_z, num_p2,
-                        #         num_p2*index_r[chid])
                         adj = is_adj(cx[cid], cy[cid], cz[cid], cr,
                                      cx[chid], cy[chid], cz[chid], cr)
                         if adj == 0:
-                            in_val[inid] += v_list(
-                                in_x[inid], in_y[inid], in_z[inid], out_val,
-                                out_x, out_y, out_z, num_p2,
-                                num_p2*index_r[chid])
+                            calc_inner_p2(
+                                out_val, out_x, out_y, out_z,
+                                num_p2*index_r[chid], in_val, in_x, in_y, in_z,
+                                inid, leg_lst, leg_lim, num_p2, cx, cy, cz,
+                                cid, in_r, length, level)
 
             else:
                 adj = is_adj(cx[cid], cy[cid], cz[cid], cr, cx[aid], cy[aid],
                              cz[aid], length/(2.0**(level[aid]+1)))
                 if adj != 1:
-                    in_val[inid] += z_list(
-                        in_x[inid], in_y[inid], in_z[inid], part_val, part_x,
-                        part_y, part_z, start_idx[idx[aid]], leaf_idx,
-                        bin_count[idx[aid]])
+                    calc_inner_p2_fine(
+                        part_val, part_x, part_y, part_z, start_idx[idx[aid]],
+                        in_val, in_x, in_y, in_z, inid, leg_lst, leg_lim,
+                        num_p2, cx, cy, cz, cid, in_r, length, level, leaf_idx)
         else:
             break
 
 
-@annotate(int="offset, leg_lim, num_p2", float="cx, cy, cz, px, py, pz, i2c_l",
-          gfloatp="in_val, in_x, in_y, in_z, leg_lst", return_="float")
-def loc_exp(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2, i2c_l,
-            offset, leg_lst, leg_lim):
-    j, leg, s1id, sid = declare("int", 4)
-    p2c, i2c = declare("matrix(3)", 2)
-    res, p2c_l, cos_g, rr, leg_res = declare("float", 5)
-    p2c[0] = px - cx
-    p2c[1] = py - cy
-    p2c[2] = pz - cz
-    p2c_l = sqrt(p2c[0]**2 + p2c[1]**2 + p2c[2]**2)
-    res = 0
-    # REM: store length in this form -> in_r*sqrt(3.0)length/(2.0**(level+1))
-    # i2c_l = in_r*sqrt(3.0)*length/(2.0**(level+1))
-    for j in range(num_p2):
-        s1id = offset + j
-        i2c[0] = in_x[s1id] - cx
-        i2c[1] = in_y[s1id] - cy
-        i2c[2] = in_z[s1id] - cz
-        res += in_val[s1id]
-        if p2c_l != 0:
-            cos_g = (i2c[0]*p2c[0] + i2c[1]*p2c[1] +
-                     i2c[2]*p2c[2]) / (p2c_l * i2c_l)
-            rr = p2c_l / i2c_l
-            sid = 0
-            for leg in range(1, leg_lim):
-                leg_res = lgndre(leg_lst, cos_g, leg+1, sid)
-                res += leg_res*(2*leg+1)*(rr**leg)*in_val[s1id]
-                sid += leg+1
-    res = res / num_p2
-    return res
-
-
 # TEST: trans_loc
-@annotate(int="i, num_p2, leg_lim, offset", i2c_l="float",
+@annotate(int="i, num_p2, leg_lim, offset", float="in_r, length",
           gfloatp="in_temp, in_val, cx, cy, cz, in_x, in_y, in_z, leg_lst",
-          gintp="index_r, lev_index, parent")
-def trans_loc(i, in_temp, in_val, in_x, in_y, in_z, cx, cy, cz, i2c_l, num_p2,
-              leg_lst, leg_lim, index_r, lev_index, parent, offset):
+          gintp="index_r, lev_index, parent, level")
+def trans_loc(i, in_temp, in_val, in_x, in_y, in_z, cx, cy, cz, num_p2,
+              leg_lst, leg_lim, index_r, lev_index, parent, offset, in_r,
+              level, length):
     pid, cid, tid, inid = declare("int", 4)
     cid = cast(floor(i*1.0/num_p2), "int")
     cid = lev_index[cid+offset]
     inid = index_r[cid]*num_p2 + i % num_p2
     pid = parent[cid]
     tid = index_r[pid]*num_p2
-    in_val[inid] += loc_exp(in_val, in_x, in_y, in_z, cx[pid], cy[pid],
-                            cz[pid], in_x[inid], in_y[inid], in_z[inid],
-                            num_p2, i2c_l, tid, leg_lst, leg_lim)
+    calc_inner_p2(in_val, in_x, in_y, in_z, tid, in_val, in_x, in_y, in_z,
+                  inid, leg_lst, leg_lim, num_p2, cx, cy, cz, cid, in_r,
+                  length, level)
+
+
+@annotate(gfloatp="in_val, in_x, in_y, in_z, px, py, pz",
+          int="pid, isid, num_p2", return_="float")
+def loc_exp(in_val, in_x, in_y, in_z, isid, px, py, pz, pid, num_p2):
+    n, inid = declare("int", 2)
+    res = declare("float")
+    res = 0
+    for n in range(num_p2):
+        inid = isid + n
+        res += direct_comp(in_val[inid], in_x[inid], in_y[inid],
+                           in_z[inid], px[pid], py[pid], pz[pid])
+
+    return res
 
 
 # TEST: compute
@@ -438,7 +471,6 @@ def compute(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
     result[pid] += own_cell(part_val, part_x, part_y, part_z, leaf_idx,
                             bin_count[idx[bid]], start_idx[idx[bid]], pid)
 
-    # calculation of potential using U and W interaction lists
     for j in range(26):
         aid = assoc[26*baid+j]
 
@@ -497,18 +529,17 @@ def compute(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
 
                         aid = parent[aid]
 
-    # calculation using the local expansions
-    result[pid] += loc_exp(in_val, in_x, in_y, in_z, cx[bid], cy[bid],
-                           cz[bid], part_x[pid], part_y[pid], part_z[pid],
-                           num_p2, i2c_l, brid*num_p2, leg_lst, leg_lim)
+    
+    result[pid] += loc_exp(in_val, in_x, in_y, in_z, brid*num_p2, part_x, 
+                           part_y, part_z, pid, num_p2)
 
 
 def solver(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
            out_r, in_r, length, num_p2, backend, dimension, direct_call=False):
-    
+
     part_val, part_x, part_y, part_z = wrap(part_val, part_x, part_y, part_z,
                                             backend=backend)
-    
+
     (cells, sfc, level, idx, bin_count, start_idx, leaf_idx, parent, child,
      part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index,
      lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_val,
@@ -566,39 +597,40 @@ def solver(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
                     assoc, child, parent, levwise_cs[lev], lev_index,
                     lev_index_r, length)
 
-    # loc_coeff_start = time.time()
+    loc_coeff_start = time.time()
 
     eloc_coeff(in_val[:lev_cs[1]*num_p2], in_x, in_y, in_z, out_val, out_x,
                out_y, out_z, part_val, part_x, part_y, part_z, cx, cy, cz,
                assoc, child, parent, num_p2, level, index, index_r,
-               lev_index_r, idx, leaf_idx, start_idx, bin_count, length)
+               lev_index_r, idx, leaf_idx, start_idx, bin_count, length, in_r,
+               leg_lst, leg_lim)
 
-    # trans_loc_start = time.time()
+    trans_loc_start = time.time()
 
     for lev in range(3, max_depth+1):
-        i2c_l = in_r*sqrt(3)*length/(2**(lev))
         lev_offset = levwise_cs[lev-1] - levwise_cs[lev]
         if lev_offset == 0:
             continue
         etrans_loc(in_val[:lev_offset*num_p2], in_val, in_x, in_y, in_z, cx,
-                   cy, cz, i2c_l, num_p2, leg_lst, leg_lim, index_r, lev_index,
-                   parent, levwise_cs[lev])
+                   cy, cz, num_p2, leg_lst, leg_lim, index_r, lev_index,
+                   parent, levwise_cs[lev], in_r, level, length)
 
-    # compute_start = time.time()
+    compute_start = time.time()
 
     ecompute(part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
              idx, parent, child, assoc, index_r, lev_index_r, leaf_idx,
              bin_count, start_idx, out_val, out_x, out_y, out_z, in_val, in_x,
              in_y, in_z, cx, cy, cz, result, leg_lst, num_p2, leg_lim, in_r,
              length)
+
+    end = time.time()
+    print("Time for local coeff: %f" % (trans_loc_start - loc_coeff_start))
+    print("Time for trans coeff: %f" % (compute_start - trans_loc_start))
+    print("Time for final compu: %f" % (end - compute_start))
     
-    # end = time.time()
-    # print("Time for local coeff: %f" % (trans_loc_start - loc_coeff_start))
-    # print("Time for trans coeff: %f" % (compute_start - trans_loc_start))
-    # print("Time for final compu: %f" % (end - compute_start))
-    
+
     if direct_call:
         edirect(part_val, part_x, part_y, part_z, res_direct, N)
-        return  result, res_direct
+        return result, res_direct
     else:
         return result

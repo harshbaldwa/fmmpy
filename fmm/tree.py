@@ -294,8 +294,7 @@ def calc_center(i, sfc, level, cx, cy, cz,
 
 
 @annotate(int="i, num_p2", gintp="level, index", double="length, out_r, in_r",
-          gfloatp="cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, "
-                  "sph_pts")
+          gfloatp="cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, sph_pts")
 def setting_p2(i, out_x, out_y, out_z, in_x, in_y, in_z, sph_pts, cx, cy, cz,
                out_r, in_r, length, level, num_p2, index):
     cid, sid = declare("int", 2)
@@ -415,8 +414,7 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     # calculations
     tree_start = time.time()
 
-    eget_particle_index(leaf_sfc, part_x, part_y,
-                        part_z, max_index, length,
+    eget_particle_index(leaf_sfc, part_x, part_y, part_z, max_index, length,
                         x_min, y_min, z_min)
 
     [leaf_sfc_sorted, leaf_idx_sorted], _ = radix_sort(
@@ -503,19 +501,17 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     eremove_duplicates(dp_idx, nodes_sfc, nodes_level)
 
     [dp_idx_sorted, nodes_sfc_sorted, nodes_level_sorted], _ = radix_sort(
-        [dp_idx, nodes_sfc, nodes_level],
-        backend=backend)
+        [dp_idx, nodes_sfc, nodes_level], backend=backend)
 
     ecopy2(nodes_sfc, nodes_level, nodes_sfc_sorted, nodes_level_sorted)
 
     node_repeated = reduction(dp_idx_sorted)
     cells = 2*M-1 - node_repeated
 
-    ecopy5(sfc[:M], sfc[M:], level[:M], level[M:], idx[:M],
-           leaf_sfc, nodes_sfc, leaf_level, nodes_level, leaf_idx_pointer)
+    ecopy5(sfc[:M], sfc[M:], level[:M], level[M:], idx[:M], leaf_sfc, 
+           nodes_sfc, leaf_level, nodes_level, leaf_idx_pointer)
 
-    [sfc_s, level_s, idx_s], _ = radix_sort(
-        [sfc, level, idx], backend=backend)
+    [sfc_s, level_s, idx_s], _ = radix_sort([sfc, level, idx], backend=backend)
 
     esfc_real(sfc_s, level_s, max_depth, dimension)
 
@@ -550,11 +546,9 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
          [pc_sfc, pc_level, pc_idx, rel_idx, temp_idx], backend=backend)
 
     esfc_real(pc_sfc_s[:-(2*node_repeated+1)],
-              pc_level_s[:-(2*node_repeated+1)],
-              max_depth, dimension)
+              pc_level_s[:-(2*node_repeated+1)], max_depth, dimension)
 
-    eget_relations(pc_sfc_s, pc_level_s, temp_idx_s, rel_idx_s,
-                   parent, child)
+    eget_relations(pc_sfc_s, pc_level_s, temp_idx_s, rel_idx_s, parent, child)
 
     efind_level_diff(level_s, parent, level_diff)
 
@@ -598,8 +592,7 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
 
     ep2bin(idx_s, bin_count, start_idx, part2bin, p2b_offset, leaf_idx)
 
-    ecalc_center(sfc_s, level_s, cx, cy, cz,
-                 x_min, y_min, z_min, length)
+    ecalc_center(sfc_s, level_s, cx, cy, cz, x_min, y_min, z_min, length)
 
     # FIXME: Remove unnecessary copies
     [s1_lev, s1_idx, s1_index], _ = radix_sort([level_s, idx_s, index],
@@ -612,8 +605,7 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     [s1_idx, s1_lev, s1_index], _ = radix_sort([s2_idx, s2_lev, s2_index],
                                                backend=backend)
 
-    [s2_index, s1r_index], _ = radix_sort([s1_index, index],
-                                          backend=backend)
+    [s2_index, s1r_index], _ = radix_sort([s1_index, index], backend=backend)
 
     s2_idx.resize(0)
     s2_lev.resize(0)
