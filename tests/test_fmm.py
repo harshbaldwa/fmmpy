@@ -439,8 +439,3 @@ def test_loc_coeff(backend):
                                   part_x[0], part_y[0], part_z[0])
 
     assert abs(res_loc - res_direct)/res_direct < 2e-4
-
-
-@check_all_backends
-def test_compute(backend):
-    check_import(backend)

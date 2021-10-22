@@ -3,17 +3,19 @@ import time
 import numpy as np
 
 backend = "cython"
-N = 1000
-max_depth = 3
-direct_call = 1
-potential = 0
-num_p2 = 24
+N = 1000000
+max_depth = 6
+direct_call = 0
+potential = 1
+num_p2 = 6
 out_r = 1.1
 in_r = 6
 
-# get_config().use_openmp = True
+np.random.seed(4)
 
-part_val = np.random.random(N)*10 + 1
+get_config().use_openmp = True
+
+part_val = np.random.random(N)
 part_x = np.random.random(N)
 part_y = np.random.random(N)
 part_z = np.random.random(N)

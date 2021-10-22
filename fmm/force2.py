@@ -8,9 +8,6 @@ from compyle.api import Elementwise, annotate, declare, wrap
 from compyle.low_level import cast
 from scipy.special import legendre
 
-import tree
-
-
 @annotate(int="lst_len, idx", cos_g="float",
           lst="gfloatp", return_="float")
 def lgndre(lst, cos_g, lst_len, idx):
@@ -305,11 +302,11 @@ def calc_inner_p2(out_val, out_x, out_y, out_z, osid, in_val, in_x, in_y, in_z,
 
 #TEST: test_inner_pseudoparticle
 @annotate(gfloatp="part_val, part_x, part_y, part_z, in_val, in_x, in_y, in_z,"
-                  " leg_lst, cx, cy, cz", float="in_r, length",
-          int="psid, inid, leg_lim, num_p2, cid", gintp="leaf_idx, level")
+                  " leg_lst, cx, cy, cz", gintp="leaf_idx, level",
+          float="in_r, length", int="psid, inid, leg_lim, num_p, num_p2, cid")
 def calc_inner_p2_fine(part_val, part_x, part_y, part_z, psid, in_val, in_x,
-                       in_y, in_z, inid, leg_lst, leg_lim, num_p2, cx, cy, cz,
-                       cid, in_r, length, level, leaf_idx):
+                       in_y, in_z, inid, leg_lst, leg_lim, num_p, num_p2, cx,
+                       cy, cz, cid, in_r, length, level, leaf_idx):
     i2c_l, p2c_l, rr, cg, leg_res, res = declare("float", 6)
     i2c, p2c = declare("matrix(3)", 2)
     j, sid, leg, pid = declare("int", 4)
@@ -318,7 +315,7 @@ def calc_inner_p2_fine(part_val, part_x, part_y, part_z, psid, in_val, in_x,
     i2c[2] = in_z[inid] - cz[cid]
     i2c_l = in_r*sqrt(3.0)*length/(2.0**(level[cid]+1))
     res = 0
-    for j in range(num_p2):
+    for j in range(num_p):
         pid = leaf_idx[psid + j]
         p2c[0] = part_x[pid] - cx[cid]
         p2c[1] = part_y[pid] - cy[cid]
@@ -334,6 +331,7 @@ def calc_inner_p2_fine(part_val, part_x, part_y, part_z, psid, in_val, in_x,
             sid += leg+1
 
     in_val[inid] += res / num_p2
+
 
 
 @annotate(int="chid, num_p2", float="in_x, in_y, in_z",
@@ -411,7 +409,8 @@ def loc_coeff(i, in_val, in_x, in_y, in_z, out_val, out_x, out_y, out_z,
                     calc_inner_p2_fine(
                         part_val, part_x, part_y, part_z, start_idx[idx[aid]],
                         in_val, in_x, in_y, in_z, inid, leg_lst, leg_lim,
-                        num_p2, cx, cy, cz, cid, in_r, length, level, leaf_idx)
+                        bin_count[idx[aid]], num_p2, cx, cy, cz, cid, in_r, 
+                        length, level, leaf_idx)
         else:
             break
 
@@ -541,6 +540,8 @@ def compute(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
 def solver(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
            out_r, in_r, length, num_p2, backend, dimension, direct_call=False):
 
+    import tree
+
     part_val, part_x, part_y, part_z = wrap(part_val, part_x, part_y, part_z,
                                             backend=backend)
 
@@ -605,15 +606,11 @@ def solver(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
                     assoc, child, parent, levwise_cs[lev], lev_index,
                     lev_index_r, length)
 
-    loc_coeff_start = time.time()
-
     eloc_coeff(in_val[:lev_cs[1]*num_p2], in_x, in_y, in_z, out_val, out_x,
                out_y, out_z, part_val, part_x, part_y, part_z, cx, cy, cz,
                assoc, child, parent, num_p2, level, index, index_r,
                lev_index_r, idx, leaf_idx, start_idx, bin_count, length, in_r,
                leg_lst, leg_lim)
-
-    trans_loc_start = time.time()
 
     for lev in range(3, max_depth+1):
         lev_offset = levwise_cs[lev-1] - levwise_cs[lev]
@@ -623,23 +620,18 @@ def solver(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
                    cy, cz, num_p2, leg_lst, leg_lim, index_r, lev_index,
                    parent, levwise_cs[lev], in_r, level, length)
 
-    compute_start = time.time()
-
     ecompute(part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
              idx, parent, child, assoc, index_r, lev_index_r, leaf_idx,
              bin_count, start_idx, out_val, out_x, out_y, out_z, in_val, in_x,
              in_y, in_z, cx, cy, cz, leg_lst, num_p2, leg_lim, in_r, length,
              res_x, res_y, res_z)
 
-    end = time.time()
-    print("Time for local coeff: %f" % (trans_loc_start - loc_coeff_start))
-    print("Time for trans coeff: %f" % (compute_start - trans_loc_start))
-    print("Time for final compu: %f" % (end - compute_start))
-    
-
     if direct_call:
+            
         edirect(part_val, part_x, part_y, part_z, res_dir_x, res_dir_y, 
                 res_dir_z, N)
+        # for i in range(N):
+        #     print(i, res_dir_x[i], res_x[i])
         return res_x, res_y, res_z, res_dir_x, res_dir_y, res_dir_z
     else:
         return res_x, res_y, res_z
