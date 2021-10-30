@@ -1,8 +1,10 @@
 import pytest
-from fmm.tree import *
+from tree.tree import *
 
+# check_all_backends = pytest.mark.parametrize('backend',
+#                                              ['cython', 'opencl', 'cuda'])
 check_all_backends = pytest.mark.parametrize('backend',
-                                             ['cython', 'opencl', 'cuda'])
+                                             ['cython'])
 
 
 def check_import(backend):
@@ -233,37 +235,70 @@ def test_remove_duplicates(backend):
 @check_all_backends
 def test_find_level_diff(backend):
     check_import(backend)
-    level = np.array([2, 2, 0], dtype=np.int32)
-    parent_idx = np.array([2, 2, -1], dtype=np.int32)
-    r_level_diff = np.array([1, 1, 0], dtype=np.int32)
-    level, parent_idx, r_level_diff = wrap(
-        level, parent_idx, r_level_diff, backend=backend)
-    level_diff = ary.zeros(3, dtype=np.int32, backend=backend)
-
+    level = np.array([3, 2, 3, 1, 0], dtype=np.int32)
+    idx = np.array([0, -1, 1, -1, -1], dtype=np.int32)
+    parent = np.array([1, 4, 3, 4, -1], dtype=np.int32)
+    r_level_diff = np.array([0, 1, 0, 0, 0], dtype=np.int32)
+    r_move_up = np.array([0, 0, 1, 0, 0], dtype=np.int32)
+    level, idx, parent, r_level_diff, r_move_up = wrap(
+        level, idx, parent, r_level_diff, r_move_up, backend=backend)
+    level_diff = ary.zeros(5, dtype=np.int32, backend=backend)
+    move_up = ary.zeros(5, dtype=np.int32, backend=backend)
+    
     e = Elementwise(find_level_diff, backend=backend)
-    e(level, parent_idx, level_diff)
-
+    e(level, idx, parent, level_diff, move_up)
+    
     np.testing.assert_array_equal(r_level_diff, level_diff)
+    np.testing.assert_array_equal(r_move_up, move_up)
 
 
 @check_all_backends
 def test_complete_tree(backend):
     check_import(backend)
     dimension = 3
-    sfc = np.array([1, 8, 0], dtype=np.int32)
-    level = np.array([2, 2, 0], dtype=np.int32)
-    level_diff = np.array([1, 1, 0], dtype=np.int32)
-    r_sfc = np.array([0, 1, 0], dtype=np.int32)
-    r_level = np.array([1, 1, 0], dtype=np.int32)
-
-    sfc, level, level_diff, r_sfc, r_level = wrap(
-        sfc, level, level_diff, r_sfc, r_level, backend=backend)
-
+    level_diff = np.array([0, 1, 0, 0, 0], dtype=np.int32)
+    move_up = np.array([0, 0, 1, 0, 0], dtype=np.int32)
+    cumsum_diff = np.array([0, 0, 1, 1, 1], dtype=np.int32)
+    sfc = np.array([0, 0, 64, 1, 0], dtype=np.int32)
+    level = np.array([3, 2, 3, 1, 0], dtype=np.int32)
+    idx = np.array([0, -1, 1, -1, -1], dtype=np.int32)
+    parent = np.array([1, 4, 3, 4, -1], dtype=np.int32)
+    child = np.ones(40, dtype=np.int32) * -1
+    child[8] = 0
+    child[24] = 2
+    child[32] = 1
+    child[33] = 3
+    r_sfc = np.array([0, 0, 0, 8, 1, 0], dtype=np.int32)
+    r_level = np.array([3, 2, 1, 2, 1, 0], dtype=np.int32)
+    r_idx = np.array([0, -1, -1, 1, -1, -1], dtype=np.int32)
+    r_parent = np.array([1, 2, 5, 4, 5, -1], dtype=np.int32)
+    r_child = np.ones(48, dtype=np.int32) * -1
+    r_child[8] = 0
+    r_child[16] = 1
+    r_child[32] = 3
+    r_child[40] = 2
+    r_child[41] = 4
+    (level_diff, move_up, cumsum_diff, sfc, level, idx, parent, child, r_sfc, 
+     r_level, r_idx, r_parent, r_child) = wrap(
+         level_diff, move_up, cumsum_diff, sfc, level, idx, parent, child, 
+         r_sfc, r_level, r_idx, r_parent, r_child, backend=backend)
+     
+    sfc_n = ary.zeros(6, dtype=np.int32, backend=backend)
+    level_n = ary.zeros(6, dtype=np.int32, backend=backend)
+    idx_n = ary.zeros(6, dtype=np.int32, backend=backend)
+    parent_n = ary.zeros(6, dtype=np.int32, backend=backend)
+    child_n = ary.empty(48, dtype=np.int32, backend=backend)
+    child_n.fill(-1)
+    
     e = Elementwise(complete_tree, backend=backend)
-    e(level_diff, sfc, level, dimension)
-
-    np.testing.assert_array_equal(r_sfc, sfc)
-    np.testing.assert_array_equal(r_level, level)
+    e(level_diff, cumsum_diff, sfc, level, idx, parent, child, sfc_n, level_n, 
+      idx_n, parent_n, child_n, dimension, move_up)
+    
+    np.testing.assert_array_equal(r_sfc, sfc_n)
+    np.testing.assert_array_equal(r_level, level_n)
+    np.testing.assert_array_equal(r_idx, idx_n)
+    np.testing.assert_array_equal(r_parent, parent_n)
+    np.testing.assert_array_equal(r_child, child_n)
 
 
 @check_all_backends
@@ -272,13 +307,18 @@ def test_p2bin(backend):
     idx = np.array([0, -1, 1, -1, 2, -1], dtype=np.int32)
     bin_count = np.array([3, 2, 1], dtype=np.int32)
     start_idx = np.array([0, 3, 5], dtype=np.int32)
+    leaf_idx = np.array([0, 1, 2, 3, 4, 5], dtype=np.int32)
     r_part2bin = np.array([0, 0, 0, 2, 2, 4], dtype=np.int32)
-    part2bin = np.zeros(6, dtype=np.int32)
-    idx, bin_count, start_idx, r_part2bin, part2bin = wrap(
-        idx, bin_count, start_idx, r_part2bin, part2bin, backend=backend)
+    r_p2b_offset = np.array([0, 1, 2, 0, 1, 0], dtype=np.int32)
+    idx, bin_count, start_idx, r_part2bin, r_p2b_offset, leaf_idx = wrap(
+        idx, bin_count, start_idx, r_part2bin, r_p2b_offset, leaf_idx, 
+        backend=backend)
+
+    part2bin = ary.zeros(6, dtype=np.int32, backend=backend)
+    p2b_offset = ary.zeros(6, dtype=np.int32, backend=backend)
 
     e = Elementwise(p2bin, backend=backend)
-    e(idx, bin_count, start_idx, part2bin)
+    e(idx, bin_count, start_idx, part2bin, p2b_offset, leaf_idx)
 
     np.testing.assert_array_equal(r_part2bin, part2bin)
 
@@ -286,10 +326,13 @@ def test_p2bin(backend):
 @check_all_backends
 def test_deinterleave(backend):
     check_import(backend)
+    deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF, 
+                              0x0000FFFF], dtype=np.int32)
+    deleave_coeff = wrap(deleave_coeff, backend=backend)
     idx = 38
-    x = deinterleave(idx)
-    y = deinterleave(idx >> 1)
-    z = deinterleave(idx >> 2)
+    x = deinterleave(idx, deleave_coeff)
+    y = deinterleave(idx >> 1, deleave_coeff)
+    z = deinterleave(idx >> 2, deleave_coeff)
     print(x)
     print(y)
     print(z)
@@ -303,20 +346,21 @@ def test_calc_center(backend):
     y_min = 0
     z_min = 0
     length = 1
+    deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF, 
+                              0x0000FFFF], dtype=np.int32)
     sfc = np.array([0, 0], dtype=np.int32)
     level = np.array([1, 0], dtype=np.int32)
     r_cx = np.array([0.25, 0.5], dtype=np.float32)
     r_cy = np.array([0.25, 0.5], dtype=np.float32)
     r_cz = np.array([0.25, 0.5], dtype=np.float32)
-    sfc, level, r_cx, r_cy, r_cz = wrap(
-        sfc, level, r_cx, r_cy, r_cz, backend=backend)
+    deleave_coeff, sfc, level, r_cx, r_cy, r_cz = wrap(
+        deleave_coeff, sfc, level, r_cx, r_cy, r_cz, backend=backend)
     cx = ary.zeros(2, dtype=np.float32, backend=backend)
     cy = ary.zeros(2, dtype=np.float32, backend=backend)
     cz = ary.zeros(2, dtype=np.float32, backend=backend)
 
     e = Elementwise(calc_center, backend=backend)
-    e(sfc, level, cx, cy, cz, x_min, y_min, z_min, length)
-    print(cx)
+    e(sfc, level, cx, cy, cz, x_min, y_min, z_min, length, deleave_coeff)
     np.testing.assert_array_almost_equal(r_cx, cx)
     np.testing.assert_array_almost_equal(r_cy, cy)
     np.testing.assert_array_almost_equal(r_cz, cz)
@@ -425,15 +469,15 @@ def test_lev_cumsum(backend):
 @check_all_backends
 def test_build(backend):
     check_import(backend)
-    N = 9
+    N = 6
     max_depth = 3
     part_val = np.ones(N, dtype=np.int32)
-    part_x = np.array([0.375, 0.375, 0.625, 0.63, 0.75, 0.125, 0.3125,
-                       0.4375, 0.3125], dtype=np.float32)
-    part_y = np.array([0.125, 0.375, 0.125, 0.13, 0.75, 0.625, 0.8125,
-                       0.8125, 0.9375], dtype=np.float32)
-    part_z = np.array([0.125, 0.375, 0.125, 0.13, 0.25, 0.125, 0.0625,
-                       0.0625, 0.0625], dtype=np.float32)
+    part_x = np.array([0.0625, 0.0630, 0.125, 0.375, 0.8125, 0.9375], 
+                      dtype=np.float32)
+    part_y = np.array([0.0625, 0.0625, 0.625, 0.875, 0.4375, 0.4375], 
+                      dtype=np.float32)
+    part_z = np.array([0.0625, 0.0625, 0.125, 0.375, 0.0625, 0.0625], 
+                      dtype=np.float32)
     x_min = 0
     y_min = 0
     z_min = 0
@@ -443,51 +487,57 @@ def test_build(backend):
     num_p2 = 6
     dimension = 3
 
-    r_cells = 12
-    r_sfc = np.array([1, 7, 0, 1, 16, 152, 153, 154, 19, 2, 3, 0],
-                     dtype=np.int32)
-    r_level = np.array([2, 2, 1, 1, 2, 3, 3, 3, 2, 1, 1, 0],
-                       dtype=np.int32)
-    r_idx = np.array([0, 1, -1, 2, 3, 4, 5, 6, -1, -1, 7, -1],
-                     dtype=np.int32)
-    r_bin_count = np.array([1, 1, 2, 1, 1, 1, 1, 1], dtype=np.int32)
-    r_start_idx = np.array([0, 1, 2, 4, 5, 6, 7, 8], dtype=np.int32)
-    r_leaf_idx = np.array([0, 1, 2, 3, 5, 6, 7, 8, 4], dtype=np.int32)
-    r_parent = np.array([2, 2, 11, 11, 9, 8, 8, 8, 9, 11, 11, -1],
-                        dtype=np.int32)
-    r_child = np.ones(96, dtype=np.int32)*-1
-    r_child[16] = 0
-    r_child[17] = 1
-    r_child[64] = 5
-    r_child[65] = 6
-    r_child[66] = 7
-    r_child[72] = 4
-    r_child[73] = 8
-    r_child[88] = 2
-    r_child[89] = 3
-    r_child[90] = 9
-    r_child[91] = 10
-    r_part2bin = np.array([0, 1, 3, 3, 4, 5, 6, 7, 10], dtype=np.int32)
-    r_lev_cs = np.array([11, 9, 8, 0], dtype=np.int32)
-    r_levwise_cs = np.array([11, 7, 3, 0], dtype=np.int32)
-    r_index = np.array([0, 1, 3, 4, 5, 6, 7, 10, 8, 9, 2, 11], dtype=np.int32)
-    r_index_r = np.array([0, 1, 10, 2, 3, 4, 5, 6, 8, 9, 7, 11],
-                         dtype=np.int32)
-    r_lev_index = np.array([7, 6, 5, 8, 4, 1, 0, 10, 9, 3, 2, 11],
-                           dtype=np.int32)
-    r_lev_index_r = np.array([6, 5, 10, 9, 4, 2, 1, 0, 3, 8, 7, 11],
-                             dtype=np.int32)
-    r_order = 3
+    with importlib.resources.open_text("fmm", "t_design.yaml") as file:
+        data = yaml.load(file)[num_p2]
+    sph_pts = np.array(data['array'], dtype=np.float32)
+    order = data['order']
+    deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF, 
+                              0x0000FFFF], dtype=np.int32)
 
-    part_val, part_x, part_y, part_z = wrap(part_val, part_x, part_y, part_z,
-                                            backend=backend)
+    r_cells = 9
+    r_sfc = np.array([0, 90, 91, 11, 1, 16, 23, 2, 0], dtype=np.int32)
+    r_level = np.array([1, 3, 3, 2, 1, 2, 2, 1, 0], dtype=np.int32)
+    r_idx = np.array([0, 1, 2, -1, -1, 3, 4, -1, -1], dtype=np.int32)
+    r_bin_count = np.array([2, 1, 1, 1, 1], dtype=np.int32)
+    r_start_idx = np.array([0, 2, 3, 4, 5], dtype=np.int32)
+    r_leaf_idx = np.array([0, 1, 4, 5, 2, 3], dtype=np.int32)
+    r_parent = np.array([8, 3, 3, 4, 8, 7, 7, 8, -1], dtype=np.int32)
+    r_child = np.ones(72, dtype=np.int32)*-1
+    r_child[24] = 1
+    r_child[25] = 2
+    r_child[32] = 3
+    r_child[56] = 5
+    r_child[57] = 6
+    r_child[64] = 0
+    r_child[65] = 4
+    r_child[66] = 7
+    r_part2bin = np.array([0, 0, 5, 6, 1, 2], dtype=np.int32)
+    r_p2b_offset = np.array([0, 1, 0, 0, 0, 0], dtype=np.int32)
+    r_lev_cs = np.array([8, 6, 5, 0], dtype=np.int32)
+    r_levwise_cs = np.array([8, 5, 2, 0], dtype=np.int32)
+    r_index = np.array([0, 1, 2, 5, 6, 3, 7, 4, 8], dtype=np.int32)
+    r_index_r = np.array([0, 1, 2, 5, 7, 3, 4, 6, 8], dtype=np.int32)
+    r_lev_index = np.array([2, 1, 6, 5, 3, 7, 4, 0, 8], dtype=np.int32)
+    r_lev_index_r = np.array([7, 1, 0, 4, 6, 3, 2, 5, 8], dtype=np.int32)
+
+    (r_sfc, r_level, r_idx, r_bin_count, r_start_idx, r_leaf_idx, r_parent, 
+    r_child, r_part2bin, r_p2b_offset, r_lev_cs, r_levwise_cs, r_index, 
+    r_index_r, r_lev_index, r_lev_index_r) = wrap(
+        r_sfc, r_level, r_idx, r_bin_count, r_start_idx, r_leaf_idx, r_parent, 
+        r_child, r_part2bin, r_p2b_offset, r_lev_cs, r_levwise_cs, r_index, 
+        r_index_r, r_lev_index, r_lev_index_r, backend=backend)
+
+    part_val, part_x, part_y, part_z, sph_pts, deleave_coeff = wrap(
+        part_val, part_x, part_y, part_z, sph_pts, deleave_coeff, 
+        backend=backend)
 
     (cells, sfc, level, idx, bin_count, start_idx, leaf_idx, parent,
-     child, part2bin, lev_cs, levwise_cs, index, index_r, lev_index,
-     lev_index_r, cx, cy, cz, out_x, out_y, out_z,
-     in_x, in_y, in_z, out_val, in_val, order) = build(
+     child, part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, 
+     lev_index, lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z,
+     out_val, in_val) = build(
          N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
-         out_r, in_r, length, num_p2, backend, dimension)
+         out_r, in_r, length, num_p2, backend, dimension, sph_pts, order, 
+         deleave_coeff)
 
     assert r_cells == cells
     np.testing.assert_array_equal(r_sfc, sfc)
@@ -499,10 +549,10 @@ def test_build(backend):
     np.testing.assert_array_equal(r_parent, parent)
     np.testing.assert_array_equal(r_child, child)
     np.testing.assert_array_equal(r_part2bin, part2bin)
+    np.testing.assert_array_equal(r_p2b_offset, p2b_offset)
     np.testing.assert_array_equal(r_lev_cs, lev_cs)
     np.testing.assert_array_equal(r_levwise_cs, levwise_cs)
     np.testing.assert_array_equal(r_index, index)
     np.testing.assert_array_equal(r_index_r, index_r)
     np.testing.assert_array_equal(r_lev_index, lev_index)
     np.testing.assert_array_equal(r_lev_index_r, lev_index_r)
-    assert r_order == order

@@ -1,8 +1,6 @@
-# TODO: resize all the waste arrays to 0
 # TODO: rearrange all the function variables
 # LATER: resize if certain cell is filled with particles
 # LATER: add legendre polynomial list as physical file
-# LATER: tree completion makes no sense (your code sucks)
 
 
 import importlib.resources
@@ -265,7 +263,10 @@ def complete_tree(i, level_diff, cumsum_diff, sfc, level, idx, parent, child,
     sfc_n[cid] = sfc[i]
     level_n[cid] = level[i]
     idx_n[cid] = idx[i]
-    parent_n[cid] = parent[i] + cumsum_diff[parent[i]]
+    if parent[i] != -1:
+        parent_n[cid] = parent[i] + cumsum_diff[parent[i]]
+    else:
+        parent_n[cid] = -1
     for j in range(8):
         if child[8*i+j] != -1:
             child_n[8*cid+j] = child[8*i+j] + cumsum_diff[child[8*i+j]+1]
@@ -364,7 +365,8 @@ def levwise_info(i, level, lev_n):
 
 
 def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
-          out_r, in_r, length, num_p2, backend, dimension):
+          out_r, in_r, length, num_p2, backend, dimension, sph_pts, order, 
+          deleave_coeff):
 
     max_index = 2 ** max_depth
 
@@ -377,12 +379,12 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
 
     # with importlib.resources.open_text("fmm", "t_design.yaml") as file:
     #     data = yaml.load(file)[num_p2]
-    data = yaml.load(open("t_design.yaml"), Loader=yaml.FullLoader)[num_p2]
-    sph_pts = np.array(data['array'], dtype=np.float32)
-    order = data['order']
-    coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF, 
-                      0x0000FFFF], dtype=np.int32)
-    sph_pts, coeff = wrap(sph_pts, coeff, backend=backend)
+    # data = yaml.load(open("t_design.yaml"), Loader=yaml.FullLoader)[num_p2]
+    # sph_pts = np.array(data['array'], dtype=np.float32)
+    # order = data['order']
+    # coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF, 
+    #                   0x0000FFFF], dtype=np.int32)
+    # sph_pts, coeff = wrap(sph_pts, coeff, backend=backend)
 
 
     # different functions start from here
@@ -595,7 +597,6 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     add_cells = reduction(level_diff)
 
     total_cells = cells + add_cells
-    leaf_nodes_idx.resize(total_cells)
     
     sfc_n = ary.zeros(total_cells, dtype=np.int32, backend=backend)
     level_n = ary.zeros(total_cells, dtype=np.int32, backend=backend)
@@ -607,6 +608,28 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     ecomplete_tree(level_diff, cumsum_diff, sfc_s, level_s, idx_s, parent, 
                    child, sfc_n, level_n, idx_n, parent_n, child_n, 
                    dimension, move_up)
+
+    
+    leaf_sfc.resize(0)
+    leaf_idx_pointer.resize(0)
+    leaf_level.resize(0)
+    nodes_sfc.resize(0)
+    nodes_level.resize(0)
+    dp_idx.resize(0)
+    leaf_nodes_idx.resize(0)
+    pc_sfc.resize(0)
+    pc_sfc_s.resize(0)
+    pc_level.resize(0)
+    pc_level_s.resize(0)
+    pc_idx.resize(0)
+    pc_idx_s.resize(0)
+    temp_idx.resize(0)
+    temp_idx_s.resize(0)
+    rel_idx.resize(0)
+    rel_idx_s.resize(0)
+    level_diff.resize(0)
+    cumsum_diff.resize(0)
+    move_up.resize(0)
 
     index = ary.arange(0, total_cells, 1, dtype=np.int32, backend=backend)
 
@@ -647,9 +670,8 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     ep2bin(idx_n, bin_count, start_idx, part2bin, p2b_offset, leaf_idx)
 
     ecalc_center(sfc_n, level_n, cx, cy, cz, x_min, y_min, z_min, length, 
-                 coeff)
+                 deleave_coeff)
 
-    # FIXME: Remove unnecessary copies
     [s1_lev, s1_idx, s1_index], _ = radix_sort([level_n, idx_n, index],
                                                backend=backend)
     ereverse3(s2_idx, s2_lev, s2_index, s1_idx, s1_lev, s1_index, total_cells)
@@ -680,51 +702,10 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     esetting_p2(out_x, out_y, out_z, in_x, in_y, in_z, sph_pts, cx, cy, cz,
                 out_r, in_r, length, level_n, num_p2, s1_index)
 
+    lev_nr.resize(0)
+    levwise_nr.resize(0)
+
     return (total_cells, sfc_n, level_n, idx_n, bin_count, start_idx, leaf_idx,
             parent_n, child_n, part2bin, p2b_offset, lev_n, levwise_n, 
             s1_index, s1r_index, lev_index, lev_index_r, cx, cy, cz, out_x, 
-            out_y, out_z, in_x, in_y, in_z, out_vl, in_vl, order, 0)
-
-if __name__ == "__main__":
-    
-    backend = "cython"
-    N = 12
-    max_depth = 3
-    np.random.seed(0)
-    part_val = np.random.random(N)
-    part_x = np.random.random(N)
-    part_y = np.random.random(N)
-    part_z = np.random.random(N)
-    part_val = part_val.astype(np.float32)
-    part_x = part_x.astype(np.float32)
-    part_y = part_y.astype(np.float32)
-    part_z = part_z.astype(np.float32)
-    
-    part_val, part_x, part_y, part_z = wrap(part_val, part_x, part_y, part_z, 
-                                            backend=backend)
-    
-    dimension = 3
-    x_min = 0
-    y_min = 0
-    z_min = 0
-    length = 1
-    
-    out_r = 1.1
-    in_r = 6
-    num_p2 = 6
-    
-    (cells, sfc, level, idx, bin_count, start_idx, leaf_idx,
-     parent, child, part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, 
-     lev_index, lev_index_r, cx, cy, cz, out_x, out_y, out_z,
-     in_x, in_y, in_z, out_val, in_val, order, time_tree) = build(
-         N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min, 
-         out_r, in_r, length, num_p2, backend, dimension)
-
-    for i in range(cells):
-        print("{:02d}, {:03d}, {}, {:02d}, {:02d}".format(i, sfc[i], level[i], parent[i], idx[i]))
-    
-    print()
-    print(np.arange(cells))
-    print()
-    for i in range(8):
-        print(child[i::8])
+            out_y, out_z, in_x, in_y, in_z, out_vl, in_vl)
