@@ -1,10 +1,8 @@
 import pytest
 from tree.tree import *
 
-# check_all_backends = pytest.mark.parametrize('backend',
-#                                              ['cython', 'opencl', 'cuda'])
 check_all_backends = pytest.mark.parametrize('backend',
-                                             ['cython'])
+                                             ['cython', 'opencl', 'cuda'])
 
 
 def check_import(backend):
@@ -244,10 +242,10 @@ def test_find_level_diff(backend):
         level, idx, parent, r_level_diff, r_move_up, backend=backend)
     level_diff = ary.zeros(5, dtype=np.int32, backend=backend)
     move_up = ary.zeros(5, dtype=np.int32, backend=backend)
-    
+
     e = Elementwise(find_level_diff, backend=backend)
     e(level, idx, parent, level_diff, move_up)
-    
+
     np.testing.assert_array_equal(r_level_diff, level_diff)
     np.testing.assert_array_equal(r_move_up, move_up)
 
@@ -278,22 +276,22 @@ def test_complete_tree(backend):
     r_child[32] = 3
     r_child[40] = 2
     r_child[41] = 4
-    (level_diff, move_up, cumsum_diff, sfc, level, idx, parent, child, r_sfc, 
+    (level_diff, move_up, cumsum_diff, sfc, level, idx, parent, child, r_sfc,
      r_level, r_idx, r_parent, r_child) = wrap(
-         level_diff, move_up, cumsum_diff, sfc, level, idx, parent, child, 
+         level_diff, move_up, cumsum_diff, sfc, level, idx, parent, child,
          r_sfc, r_level, r_idx, r_parent, r_child, backend=backend)
-     
+
     sfc_n = ary.zeros(6, dtype=np.int32, backend=backend)
     level_n = ary.zeros(6, dtype=np.int32, backend=backend)
     idx_n = ary.zeros(6, dtype=np.int32, backend=backend)
     parent_n = ary.zeros(6, dtype=np.int32, backend=backend)
     child_n = ary.empty(48, dtype=np.int32, backend=backend)
     child_n.fill(-1)
-    
+
     e = Elementwise(complete_tree, backend=backend)
-    e(level_diff, cumsum_diff, sfc, level, idx, parent, child, sfc_n, level_n, 
+    e(level_diff, cumsum_diff, sfc, level, idx, parent, child, sfc_n, level_n,
       idx_n, parent_n, child_n, dimension, move_up)
-    
+
     np.testing.assert_array_equal(r_sfc, sfc_n)
     np.testing.assert_array_equal(r_level, level_n)
     np.testing.assert_array_equal(r_idx, idx_n)
@@ -311,7 +309,7 @@ def test_p2bin(backend):
     r_part2bin = np.array([0, 0, 0, 2, 2, 4], dtype=np.int32)
     r_p2b_offset = np.array([0, 1, 2, 0, 1, 0], dtype=np.int32)
     idx, bin_count, start_idx, r_part2bin, r_p2b_offset, leaf_idx = wrap(
-        idx, bin_count, start_idx, r_part2bin, r_p2b_offset, leaf_idx, 
+        idx, bin_count, start_idx, r_part2bin, r_p2b_offset, leaf_idx,
         backend=backend)
 
     part2bin = ary.zeros(6, dtype=np.int32, backend=backend)
@@ -326,7 +324,7 @@ def test_p2bin(backend):
 @check_all_backends
 def test_deinterleave(backend):
     check_import(backend)
-    deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF, 
+    deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF,
                               0x0000FFFF], dtype=np.int32)
     deleave_coeff = wrap(deleave_coeff, backend=backend)
     idx = 38
@@ -346,7 +344,7 @@ def test_calc_center(backend):
     y_min = 0
     z_min = 0
     length = 1
-    deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF, 
+    deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF,
                               0x0000FFFF], dtype=np.int32)
     sfc = np.array([0, 0], dtype=np.int32)
     level = np.array([1, 0], dtype=np.int32)
@@ -472,11 +470,11 @@ def test_build(backend):
     N = 6
     max_depth = 3
     part_val = np.ones(N, dtype=np.int32)
-    part_x = np.array([0.0625, 0.0630, 0.125, 0.375, 0.8125, 0.9375], 
+    part_x = np.array([0.0625, 0.0630, 0.125, 0.375, 0.8125, 0.9375],
                       dtype=np.float32)
-    part_y = np.array([0.0625, 0.0625, 0.625, 0.875, 0.4375, 0.4375], 
+    part_y = np.array([0.0625, 0.0625, 0.625, 0.875, 0.4375, 0.4375],
                       dtype=np.float32)
-    part_z = np.array([0.0625, 0.0625, 0.125, 0.375, 0.0625, 0.0625], 
+    part_z = np.array([0.0625, 0.0625, 0.125, 0.375, 0.0625, 0.0625],
                       dtype=np.float32)
     x_min = 0
     y_min = 0
@@ -491,7 +489,7 @@ def test_build(backend):
         data = yaml.load(file)[num_p2]
     sph_pts = np.array(data['array'], dtype=np.float32)
     order = data['order']
-    deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF, 
+    deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF,
                               0x0000FFFF], dtype=np.int32)
 
     r_cells = 9
@@ -520,23 +518,23 @@ def test_build(backend):
     r_lev_index = np.array([2, 1, 6, 5, 3, 7, 4, 0, 8], dtype=np.int32)
     r_lev_index_r = np.array([7, 1, 0, 4, 6, 3, 2, 5, 8], dtype=np.int32)
 
-    (r_sfc, r_level, r_idx, r_bin_count, r_start_idx, r_leaf_idx, r_parent, 
-    r_child, r_part2bin, r_p2b_offset, r_lev_cs, r_levwise_cs, r_index, 
-    r_index_r, r_lev_index, r_lev_index_r) = wrap(
-        r_sfc, r_level, r_idx, r_bin_count, r_start_idx, r_leaf_idx, r_parent, 
-        r_child, r_part2bin, r_p2b_offset, r_lev_cs, r_levwise_cs, r_index, 
+    (r_sfc, r_level, r_idx, r_bin_count, r_start_idx, r_leaf_idx, r_parent,
+     r_child, r_part2bin, r_p2b_offset, r_lev_cs, r_levwise_cs, r_index,
+     r_index_r, r_lev_index, r_lev_index_r) = wrap(
+        r_sfc, r_level, r_idx, r_bin_count, r_start_idx, r_leaf_idx, r_parent,
+        r_child, r_part2bin, r_p2b_offset, r_lev_cs, r_levwise_cs, r_index,
         r_index_r, r_lev_index, r_lev_index_r, backend=backend)
 
     part_val, part_x, part_y, part_z, sph_pts, deleave_coeff = wrap(
-        part_val, part_x, part_y, part_z, sph_pts, deleave_coeff, 
+        part_val, part_x, part_y, part_z, sph_pts, deleave_coeff,
         backend=backend)
 
     (cells, sfc, level, idx, bin_count, start_idx, leaf_idx, parent,
-     child, part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, 
+     child, part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r,
      lev_index, lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z,
      out_val, in_val) = build(
          N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
-         out_r, in_r, length, num_p2, backend, dimension, sph_pts, order, 
+         out_r, in_r, length, num_p2, backend, dimension, sph_pts, order,
          deleave_coeff)
 
     assert r_cells == cells

@@ -22,7 +22,7 @@ np.set_printoptions(linewidth=np.inf)
 # TODO: Make dimension independent
 @annotate(i="int", index="gintp", gfloatp="x, y, z",
           double="max_index, length, x_min, y_min, z_min")
-def get_particle_index(i, index, x, y, z, max_index, length, x_min, y_min, 
+def get_particle_index(i, index, x, y, z, max_index, length, x_min, y_min,
                        z_min):
     nx, ny, nz = declare("int", 3)
     nx = cast(floor((max_index * (x[i] - x_min)) / length), "int")
@@ -245,20 +245,20 @@ def get_relations(i, pc_sfc, pc_level, temp_idx, rel_idx,
 def find_level_diff(i, level, idx, parent, level_diff, move_up):
     if parent[i] != -1:
         level_diff[i] = level[i] - level[parent[i]] - 1
-    
+
     if idx[i] != -1:
         move_up[i] = level_diff[i]
         level_diff[i] = 0
 
 
 @annotate(gintp="level_diff, sfc, level, idx, parent, child, sfc_n, level_n, "
-                "idx_n, parent_n, child_n, cumsum_diff, move_up", 
+                "idx_n, parent_n, child_n, cumsum_diff, move_up",
           int="i, dimension")
-def complete_tree(i, level_diff, cumsum_diff, sfc, level, idx, parent, child, 
-                  sfc_n, level_n, idx_n, parent_n, child_n, dimension, 
+def complete_tree(i, level_diff, cumsum_diff, sfc, level, idx, parent, child,
+                  sfc_n, level_n, idx_n, parent_n, child_n, dimension,
                   move_up):
     cid, j, k = declare("int", 3)
-    
+
     cid = i + cumsum_diff[i]
     sfc_n[cid] = sfc[i]
     level_n[cid] = level[i]
@@ -272,7 +272,7 @@ def complete_tree(i, level_diff, cumsum_diff, sfc, level, idx, parent, child,
             child_n[8*cid+j] = child[8*i+j] + cumsum_diff[child[8*i+j]+1]
         else:
             break
-    
+
     if level_diff[i] == 0 and move_up[i] == 0:
         return
     elif move_up[i] != 0:
@@ -365,7 +365,7 @@ def levwise_info(i, level, lev_n):
 
 
 def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
-          out_r, in_r, length, num_p2, backend, dimension, sph_pts, order, 
+          out_r, in_r, length, num_p2, backend, dimension, sph_pts, order,
           deleave_coeff):
 
     max_index = 2 ** max_depth
@@ -376,16 +376,6 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     bin_count = ary.ones(N, dtype=np.int32, backend=backend)
     bin_idx = ary.zeros(N, dtype=np.int32, backend=backend)
     start_idx = ary.zeros(N, dtype=np.int32, backend=backend)
-
-    # with importlib.resources.open_text("fmm", "t_design.yaml") as file:
-    #     data = yaml.load(file)[num_p2]
-    # data = yaml.load(open("t_design.yaml"), Loader=yaml.FullLoader)[num_p2]
-    # sph_pts = np.array(data['array'], dtype=np.float32)
-    # order = data['order']
-    # coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF, 
-    #                   0x0000FFFF], dtype=np.int32)
-    # sph_pts, coeff = wrap(sph_pts, coeff, backend=backend)
-
 
     # different functions start from here
     eget_particle_index = Elementwise(get_particle_index, backend=backend)
@@ -549,7 +539,7 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     node_repeated = reduction(dp_idx_sorted)
     cells = 2*M-1 - node_repeated
 
-    ecopy5(sfc[:M], sfc[M:], level[:M], level[M:], idx[:M], leaf_sfc, 
+    ecopy5(sfc[:M], sfc[M:], level[:M], level[M:], idx[:M], leaf_sfc,
            nodes_sfc, leaf_level, nodes_level, leaf_idx_pointer)
 
     [sfc_s, level_s, idx_s], _ = radix_sort([sfc, level, idx], backend=backend)
@@ -597,7 +587,7 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     add_cells = reduction(level_diff)
 
     total_cells = cells + add_cells
-    
+
     sfc_n = ary.zeros(total_cells, dtype=np.int32, backend=backend)
     level_n = ary.zeros(total_cells, dtype=np.int32, backend=backend)
     idx_n = ary.zeros(total_cells, dtype=np.int32, backend=backend)
@@ -605,11 +595,10 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     child_n = ary.empty(8*total_cells, dtype=np.int32, backend=backend)
     child_n.fill(-1)
 
-    ecomplete_tree(level_diff, cumsum_diff, sfc_s, level_s, idx_s, parent, 
-                   child, sfc_n, level_n, idx_n, parent_n, child_n, 
+    ecomplete_tree(level_diff, cumsum_diff, sfc_s, level_s, idx_s, parent,
+                   child, sfc_n, level_n, idx_n, parent_n, child_n,
                    dimension, move_up)
 
-    
     leaf_sfc.resize(0)
     leaf_idx_pointer.resize(0)
     leaf_level.resize(0)
@@ -669,7 +658,7 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
 
     ep2bin(idx_n, bin_count, start_idx, part2bin, p2b_offset, leaf_idx)
 
-    ecalc_center(sfc_n, level_n, cx, cy, cz, x_min, y_min, z_min, length, 
+    ecalc_center(sfc_n, level_n, cx, cy, cz, x_min, y_min, z_min, length,
                  deleave_coeff)
 
     [s1_lev, s1_idx, s1_index], _ = radix_sort([level_n, idx_n, index],
@@ -706,6 +695,6 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     levwise_nr.resize(0)
 
     return (total_cells, sfc_n, level_n, idx_n, bin_count, start_idx, leaf_idx,
-            parent_n, child_n, part2bin, p2b_offset, lev_n, levwise_n, 
-            s1_index, s1r_index, lev_index, lev_index_r, cx, cy, cz, out_x, 
+            parent_n, child_n, part2bin, p2b_offset, lev_n, levwise_n,
+            s1_index, s1r_index, lev_index, lev_index_r, cx, cy, cz, out_x,
             out_y, out_z, in_x, in_y, in_z, out_vl, in_vl)
