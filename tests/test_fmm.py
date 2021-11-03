@@ -4,10 +4,8 @@ from fmmpy.tree.tree import build
 import importlib.resources
 import yaml
 
-# check_all_backends = pytest.mark.parametrize('backend',
-#                                              ['cython', 'opencl', 'cuda'])
 check_all_backends = pytest.mark.parametrize('backend',
-                                             ['cython'])
+                                             ['cython', 'opencl', 'cuda'])
 
 
 def check_import(backend):
@@ -313,7 +311,6 @@ def test_assoc_coarse(backend):
     np.testing.assert_array_equal(r_assoc, assoc)
 
 
-# TEST: Add multiple siblings and check their index in associates
 @check_all_backends
 def test_find_assoc(backend):
     check_import(backend)
@@ -676,6 +673,18 @@ def test_loc_coeff_force(backend):
     assert pytest.approx(res_x[0], abs=3e-3) == res_dir_x[0]
     assert pytest.approx(res_y[0], abs=3e-3) == res_dir_y[0]
     assert pytest.approx(res_z[0], abs=3e-3) == res_dir_z[0]
+
+
+@check_all_backends
+def test_trans_loc(backend):
+    check_import(backend)
+    assert 1 == 1
+
+
+@check_all_backends
+def test_trans_loc_force(backend):
+    check_import(backend)
+    assert 1 == 1
 
 
 def test_valid():

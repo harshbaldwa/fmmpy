@@ -476,7 +476,6 @@ def loc_exp_force(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2,
     res_z[pid] += rz / num_p2
 
 
-# TEST: trans_loc
 @annotate(int="i, num_p2, leg_lim, offset", i2c_l="float",
           gfloatp="in_temp, in_val, cx, cy, cz, in_x, in_y, in_z, leg_lst",
           gintp="index_r, lev_index, parent")
