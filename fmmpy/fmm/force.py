@@ -174,7 +174,7 @@ def assoc_coarse(i, sfc, parent, child, index, assoc, offset):
         if child[pid+j] == -1:
             break
         elif child[pid+j] != rid:
-            assoc[80*cid+count] = child[pid+j]
+            assoc[26*cid+count] = child[pid+j]
             count += 1
         else:
             continue
@@ -195,8 +195,8 @@ def find_assoc(i, idx, cx, cy, cz, level, assoc, child, parent, offset,
     lev = level[rid]
     cr = length/(2.0**(lev+1))
     cR = cr*sqrt(3.0)
-    for j in range(80):
-        aid = assoc[80*pid+j]
+    for j in range(26):
+        aid = assoc[26*pid+j]
 
         if aid == -1:
             break
@@ -208,19 +208,20 @@ def find_assoc(i, idx, cx, cy, cz, level, assoc, child, parent, offset,
             if adj == 0:
                 continue
             else:
-                assoc[80*bid+count] = aid
+                assoc[26*bid+count] = aid
                 count += 1
         else:
             for k in range(8):
                 cid = child[8*aid+k]
                 if cid == -1:
                     break
-                well = well_sep(cx[cid], cy[cid], cz[cid], cR,
-                                cx[rid], cy[rid], cz[rid])
-                if well == 1:
+                
+                adj = is_adj(cx[cid], cy[cid], cz[cid], cr, cx[rid], cy[rid],
+                             cz[rid], cr)
+                if adj == 0:
                     continue
                 else:
-                    assoc[80*bid+count] = cid
+                    assoc[26*bid+count] = cid
                     count += 1
 
     for j in range(8):
@@ -228,45 +229,46 @@ def find_assoc(i, idx, cx, cy, cz, level, assoc, child, parent, offset,
         if cid == -1:
             break
         if cid != rid:
-            assoc[80*bid+count] = cid
+            assoc[26*bid+count] = cid
             count += 1
 
 
 @annotate(gfloatp="part_val, part_x, part_y, part_z, res_x, res_y, res_z",
           leaf_idx="gintp", int="num_own, sid, pid")
-def own_cell(part_val, part_x, part_y, part_z, leaf_idx, num_own, sid, pid,
-             res_x, res_y, res_z):
+def own_cell_force(part_val, part_x, part_y, part_z, leaf_idx, num_own, sid, 
+                   pid, res_x, res_y, res_z):
     n, oid = declare("int", 2)
     for n in range(num_own):
         oid = leaf_idx[sid + n]
         if oid != pid:
-            direct_comp_force(part_val[oid], part_x[oid], part_y[oid],
-                              part_z[oid], part_x[pid], part_y[pid],
-                              part_z[pid], res_x, res_y, res_z, pid)
+            direct_comp_force(
+                part_val[oid], part_x[oid], part_y[oid], part_z[oid], 
+                part_x[pid], part_y[pid], part_z[pid], res_x, res_y, res_z, 
+                pid)
 
 
 @annotate(gfloatp="part_val, part_x, part_y, part_z, res_x, res_y, res_z",
           leaf_idx="gintp", int="num_u, sid, pid")
-def u_list(part_val, part_x, part_y, part_z, leaf_idx, num_u, sid, pid, res_x,
-           res_y, res_z):
+def u_list_force(part_val, part_x, part_y, part_z, leaf_idx, num_u, sid, pid, 
+                 res_x, res_y, res_z):
     n, uid = declare("int", 2)
     for n in range(num_u):
         uid = leaf_idx[sid + n]
-        direct_comp_force(part_val[uid], part_x[uid], part_y[uid], part_z[uid],
-                          part_x[pid], part_y[pid], part_z[pid], res_x, res_y,
-                          res_z, pid)
+        direct_comp_force(
+            part_val[uid], part_x[uid], part_y[uid], part_z[uid], part_x[pid], 
+            part_y[pid], part_z[pid], res_x, res_y, res_z, pid)
 
 
 @annotate(gfloatp="out_val, out_x, out_y, out_z, part_x, part_y, part_z, "
                   "res_x, res_y, res_z", int="num_p2, wid, pid")
-def w_list(out_val, out_x, out_y, out_z, part_x, part_y, part_z, wid, num_p2,
-           pid, res_x, res_y, res_z):
+def w_list_force(out_val, out_x, out_y, out_z, part_x, part_y, part_z, wid, 
+                 num_p2, pid, res_x, res_y, res_z):
     wnid, n = declare("int", 2)
     for n in range(num_p2):
         wnid = wid + n
-        direct_comp_force(out_val[wnid], out_x[wnid], out_y[wnid], out_z[wnid],
-                          part_x[pid], part_y[pid], part_z[pid], res_x, res_y,
-                          res_z, pid)
+        direct_comp_force(
+            out_val[wnid], out_x[wnid], out_y[wnid], out_z[wnid], part_x[pid], 
+            part_y[pid], part_z[pid], res_x, res_y, res_z, pid)
 
 
 @annotate(int="chid, num_p2", float="in_x, in_y, in_z",
@@ -315,8 +317,8 @@ def loc_coeff(i, in_val, in_x, in_y, in_z, out_val, out_x, out_y, out_z,
     pid = lev_index_r[parent[cid]]
     inid = index_r[cid]*num_p2 + i % num_p2
     in_val[inid] = 0
-    for j in range(80):
-        aid = assoc[80*pid+j]
+    for j in range(26):
+        aid = assoc[26*pid+j]
         if aid != -1:
             paid = idx[aid]
             if paid == -1:
@@ -387,8 +389,12 @@ def loc_exp_force(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2,
                   res_z, pid):
     j, s1id, sid, leg = declare("int", 4)
     p2c, i2c = declare("matrix(3)", 2)
-    p2c_l, leg_res, cos_g, rr, pre_fac, dcos_gx = declare("float", 6)
-    dcos_gy, dcos_gz, x_fac, y_fac, z_fac, cur_fac = declare("float", 6)
+    p2c_l, leg_res, cos_g, rr, pre_f, dcgx = declare("float", 6)
+    dcgy, dcgz, x_fac, y_fac, z_fac, cur_fac = declare("float", 6)
+    rx, ry, rz = declare("float", 3)
+    rx = 0
+    ry = 0
+    rz = 0
     p2c[0] = px - cx
     p2c[1] = py - cy
     p2c[2] = pz - cz
@@ -398,26 +404,33 @@ def loc_exp_force(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2,
         i2c[0] = in_x[s1id] - cx
         i2c[1] = in_y[s1id] - cy
         i2c[2] = in_z[s1id] - cz
-
+        rx += 3*i2c[0]*in_val[s1id] / (num_p2*i2c_l**2)
+        ry += 3*i2c[1]*in_val[s1id] / (num_p2*i2c_l**2)
+        rz += 3*i2c[2]*in_val[s1id] / (num_p2*i2c_l**2)
         if p2c_l != 0:
             cg = (i2c[0]*p2c[0] + i2c[1]*p2c[1] +
                   i2c[2]*p2c[2]) / (p2c_l * i2c_l)
-            dcgx = (i2c[0]/i2c_l - p2c[0]*cg/p2c_l) / p2c_l
-            dcgy = (i2c[1]/i2c_l - p2c[1]*cg/p2c_l) / p2c_l
-            dcgz = (i2c[2]/i2c_l - p2c[2]*cg/p2c_l) / p2c_l
             rr = p2c_l / i2c_l
-            sid = 0
-            for leg in range(1, leg_lim):
-                pre_fac = (2*leg+1)*(rr**(leg-1))
+            dcgx = (i2c[0]*rr - cg*p2c[0])
+            dcgy = (i2c[1]*rr - cg*p2c[1])
+            dcgz = (i2c[2]*rr - cg*p2c[2])
+            sid = 2
+            for leg in range(2, leg_lim):
+                pre_f = (2*leg+1)*(rr**(leg-2))*in_val[s1id]/(num_p2*i2c_l**2)
                 leg_res = lgndre(leg_lst, cg, leg+1, sid)
                 dleg_res = lgndre(dleg_lst, cg, leg+1, sid)
-                x_fac = leg*p2c[0]*leg_res/(p2c_l*i2c_l) + rr*dleg_res*dcgx
-                y_fac = leg*p2c[1]*leg_res/(p2c_l*i2c_l) + rr*dleg_res*dcgy
-                z_fac = leg*p2c[2]*leg_res/(p2c_l*i2c_l) + rr*dleg_res*dcgz
+                sid += leg+1
+                x_fac = leg*p2c[0]*leg_res + dleg_res*dcgx
+                y_fac = leg*p2c[1]*leg_res + dleg_res*dcgy
+                z_fac = leg*p2c[2]*leg_res + dleg_res*dcgz
 
-                res_x[pid] += pre_fac*x_fac*in_val[s1id]/num_p2
-                res_y[pid] += pre_fac*y_fac*in_val[s1id]/num_p2
-                res_z[pid] += pre_fac*z_fac*in_val[s1id]/num_p2
+                rx += pre_f*x_fac
+                ry += pre_f*y_fac
+                rz += pre_f*z_fac
+        
+    res_x[pid] += rx
+    res_y[pid] += ry
+    res_z[pid] += rz
 
 
 # TEST: trans_loc
@@ -468,8 +481,8 @@ def compute(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
              start_idx[idx[bid]], pid, res_x, res_y, res_z)
 
     # calculation of potential using U and W interaction lists
-    for j in range(80):
-        aid = assoc[80*baid+j]
+    for j in range(26):
+        aid = assoc[26*baid+j]
 
         if aid == -1:
             break
@@ -539,13 +552,16 @@ if __name__ == "__main__":
     import tree
 
     backend = "cython"
-    N = 4
-    max_depth = 2
-
+    N = 5
+    max_depth = 3
+    np.random.seed(3)
     part_val = np.ones(N)
-    part_x = np.array([0.12, 0.12, 0.87, 0.87])
-    part_y = np.array([0.12, 0.37, 0.12, 0.37])
-    part_z = np.array([0.12, 0.12, 0.12, 0.12])
+    # part_x = np.array([0.12, 0.125, 0.875, 0.875])
+    # part_y = np.array([0.12, 0.375, 0.125, 0.375])
+    # part_z = np.array([0.12, 0.125, 0.125, 0.125])
+    part_x = np.random.random(N)
+    part_y = np.random.random(N)
+    part_z = np.random.random(N)
 
     part_val = part_val.astype(np.float32)
     part_x = part_x.astype(np.float32)
@@ -555,10 +571,10 @@ if __name__ == "__main__":
     y_min = 0
     z_min = 0
     length = 1
-    num_p2 = 6
+    num_p2 = 12
     dimension = 3
     out_r = 1.1
-    in_r = 1.05
+    in_r = 1.1
 
     part_val, part_x, part_y, part_z = wrap(part_val, part_x, part_y, part_z,
                                             backend=backend)
@@ -576,7 +592,7 @@ if __name__ == "__main__":
     res_dir_x = ary.zeros(N, dtype=np.float32, backend=backend)
     res_dir_y = ary.zeros(N, dtype=np.float32, backend=backend)
     res_dir_z = ary.zeros(N, dtype=np.float32, backend=backend)
-    assoc = ary.empty(80*cells, dtype=np.int32, backend=backend)
+    assoc = ary.empty(26*cells, dtype=np.int32, backend=backend)
     assoc.fill(-1)
 
     leg_lim = order//2+1
@@ -649,3 +665,17 @@ if __name__ == "__main__":
 
     edirect(part_val, part_x, part_y, part_z, res_dir_x, res_dir_y, res_dir_z,
             N)
+
+    
+    # print(np.mean(np.abs(res_dir_x - res_x) / np.abs(res_dir_x)))
+    # print(np.mean(np.abs(res_dir_y - res_y) / np.abs(res_dir_y)))
+    # print(np.mean(np.abs(res_dir_z - res_z) / np.abs(res_dir_z)))
+    
+    print(res_dir_x)
+    print(res_x)
+    print()
+    print(res_dir_y)
+    print(res_y)
+    print()
+    print(res_dir_z)
+    print(res_z)

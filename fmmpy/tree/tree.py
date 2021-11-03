@@ -2,7 +2,6 @@
 # LATER: resize if certain cell is filled with particles
 # LATER: add legendre polynomial list as physical file
 
-
 import importlib.resources
 import time
 from math import floor, sqrt
@@ -698,3 +697,43 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
             parent_n, child_n, part2bin, p2b_offset, lev_n, levwise_n,
             s1_index, s1r_index, lev_index, lev_index_r, cx, cy, cz, out_x,
             out_y, out_z, in_x, in_y, in_z, out_vl, in_vl)
+
+if __name__ == "__main__":
+    dimension = 3
+    N = 12
+    max_depth = 3
+    num_p2 = 6
+    np.random.seed(0)
+    part_val = np.zeros(N, dtype=np.float32)
+    part_x = np.random.random(N).astype(dtype=np.float32)
+    part_y = np.random.random(N).astype(dtype=np.float32)
+    part_z = np.random.random(N).astype(dtype=np.float32)
+    out_r = 1.1
+    in_r = 1.05
+    length = 1
+    x_min = 0
+    y_min = 0
+    z_min = 0
+    backend = "cython"
+    
+    # with importlib.resources.open_text("fmmpy", "t_design.yaml") as file:
+    #     data = yaml.load(file, Loader=yaml.FullLoader)[num_p2]
+    data = yaml.load(open("../t_design.yaml"), Loader=yaml.FullLoader)[num_p2]
+    sph_pts = np.array(data['array'], dtype=np.float32)
+    order = data['order']
+    deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF,
+                              0x0000FFFF], dtype=np.int32)
+
+    part_val, part_x, part_y, part_z, sph_pts, deleave_coeff = wrap(
+        part_val, part_x, part_y, part_z, sph_pts, deleave_coeff,
+        backend=backend)
+
+    (cells, sfc, level, idx, bin_count, start_idx, leaf_idx, parent, child,
+     part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index,
+     lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_val,
+     in_val) = build(
+         N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
+         out_r, in_r, length, num_p2, backend, dimension, sph_pts, order,
+         deleave_coeff)
+
+    print(sfc)

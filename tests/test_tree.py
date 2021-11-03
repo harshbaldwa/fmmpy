@@ -1,5 +1,8 @@
+import importlib.resources
+
 import pytest
-from tree.tree import *
+import yaml
+from fmmpy.tree.tree import *
 
 check_all_backends = pytest.mark.parametrize('backend',
                                              ['cython', 'opencl', 'cuda'])
@@ -364,7 +367,6 @@ def test_calc_center(backend):
     np.testing.assert_array_almost_equal(r_cz, cz)
 
 
-# TEST: add test for complete tree
 @check_all_backends
 def test_setting_p2(backend):
     check_import(backend)
@@ -377,7 +379,7 @@ def test_setting_p2(backend):
     num_p2 = 6
     length = 1
     sz_cell = sqrt(3.0)*length/4
-    with importlib.resources.open_text("fmm", "t_design.yaml") as file:
+    with importlib.resources.open_text("fmmpy", "t_design.yaml") as file:
         data = yaml.load(file)[num_p2]
     sph_pts = np.array(data['array'], dtype=np.float32)
     r_out = sph_pts*out_r*sz_cell + 0.25
@@ -485,7 +487,7 @@ def test_build(backend):
     num_p2 = 6
     dimension = 3
 
-    with importlib.resources.open_text("fmm", "t_design.yaml") as file:
+    with importlib.resources.open_text("fmmpy", "t_design.yaml") as file:
         data = yaml.load(file)[num_p2]
     sph_pts = np.array(data['array'], dtype=np.float32)
     order = data['order']
