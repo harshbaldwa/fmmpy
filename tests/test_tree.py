@@ -4,8 +4,10 @@ import pytest
 import yaml
 from fmmpy.tree.tree import *
 
+# check_all_backends = pytest.mark.parametrize('backend',
+#                                              ['cython', 'opencl', 'cuda'])
 check_all_backends = pytest.mark.parametrize('backend',
-                                             ['cython', 'opencl', 'cuda'])
+                                             ['cython'])
 
 
 def check_import(backend):
@@ -324,9 +326,8 @@ def test_p2bin(backend):
     np.testing.assert_array_equal(r_part2bin, part2bin)
 
 
-@check_all_backends
-def test_deinterleave(backend):
-    check_import(backend)
+def test_deinterleave():
+    backend = "cython"
     deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF,
                               0x0000FFFF], dtype=np.int32)
     deleave_coeff = wrap(deleave_coeff, backend=backend)
@@ -334,9 +335,6 @@ def test_deinterleave(backend):
     x = deinterleave(idx, deleave_coeff)
     y = deinterleave(idx >> 1, deleave_coeff)
     z = deinterleave(idx >> 2, deleave_coeff)
-    print(x)
-    print(y)
-    print(z)
     assert (x == 0) and (y == 1) and (z == 3)
 
 

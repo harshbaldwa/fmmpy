@@ -1,15 +1,13 @@
 # TODO: Rearrange all the function variables
-import importlib.resources
+import tree
+import time
 from math import fabs, floor, sqrt
 
 import compyle.array as ary
 import numpy as np
-import yaml
 from compyle.api import Elementwise, annotate, declare, wrap
 from compyle.low_level import cast
 from scipy.special import legendre
-
-from ..tree import tree
 
 
 @annotate(int="lst_len, idx", cos_g="float",
@@ -55,9 +53,8 @@ def calc_p2_fine(i, out_val, out_x, out_y, out_z, part_val, part_x, part_y,
             rr = p2c_l/m2c_l
             cos_g = (m2c[0]*p2c[0] + m2c[1]*p2c[1] +
                      m2c[2]*p2c[2]) / (p2c_l * m2c_l)
-            out_res += 3*part_val[paid]*cos_g*rr
-            sid = 1
-            for leg in range(2, leg_lim):
+            sid = 0
+            for leg in range(1, leg_lim):
                 leg_res = lgndre(leg_lst, cos_g, leg+1, sid)
                 out_res += leg_res*(2*leg+1)*(rr**leg)*part_val[paid]
                 sid += leg+1
@@ -97,9 +94,8 @@ def calc_p2(i, out_temp, out_val, out_x, out_y, out_z, cx, cy, cz, num_p2,
                     rr = p2c_l/m2c_l
                     cos_g = (m2c[0]*p2c[0] + m2c[1]*p2c[1] +
                              m2c[2]*p2c[2]) / (p2c_l * m2c_l)
-                    out_res += 3*out_val[tid]*cos_g*rr
-                    sid = 1
-                    for leg in range(2, leg_lim):
+                    sid = 0
+                    for leg in range(1, leg_lim):
                         leg_res = lgndre(leg_lst, cos_g, leg+1, sid)
                         out_res += leg_res*(2*leg+1)*(rr**leg)*out_val[tid]
                         sid += leg+1
@@ -107,25 +103,15 @@ def calc_p2(i, out_temp, out_val, out_x, out_y, out_z, cx, cy, cz, num_p2,
     out_val[outid] = out_res/num_p2
 
 
-@annotate(float="part_val, part_x, part_y, part_z, px, py, pz", 
+@annotate(float="part_val, part_x, part_y, part_z, px, py, pz",
           return_="float")
 def direct_comp(part_val, part_x, part_y, part_z, px, py, pz):
-    res, dist = declare("float", 2)
-    res = 0
+    value, dist = declare("float", 2)
+    value = 0
     dist = sqrt((part_x-px)**2 + (part_y-py)**2 + (part_z-pz)**2)
-    res = part_val/dist
-    return res
+    value += part_val/dist
 
-
-@annotate(float="part_val, part_x, part_y, part_z, px, py, pz",
-          gfloatp="res_x, res_y, res_z", pid="int")
-def direct_comp_force(part_val, part_x, part_y, part_z, px, py, pz, res_x,
-                      res_y, res_z, pid):
-    dist = declare("float")
-    dist = sqrt(((part_x-px)**2 + (part_y-py)**2 + (part_z-pz)**2)**3)
-    res_x[pid] += part_val*(part_x-px)/dist
-    res_y[pid] += part_val*(part_y-py)/dist
-    res_z[pid] += part_val*(part_z-pz)/dist
+    return value
 
 
 @annotate(int="i, num_part", gfloatp="val, x, y, z, res")
@@ -135,15 +121,6 @@ def direct_solv(i, val, x, y, z, res, num_part):
     for j in range(num_part):
         if j != i:
             res[i] += direct_comp(val[j], x[j], y[j], z[j], x[i], y[i], z[i])
-
-
-@annotate(int="i, num_part", gfloatp="val, x, y, z, res_x, res_y, res_z")
-def direct_solv_force(i, val, x, y, z, res_x, res_y, res_z, num_part):
-    j = declare("int")
-    for j in range(num_part):
-        if j != i:
-            direct_comp_force(val[j], x[j], y[j], z[j], x[i], y[i], z[i],
-                              res_x, res_y, res_z, i)
 
 
 @annotate(float="cx, cy, cz, cr, ax, ay, az, ar",
@@ -159,6 +136,17 @@ def is_adj(cx, cy, cz, cr, ax, ay, az, ar):
         return 0
     else:
         return 1
+
+
+@annotate(float="cx, cy, cz, cr, ax, ay, az", return_="int")
+def well_sep(cx, cy, cz, cr, ax, ay, az):
+    dis = declare("float")
+    dis = sqrt((cx-ax)**2 + (cy-ay)**2 + (cz-az)**2)
+
+    if dis >= 3*cr:
+        return 1
+    else:
+        return 0
 
 
 @annotate(int="i, offset", gintp="sfc, parent, child, index, assoc")
@@ -213,7 +201,13 @@ def find_assoc(i, idx, cx, cy, cz, level, assoc, child, parent, offset,
                 cid = child[8*aid+k]
                 if cid == -1:
                     break
-
+                # well = well_sep(cx[cid], cy[cid], cz[cid], cR,
+                #                 cx[rid], cy[rid], cz[rid])
+                # if well == 1:
+                #     continue
+                # else:
+                #     assoc[26*bid+count] = cid
+                #     count += 1
                 adj = is_adj(cx[cid], cy[cid], cz[cid], cr, cx[rid], cy[rid],
                              cz[rid], cr)
                 if adj == 0:
@@ -240,9 +234,10 @@ def own_cell(part_val, part_x, part_y, part_z, leaf_idx, num_own, sid, pid):
     for n in range(num_own):
         oid = leaf_idx[sid + n]
         if oid != pid:
-            res += direct_comp(
-                part_val[oid], part_x[oid], part_y[oid], part_z[oid],
-                part_x[pid], part_y[pid], part_z[pid])
+            res += direct_comp(part_val[oid], part_x[oid], part_y[oid],
+                               part_z[oid], part_x[pid], part_y[pid],
+                               part_z[pid])
+
     return res
 
 
@@ -254,63 +249,25 @@ def u_list(part_val, part_x, part_y, part_z, leaf_idx, num_u, sid, pid):
     res = 0
     for n in range(num_u):
         uid = leaf_idx[sid + n]
-        res += direct_comp(
-            part_val[uid], part_x[uid], part_y[uid], part_z[uid], part_x[pid],
-            part_y[pid], part_z[pid])
+        res += direct_comp(part_val[uid], part_x[uid], part_y[uid],
+                           part_z[uid], part_x[pid], part_y[pid], part_z[pid])
+
     return res
 
 
 @annotate(gfloatp="out_val, out_x, out_y, out_z, part_x, part_y, part_z",
           int="num_p2, wid, pid", return_="float")
-def w_list(out_val, out_x, out_y, out_z, part_x, part_y, part_z, wid, num_p2,
-           pid):
+def w_list(out_val, out_x, out_y, out_z, part_x, part_y, part_z,
+           wid, num_p2, pid):
     wnid, n = declare("int", 2)
     res = declare("float")
     res = 0
     for n in range(num_p2):
         wnid = wid + n
-        res += direct_comp(
-            out_val[wnid], out_x[wnid], out_y[wnid], out_z[wnid], part_x[pid],
-            part_y[pid], part_z[pid])
+        res += direct_comp(out_val[wnid], out_x[wnid], out_y[wnid],
+                           out_z[wnid], part_x[pid], part_y[pid], part_z[pid])
+
     return res
-
-
-@annotate(gfloatp="part_val, part_x, part_y, part_z, res_x, res_y, res_z",
-          leaf_idx="gintp", int="num_own, sid, pid")
-def own_cell_force(part_val, part_x, part_y, part_z, leaf_idx, num_own, sid,
-                   pid, res_x, res_y, res_z):
-    n, oid = declare("int", 2)
-    for n in range(num_own):
-        oid = leaf_idx[sid + n]
-        if oid != pid:
-            direct_comp_force(
-                part_val[oid], part_x[oid], part_y[oid], part_z[oid],
-                part_x[pid], part_y[pid], part_z[pid], res_x, res_y, res_z,
-                pid)
-
-
-@annotate(gfloatp="part_val, part_x, part_y, part_z, res_x, res_y, res_z",
-          leaf_idx="gintp", int="num_u, sid, pid")
-def u_list_force(part_val, part_x, part_y, part_z, leaf_idx, num_u, sid, pid,
-                 res_x, res_y, res_z):
-    n, uid = declare("int", 2)
-    for n in range(num_u):
-        uid = leaf_idx[sid + n]
-        direct_comp_force(
-            part_val[uid], part_x[uid], part_y[uid], part_z[uid], part_x[pid],
-            part_y[pid], part_z[pid], res_x, res_y, res_z, pid)
-
-
-@annotate(gfloatp="out_val, out_x, out_y, out_z, part_x, part_y, part_z, "
-                  "res_x, res_y, res_z", int="num_p2, wid, pid")
-def w_list_force(out_val, out_x, out_y, out_z, part_x, part_y, part_z, wid,
-                 num_p2, pid, res_x, res_y, res_z):
-    wnid, n = declare("int", 2)
-    for n in range(num_p2):
-        wnid = wid + n
-        direct_comp_force(
-            out_val[wnid], out_x[wnid], out_y[wnid], out_z[wnid], part_x[pid],
-            part_y[pid], part_z[pid], res_x, res_y, res_z, pid)
 
 
 @annotate(int="chid, num_p2", float="in_x, in_y, in_z",
@@ -372,23 +329,29 @@ def loc_coeff(i, in_val, in_x, in_y, in_z, out_val, out_x, out_y, out_z,
                     # HACK: cells which are neither well seperated
                     # nor adjacent are considered v list cells
                     else:
+                        # well = well_sep(cx[cid], cy[cid], cz[cid], cR,
+                        #                 cx[chid], cy[chid], cz[chid])
+                        # if well == 1:
+                        #     in_val[inid] += v_list(
+                        #         in_x[inid], in_y[inid], in_z[inid], out_val,
+                        #         out_x, out_y, out_z, num_p2,
+                        #         num_p2*index_r[chid])
                         adj = is_adj(cx[cid], cy[cid], cz[cid], cr,
                                      cx[chid], cy[chid], cz[chid], cr)
-                        if chid == 8 or chid == 14:
-                            if adj == 0:
-                                in_val[inid] += v_list(
-                                    in_x[inid], in_y[inid], in_z[inid], out_val,
-                                    out_x, out_y, out_z, num_p2,
-                                    num_p2*index_r[chid])
+                        if adj == 0:
+                            in_val[inid] += v_list(
+                                in_x[inid], in_y[inid], in_z[inid], out_val,
+                                out_x, out_y, out_z, num_p2,
+                                num_p2*index_r[chid])
 
             else:
                 adj = is_adj(cx[cid], cy[cid], cz[cid], cr, cx[aid], cy[aid],
                              cz[aid], length/(2.0**(level[aid]+1)))
-                # if adj != 1:
-                #     in_val[inid] += z_list(
-                #         in_x[inid], in_y[inid], in_z[inid], part_val, part_x,
-                #         part_y, part_z, start_idx[idx[aid]], leaf_idx,
-                #         bin_count[idx[aid]])
+                if adj != 1:
+                    in_val[inid] += z_list(
+                        in_x[inid], in_y[inid], in_z[inid], part_val, part_x,
+                        part_y, part_z, start_idx[idx[aid]], leaf_idx,
+                        bin_count[idx[aid]])
         else:
             break
 
@@ -415,9 +378,8 @@ def loc_exp(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2, i2c_l,
             cos_g = (i2c[0]*p2c[0] + i2c[1]*p2c[1] +
                      i2c[2]*p2c[2]) / (p2c_l * i2c_l)
             rr = p2c_l / i2c_l
-            res += 3*rr*cos_g*in_val[s1id]
-            sid = 1
-            for leg in range(2, leg_lim):
+            sid = 0
+            for leg in range(1, leg_lim):
                 leg_res = lgndre(leg_lst, cos_g, leg+1, sid)
                 res += leg_res*(2*leg+1)*(rr**leg)*in_val[s1id]
                 sid += leg+1
@@ -425,58 +387,7 @@ def loc_exp(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2, i2c_l,
     return res
 
 
-@annotate(gfloatp="in_val, in_x, in_y, in_z, leg_lst, dleg_lst, res_x, res_y, "
-                  "res_z", float="cx, cy, cz, px, py, pz, i2c_l",
-          int="offset, leg_lim, num_p2, pid")
-def loc_exp_force(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2,
-                  i2c_l, offset, leg_lst, dleg_lst, leg_lim, res_x, res_y,
-                  res_z, pid):
-    j, s1id, sid, leg = declare("int", 4)
-    p2c, i2c = declare("matrix(3)", 2)
-    p2c_l, leg_res, cos_g, rr, pre_f, dcgx = declare("float", 6)
-    dcgy, dcgz, x_fac, y_fac, z_fac, cur_fac = declare("float", 6)
-    rx, ry, rz = declare("float", 3)
-    rx = 0
-    ry = 0
-    rz = 0
-    p2c[0] = px - cx
-    p2c[1] = py - cy
-    p2c[2] = pz - cz
-    p2c_l = sqrt(p2c[0]**2 + p2c[1]**2 + p2c[2]**2)
-    for j in range(num_p2):
-        s1id = offset + j
-        i2c[0] = in_x[s1id] - cx
-        i2c[1] = in_y[s1id] - cy
-        i2c[2] = in_z[s1id] - cz
-        rx += 3*i2c[0]*in_val[s1id] / (i2c_l**2)
-        ry += 3*i2c[1]*in_val[s1id] / (i2c_l**2)
-        rz += 3*i2c[2]*in_val[s1id] / (i2c_l**2)
-        if p2c_l != 0:
-            cg = (i2c[0]*p2c[0] + i2c[1]*p2c[1] + 
-                  i2c[2]*p2c[2]) / (p2c_l * i2c_l)
-            rr = p2c_l / i2c_l
-            dcgx = (i2c[0]*rr - cg*p2c[0])
-            dcgy = (i2c[1]*rr - cg*p2c[1])
-            dcgz = (i2c[2]*rr - cg*p2c[2])
-            sid = 1
-            for leg in range(2, leg_lim):
-                pre_f = (2*leg+1)*(rr**(leg-2))*in_val[s1id]/(i2c_l**2)
-                leg_res = lgndre(leg_lst, cg, leg+1, sid)
-                dleg_res = lgndre(dleg_lst, cg, leg+1, sid)
-                sid += leg+1
-                x_fac = leg*p2c[0]*leg_res + dleg_res*dcgx
-                y_fac = leg*p2c[1]*leg_res + dleg_res*dcgy
-                z_fac = leg*p2c[2]*leg_res + dleg_res*dcgz
-
-                rx += pre_f*x_fac
-                ry += pre_f*y_fac
-                rz += pre_f*z_fac
-
-    res_x[pid] += rx / num_p2
-    res_y[pid] += ry / num_p2
-    res_z[pid] += rz / num_p2
-
-
+# TEST: trans_loc
 @annotate(int="i, num_p2, leg_lim, offset", i2c_l="float",
           gfloatp="in_temp, in_val, cx, cy, cz, in_x, in_y, in_z, leg_lst",
           gintp="index_r, lev_index, parent")
@@ -493,6 +404,7 @@ def trans_loc(i, in_temp, in_val, in_x, in_y, in_z, cx, cy, cz, i2c_l, num_p2,
                             num_p2, i2c_l, tid, leg_lst, leg_lim)
 
 
+# TEST: compute
 @annotate(gintp="part2bin, p2b_offset, level, idx, parent, child, assoc, "
                 "index_r, lev_index_r, leaf_idx, bin_count, start_idx",
           gfloatp="part_val, part_x, part_y, part_z, out_val, out_x, out_y, "
@@ -521,6 +433,7 @@ def compute(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
     result[pid] += own_cell(part_val, part_x, part_y, part_z, leaf_idx,
                             bin_count[idx[bid]], start_idx[idx[bid]], pid)
 
+    # calculation of potential using U and W interaction lists
     for j in range(26):
         aid = assoc[26*baid+j]
 
@@ -558,6 +471,7 @@ def compute(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
                         aid = parent[aid]
 
                 else:
+                    # Change here is_adj to well separated if the level is same
                     if level[aid] == lev:
                         result[pid] += u_list(
                             part_val, part_x, part_y, part_z, leaf_idx,
@@ -578,144 +492,35 @@ def compute(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
 
                         aid = parent[aid]
 
+    # calculation using the local expansions
     result[pid] += loc_exp(in_val, in_x, in_y, in_z, cx[bid], cy[bid],
                            cz[bid], part_x[pid], part_y[pid], part_z[pid],
                            num_p2, i2c_l, brid*num_p2, leg_lst, leg_lim)
 
 
-@annotate(gintp="part2bin, p2b_offset, level, idx, parent, child, assoc, "
-                "index_r, lev_index_r, leaf_idx, bin_count, start_idx",
-          float="in_r, length", int="i, num_p2, leg_lim",
-          gfloatp="part_val, part_x, part_y, part_z, out_val, out_x, out_y, "
-                  "out_z, in_val, in_x, in_y, in_z, cx, cy, cz, res_x, res_y, "
-                  "res_z, leg_lst, dleg_lst")
-def compute_force(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z,
-                  level, idx, parent, child, assoc, index_r, lev_index_r,
-                  leaf_idx, bin_count, start_idx, out_val, out_x, out_y, out_z,
-                  in_val, in_x, in_y, in_z, cx, cy, cz, res_x, res_y, res_z,
-                  leg_lst, dleg_lst, num_p2, leg_lim, in_r, length):
-    h = declare('matrix(10, "int")')
-    j, n, bid, baid, brid, lev, pid, aid, chid, t = declare("int", 10)
-    i2c_l = declare("float")
-
-    for t in range(10):
-        h[t] = 0
-
-    bid = part2bin[i]
-    brid = index_r[bid]
-    baid = lev_index_r[bid]
-    lev = level[bid]
-    pid = leaf_idx[start_idx[idx[bid]] + p2b_offset[i]]
-    i2c_l = in_r*sqrt(3.0)*length/(2.0**(lev+1))
-    cr_bid = length/(2.0**(lev+1))
-
-    own_cell_force(
-        part_val, part_x, part_y, part_z, leaf_idx, bin_count[idx[bid]],
-        start_idx[idx[bid]], pid, res_x, res_y, res_z)
-
-    # calculation of potential using U and W interaction lists
-    for j in range(26):
-        aid = assoc[26*baid+j]
-
-        if aid == -1:
-            break
-
-        if level[aid] < lev:
-            u_list_force(
-                part_val, part_x, part_y, part_z, leaf_idx,
-                bin_count[idx[aid]], start_idx[idx[aid]],
-                pid, res_x, res_y, res_z)
-        else:
-            while True:
-                if idx[aid] == -1:
-                    for n in range(h[level[aid]], 8):
-                        chid = child[8*aid + n]
-                        if chid == -1:
-                            h[level[aid]] = -1
-                            break
-                        adj = is_adj(cx[chid], cy[chid], cz[chid],
-                                     length/(2.0**(level[chid]+1)),
-                                     cx[bid], cy[bid], cz[bid], cr_bid)
-                        if adj == 0:
-                            w_list_force(
-                                out_val, out_x, out_y, out_z, part_x, part_y,
-                                part_z, index_r[chid]*num_p2, num_p2, pid,
-                                res_x, res_y, res_z)
-                        else:
-                            h[level[aid]] = n+1
-                            aid = chid
-                            break
-
-                    if h[level[aid]] == -1:
-                        h[level[aid]] = 0
-                        if level[aid] == lev:
-                            break
-                        aid = parent[aid]
-
-                else:
-                    # Change here is_adj to well separated if the level is same
-                    if level[aid] == lev:
-                        u_list_force(
-                            part_val, part_x, part_y, part_z, leaf_idx,
-                            bin_count[idx[aid]], start_idx[idx[aid]], pid,
-                            res_x, res_y, res_z)
-                        break
-                    else:
-                        adj = is_adj(cx[aid], cy[aid], cz[aid],
-                                     length/(2.0**(level[aid]+1)),
-                                     cx[bid], cy[bid], cz[bid], cr_bid)
-                        if adj == 1:
-                            u_list_force(
-                                part_val, part_x, part_y, part_z, leaf_idx,
-                                bin_count[idx[aid]], start_idx[idx[aid]],
-                                pid, res_x, res_y, res_z)
-                        else:
-                            w_list_force(
-                                out_val, out_x, out_y, out_z, part_x, part_y,
-                                part_z, index_r[aid]*num_p2, num_p2, pid,
-                                res_x, res_y, res_z)
-
-                        aid = parent[aid]
-
-    # calculation using the local expansions
-    loc_exp_force(in_val, in_x, in_y, in_z, cx[bid], cy[bid], cz[bid],
-                  part_x[pid], part_y[pid], part_z[pid], num_p2, i2c_l,
-                  brid*num_p2, leg_lst, dleg_lst, leg_lim, res_x, res_y,
-                  res_z, pid)
-
-
 def solver(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
            out_r, in_r, length, num_p2, backend, dimension, direct_call=False):
-
-    with importlib.resources.open_text("fmmpy", "t_design.yaml") as file:
-        data = yaml.load(file, Loader=yaml.FullLoader)[num_p2]
-    sph_pts = np.array(data['array'], dtype=np.float32)
-    order = data['order']
-    deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF,
-                              0x0000FFFF], dtype=np.int32)
-
-    part_val, part_x, part_y, part_z, sph_pts, deleave_coeff = wrap(
-        part_val, part_x, part_y, part_z, sph_pts, deleave_coeff,
-        backend=backend)
-
+    
+    part_val, part_x, part_y, part_z = wrap(part_val, part_x, part_y, part_z,
+                                            backend=backend)
+    
     (cells, sfc, level, idx, bin_count, start_idx, leaf_idx, parent, child,
      part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index,
      lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_val,
-     in_val) = tree.build(
+     in_val, order, time_tree) = tree.build(
          N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
-         out_r, in_r, length, num_p2, backend, dimension, sph_pts, order,
-         deleave_coeff)
+         out_r, in_r, length, num_p2, backend, dimension)
 
-    res = ary.zeros(N, dtype=np.float32, backend=backend)
-    res_dir = ary.zeros(N, dtype=np.float32, backend=backend)
+    result = ary.zeros(N, dtype=np.float32, backend=backend)
+    res_direct = ary.zeros(N, dtype=np.float32, backend=backend)
     assoc = ary.empty(26*cells, dtype=np.int32, backend=backend)
     assoc.fill(-1)
 
     leg_lim = order//2+1
-    siz_leg = leg_lim*(leg_lim+1)//2 - 2
+    siz_leg = leg_lim*(leg_lim+1)//2 - 1
     leg_lst = np.zeros(siz_leg, dtype=np.float32)
-    count = 1
-    for i in range(2, leg_lim):
+    count = 0
+    for i in range(1, leg_lim):
         temp_lst = np.array(legendre(i)).astype(np.float32)
         leg_lst[count:count+i+1] = temp_lst[::-1]
         count += i+1
@@ -756,10 +561,14 @@ def solver(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
                     assoc, child, parent, levwise_cs[lev], lev_index,
                     lev_index_r, length)
 
+    # loc_coeff_start = time.time()
+
     eloc_coeff(in_val[:lev_cs[1]*num_p2], in_x, in_y, in_z, out_val, out_x,
                out_y, out_z, part_val, part_x, part_y, part_z, cx, cy, cz,
                assoc, child, parent, num_p2, level, index, index_r,
                lev_index_r, idx, leaf_idx, start_idx, bin_count, length)
+
+    # trans_loc_start = time.time()
 
     for lev in range(3, max_depth+1):
         i2c_l = in_r*sqrt(3)*length/(2**(lev))
@@ -770,138 +579,21 @@ def solver(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
                    cy, cz, i2c_l, num_p2, leg_lst, leg_lim, index_r, lev_index,
                    parent, levwise_cs[lev])
 
+    # compute_start = time.time()
+
     ecompute(part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
              idx, parent, child, assoc, index_r, lev_index_r, leaf_idx,
              bin_count, start_idx, out_val, out_x, out_y, out_z, in_val, in_x,
-             in_y, in_z, cx, cy, cz, res, leg_lst, num_p2, leg_lim, in_r,
+             in_y, in_z, cx, cy, cz, result, leg_lst, num_p2, leg_lim, in_r,
              length)
-
+    
+    # end = time.time()
+    # print("Time for local coeff: %f" % (trans_loc_start - loc_coeff_start))
+    # print("Time for trans coeff: %f" % (compute_start - trans_loc_start))
+    # print("Time for final compu: %f" % (end - compute_start))
+    
     if direct_call:
-        edirect(part_val, part_x, part_y, part_z, res_dir, N)
-        return res, res_dir
+        edirect(part_val, part_x, part_y, part_z, res_direct, N)
+        return  result, res_direct
     else:
-        return res
-
-
-def solver_force(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min,
-                 z_min, out_r, in_r, length, num_p2, backend, dimension,
-                 direct_call=False):
-
-    with importlib.resources.open_text("fmmpy", "t_design.yaml") as file:
-        data = yaml.load(file, Loader=yaml.FullLoader)[num_p2]
-    sph_pts = np.array(data['array'], dtype=np.float32)
-    order = data['order']
-    deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF,
-                              0x0000FFFF], dtype=np.int32)
-
-    part_val, part_x, part_y, part_z, sph_pts, deleave_coeff = wrap(
-        part_val, part_x, part_y, part_z, sph_pts, deleave_coeff,
-        backend=backend)
-
-    (cells, sfc, level, idx, bin_count, start_idx, leaf_idx, parent, child,
-     part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index,
-     lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_val,
-     in_val) = tree.build(
-         N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
-         out_r, in_r, length, num_p2, backend, dimension, sph_pts, order,
-         deleave_coeff)
-
-    from ..others.plot_tree import plot_tree
-    plot_tree(cells, cx, cy, cz, length, level, N, part_x, part_y, part_z)
-
-    res_x = ary.zeros(N, dtype=np.float32, backend=backend)
-    res_y = ary.zeros(N, dtype=np.float32, backend=backend)
-    res_z = ary.zeros(N, dtype=np.float32, backend=backend)
-    res_dir_x = ary.zeros(N, dtype=np.float32, backend=backend)
-    res_dir_y = ary.zeros(N, dtype=np.float32, backend=backend)
-    res_dir_z = ary.zeros(N, dtype=np.float32, backend=backend)
-    assoc = ary.empty(26*cells, dtype=np.int32, backend=backend)
-    assoc.fill(-1)
-
-    leg_lim = order//2+1
-    siz_leg = leg_lim*(leg_lim+1)//2 - 2
-    leg_lst = np.zeros(siz_leg, dtype=np.float32)
-    dleg_lst = np.zeros(siz_leg, dtype=np.float32)
-    count = 1
-    for i in range(2, leg_lim):
-        temp_lst = legendre(i)
-        dtemp_lst = temp_lst.deriv()
-        leg_lst[count:count+i+1] = np.array(temp_lst)[::-1]
-        dleg_lst[count:count+i] = np.array(dtemp_lst)[::-1]
-        count += i+1
-
-    leg_lst, dleg_lst = wrap(leg_lst, dleg_lst, backend=backend)
-
-    ecalc_p2_fine = Elementwise(calc_p2_fine, backend=backend)
-    ecalc_p2 = Elementwise(calc_p2, backend=backend)
-    eassoc_coarse = Elementwise(assoc_coarse, backend=backend)
-    efind_assoc = Elementwise(find_assoc, backend=backend)
-    eloc_coeff = Elementwise(loc_coeff, backend=backend)
-    etrans_loc = Elementwise(trans_loc, backend=backend)
-    ecompute = Elementwise(compute_force, backend=backend)
-    edirect = Elementwise(direct_solv_force, backend=backend)
-
-    ecalc_p2_fine(out_val[:lev_cs[max_depth-1]*num_p2], out_x, out_y, out_z,
-                  part_val, part_x, part_y, part_z, cx, cy, cz, num_p2,
-                  length, index, leg_lim, leg_lst, level, idx, out_r*sqrt(3),
-                  bin_count, start_idx, leaf_idx)
-
-    for lev in range(max_depth-1, 0, -1):
-        m2c_l = out_r*sqrt(3)*length/(2**(lev+1))
-        lev_offset = lev_cs[lev-1]-lev_cs[lev]
-        if lev_offset == 0:
-            continue
-        ecalc_p2(out_val[:lev_offset*num_p2], out_val, out_x, out_y, out_z,
-                 cx, cy, cz, num_p2, index, index_r, leg_lim, leg_lst, child,
-                 lev_cs[lev], m2c_l)
-
-    eassoc_coarse(sfc[levwise_cs[1]:levwise_cs[0]], parent, child, lev_index,
-                  assoc, levwise_cs[1])
-
-    for lev in range(2, max_depth+1):
-        lev_offset = levwise_cs[lev-1] - levwise_cs[lev]
-        if lev_offset == 0:
-            continue
-        efind_assoc(idx[:lev_offset], cx, cy, cz, level,
-                    assoc, child, parent, levwise_cs[lev], lev_index,
-                    lev_index_r, length)
-
-    eloc_coeff(in_val[:lev_cs[1]*num_p2], in_x, in_y, in_z, out_val, out_x,
-               out_y, out_z, part_val, part_x, part_y, part_z, cx, cy, cz,
-               assoc, child, parent, num_p2, level, index, index_r,
-               lev_index_r, idx, leaf_idx, start_idx, bin_count, length)
-
-    for lev in range(3, max_depth+1):
-        i2c_l = in_r*sqrt(3)*length/(2**(lev))
-        lev_offset = levwise_cs[lev-1] - levwise_cs[lev]
-        if lev_offset == 0:
-            continue
-        etrans_loc(in_val[:lev_offset*num_p2], in_val, in_x, in_y, in_z, cx,
-                   cy, cz, i2c_l, num_p2, leg_lst, leg_lim, index_r, lev_index,
-                   parent, levwise_cs[lev])
-
-    ecompute(part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
-             idx, parent, child, assoc, index_r, lev_index_r, leaf_idx,
-             bin_count, start_idx, out_val, out_x, out_y, out_z, in_val, in_x,
-             in_y, in_z, cx, cy, cz, res_x, res_y, res_z, leg_lst, dleg_lst,
-             num_p2, leg_lim, in_r, length)
-
-    if direct_call:
-        # edirect(part_val, part_x, part_y, part_z, res_dir_x, res_dir_y,
-        #         res_dir_z, N)
-        # part_to_consider = [10]
-        # part_to_consider = [5, 1, 9, 8, 7, 6, 2, 4]
-        # part_to_consider = [1, 9, 8, 7, 6, 2, 4]
-        # part_to_consider = [3, 11]
-        # part_to_consider = [5]
-        # part_to_consider = [7]
-        part_to_consider = [5, 7]
-        for i in range(len(part_to_consider)):
-            idx = part_to_consider[i]
-            direct_comp_force(
-                part_val[idx], part_x[idx], part_y[idx], part_z[idx], 
-                part_x[0], part_y[0], part_z[0], res_dir_x, res_dir_y, 
-                res_dir_z, 0)
-        return res_x, res_y, res_z, res_dir_x, res_dir_y, res_dir_z
-    else:
-        return res_x, res_y, res_z
+        return result

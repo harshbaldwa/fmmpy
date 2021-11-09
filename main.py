@@ -1,6 +1,6 @@
 import argparse
 
-from fmmpy.fmm.hybrid import *
+from fmmpy.fmm.hybrid80 import *
 from compyle.api import get_config
 
 if __name__ == "__main__":
@@ -32,6 +32,8 @@ if __name__ == "__main__":
     if args.openmp:
         get_config().use_openmp = True
 
+    np.random.seed(1)
+
     part_val = np.random.random(args.n).astype(np.float32)
     part_x = np.random.random(args.n).astype(np.float32)
     part_y = np.random.random(args.n).astype(np.float32)
@@ -41,10 +43,30 @@ if __name__ == "__main__":
         res_x, res_y, res_z, res_dir_x, res_dir_y, res_dir_z = solver_force(
             N=args.n, max_depth=args.level, part_val=part_val, part_x=part_x,
             part_y=part_y, part_z=part_z, x_min=0, y_min=0, z_min=0, out_r=1.1,
-            in_r=1.35, length=1, num_p2=args.p, backend=backend, dimension=3,
+            in_r=1.05, length=1, num_p2=args.p, backend=backend, dimension=3,
             direct_call=args.compare_direct)
-        print("Max Error - ", np.max(np.abs(res_x - res_dir_x) / np.abs(res_dir_x)))
-        print("Mean Error - ", np.mean(np.abs(res_x - res_dir_x) / np.abs(res_dir_x)))
+        
+        # print(res_x)
+        # print(res_dir_x)
+        # print()
+        # print(res_y)
+        # print(res_dir_y)
+        # print()
+        # print(res_z)
+        # print(res_dir_z)
+        # print()
+        for i in range(args.n):    
+            print(abs(res_x[i] - res_dir_x[i]) / abs(res_dir_x[i]))
+            print(abs(res_y[i] - res_dir_y[i]) / abs(res_dir_y[i]))
+            print(abs(res_z[i] - res_dir_z[i]) / abs(res_dir_z[i]))
+        # print("Max Error (x) - ", np.max(np.abs(res_x - res_dir_x) / np.abs(res_dir_x)))
+        # print("Max Error (y) - ", np.max(np.abs(res_y - res_dir_y) / np.abs(res_dir_y)))
+        # print("Max Error (z) - ", np.max(np.abs(res_z - res_dir_z) / np.abs(res_dir_z)))
+        # print()
+        # print("Mean Error (x) - ", np.mean(np.abs(res_x - res_dir_x) / np.abs(res_dir_x)))
+        # print("Mean Error (y) - ", np.mean(np.abs(res_y - res_dir_y) / np.abs(res_dir_y)))
+        # print("Mean Error (z) - ", np.mean(np.abs(res_z - res_dir_z) / np.abs(res_dir_z)))
+        
     else:
         res, res_dir = solver(
             N=args.n, max_depth=args.level, part_val=part_val, part_x=part_x,

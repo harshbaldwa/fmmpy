@@ -161,6 +161,17 @@ def is_adj(cx, cy, cz, cr, ax, ay, az, ar):
         return 1
 
 
+@annotate(float="cx, cy, cz, cr, ax, ay, az", return_="int")
+def well_sep(cx, cy, cz, cr, ax, ay, az):
+    dis = declare("float")
+    dis = sqrt((cx-ax)**2 + (cy-ay)**2 + (cz-az)**2)
+
+    if dis >= 3*cr:
+        return 1
+    else:
+        return 0
+
+
 @annotate(int="i, offset", gintp="sfc, parent, child, index, assoc")
 def assoc_coarse(i, sfc, parent, child, index, assoc, offset):
     cid, rid, pid, j, count = declare("int", 5)
@@ -172,7 +183,7 @@ def assoc_coarse(i, sfc, parent, child, index, assoc, offset):
         if child[pid+j] == -1:
             break
         elif child[pid+j] != rid:
-            assoc[26*cid+count] = child[pid+j]
+            assoc[80*cid+count] = child[pid+j]
             count += 1
         else:
             continue
@@ -193,8 +204,8 @@ def find_assoc(i, idx, cx, cy, cz, level, assoc, child, parent, offset,
     lev = level[rid]
     cr = length/(2.0**(lev+1))
     cR = cr*sqrt(3.0)
-    for j in range(26):
-        aid = assoc[26*pid+j]
+    for j in range(80):
+        aid = assoc[80*pid+j]
 
         if aid == -1:
             break
@@ -206,7 +217,7 @@ def find_assoc(i, idx, cx, cy, cz, level, assoc, child, parent, offset,
             if adj == 0:
                 continue
             else:
-                assoc[26*bid+count] = aid
+                assoc[80*bid+count] = aid
                 count += 1
         else:
             for k in range(8):
@@ -214,12 +225,12 @@ def find_assoc(i, idx, cx, cy, cz, level, assoc, child, parent, offset,
                 if cid == -1:
                     break
 
-                adj = is_adj(cx[cid], cy[cid], cz[cid], cr, cx[rid], cy[rid],
-                             cz[rid], cr)
-                if adj == 0:
+                well = well_sep(cx[cid], cy[cid], cz[cid], cR,
+                                cx[rid], cy[rid], cz[rid])
+                if well == 1:
                     continue
                 else:
-                    assoc[26*bid+count] = cid
+                    assoc[80*bid+count] = cid
                     count += 1
 
     for j in range(8):
@@ -227,7 +238,7 @@ def find_assoc(i, idx, cx, cy, cz, level, assoc, child, parent, offset,
         if cid == -1:
             break
         if cid != rid:
-            assoc[26*bid+count] = cid
+            assoc[80*bid+count] = cid
             count += 1
 
 
@@ -359,8 +370,8 @@ def loc_coeff(i, in_val, in_x, in_y, in_z, out_val, out_x, out_y, out_z,
     pid = lev_index_r[parent[cid]]
     inid = index_r[cid]*num_p2 + i % num_p2
     in_val[inid] = 0
-    for j in range(26):
-        aid = assoc[26*pid+j]
+    for j in range(80):
+        aid = assoc[80*pid+j]
         if aid != -1:
             paid = idx[aid]
             if paid == -1:
@@ -372,23 +383,22 @@ def loc_coeff(i, in_val, in_x, in_y, in_z, out_val, out_x, out_y, out_z,
                     # HACK: cells which are neither well seperated
                     # nor adjacent are considered v list cells
                     else:
-                        adj = is_adj(cx[cid], cy[cid], cz[cid], cr,
-                                     cx[chid], cy[chid], cz[chid], cr)
-                        if chid == 8 or chid == 14:
-                            if adj == 0:
-                                in_val[inid] += v_list(
-                                    in_x[inid], in_y[inid], in_z[inid], out_val,
-                                    out_x, out_y, out_z, num_p2,
-                                    num_p2*index_r[chid])
+                        well = well_sep(cx[cid], cy[cid], cz[cid], cR,
+                                        cx[chid], cy[chid], cz[chid])
+                        if well == 1:
+                            in_val[inid] += v_list(
+                                in_x[inid], in_y[inid], in_z[inid], out_val,
+                                out_x, out_y, out_z, num_p2,
+                                num_p2*index_r[chid])
 
             else:
                 adj = is_adj(cx[cid], cy[cid], cz[cid], cr, cx[aid], cy[aid],
                              cz[aid], length/(2.0**(level[aid]+1)))
-                # if adj != 1:
-                #     in_val[inid] += z_list(
-                #         in_x[inid], in_y[inid], in_z[inid], part_val, part_x,
-                #         part_y, part_z, start_idx[idx[aid]], leaf_idx,
-                #         bin_count[idx[aid]])
+                if adj != 1:
+                    in_val[inid] += z_list(
+                        in_x[inid], in_y[inid], in_z[inid], part_val, part_x,
+                        part_y, part_z, start_idx[idx[aid]], leaf_idx,
+                        bin_count[idx[aid]])
         else:
             break
 
@@ -521,8 +531,8 @@ def compute(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
     result[pid] += own_cell(part_val, part_x, part_y, part_z, leaf_idx,
                             bin_count[idx[bid]], start_idx[idx[bid]], pid)
 
-    for j in range(26):
-        aid = assoc[26*baid+j]
+    for j in range(80):
+        aid = assoc[80*baid+j]
 
         if aid == -1:
             break
@@ -614,8 +624,8 @@ def compute_force(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z,
         start_idx[idx[bid]], pid, res_x, res_y, res_z)
 
     # calculation of potential using U and W interaction lists
-    for j in range(26):
-        aid = assoc[26*baid+j]
+    for j in range(80):
+        aid = assoc[80*baid+j]
 
         if aid == -1:
             break
@@ -708,7 +718,7 @@ def solver(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
 
     res = ary.zeros(N, dtype=np.float32, backend=backend)
     res_dir = ary.zeros(N, dtype=np.float32, backend=backend)
-    assoc = ary.empty(26*cells, dtype=np.int32, backend=backend)
+    assoc = ary.empty(80*cells, dtype=np.int32, backend=backend)
     assoc.fill(-1)
 
     leg_lim = order//2+1
@@ -805,9 +815,10 @@ def solver_force(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min,
          N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
          out_r, in_r, length, num_p2, backend, dimension, sph_pts, order,
          deleave_coeff)
-
+     
     from ..others.plot_tree import plot_tree
-    plot_tree(cells, cx, cy, cz, length, level, N, part_x, part_y, part_z)
+    plot_tree(cells, cx, cy, cz, length, level, N, part_x, part_y, part_z, 
+              [part2bin[0]], out_r)
 
     res_x = ary.zeros(N, dtype=np.float32, backend=backend)
     res_y = ary.zeros(N, dtype=np.float32, backend=backend)
@@ -815,7 +826,7 @@ def solver_force(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min,
     res_dir_x = ary.zeros(N, dtype=np.float32, backend=backend)
     res_dir_y = ary.zeros(N, dtype=np.float32, backend=backend)
     res_dir_z = ary.zeros(N, dtype=np.float32, backend=backend)
-    assoc = ary.empty(26*cells, dtype=np.int32, backend=backend)
+    assoc = ary.empty(80*cells, dtype=np.int32, backend=backend)
     assoc.fill(-1)
 
     leg_lim = order//2+1
@@ -887,21 +898,8 @@ def solver_force(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min,
              num_p2, leg_lim, in_r, length)
 
     if direct_call:
-        # edirect(part_val, part_x, part_y, part_z, res_dir_x, res_dir_y,
-        #         res_dir_z, N)
-        # part_to_consider = [10]
-        # part_to_consider = [5, 1, 9, 8, 7, 6, 2, 4]
-        # part_to_consider = [1, 9, 8, 7, 6, 2, 4]
-        # part_to_consider = [3, 11]
-        # part_to_consider = [5]
-        # part_to_consider = [7]
-        part_to_consider = [5, 7]
-        for i in range(len(part_to_consider)):
-            idx = part_to_consider[i]
-            direct_comp_force(
-                part_val[idx], part_x[idx], part_y[idx], part_z[idx], 
-                part_x[0], part_y[0], part_z[0], res_dir_x, res_dir_y, 
-                res_dir_z, 0)
+        edirect(part_val, part_x, part_y, part_z, res_dir_x, res_dir_y,
+                res_dir_z, N)
         return res_x, res_y, res_z, res_dir_x, res_dir_y, res_dir_z
     else:
         return res_x, res_y, res_z
