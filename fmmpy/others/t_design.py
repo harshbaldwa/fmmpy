@@ -1,5 +1,6 @@
 import re
 
+import pkg_resources
 import requests
 import yaml
 from bs4 import BeautifulSoup
@@ -31,5 +32,6 @@ for a in harsh:
     else:
         t_design[data[0]] = {"array": array, "order": data[1]}
 
-with open('fmm/t_design.yaml', 'w') as outfile:
+T_DESIGN = pkg_resources.resource_filename('fmmpy', 'data/t_design.yaml')
+with open(T_DESIGN, 'w') as outfile:
     yaml.dump(t_design, outfile)

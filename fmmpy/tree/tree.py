@@ -2,7 +2,6 @@
 # LATER: resize if certain cell is filled with particles
 # LATER: add legendre polynomial list as physical file
 
-import importlib.resources
 import time
 from math import floor, sqrt
 
@@ -698,6 +697,7 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
             s1_index, s1r_index, lev_index, lev_index_r, cx, cy, cz, out_x,
             out_y, out_z, in_x, in_y, in_z, out_vl, in_vl)
 
+
 if __name__ == "__main__":
     dimension = 3
     N = 12
@@ -715,9 +715,7 @@ if __name__ == "__main__":
     y_min = 0
     z_min = 0
     backend = "cython"
-    
-    # with importlib.resources.open_text("fmmpy", "t_design.yaml") as file:
-    #     data = yaml.load(file, Loader=yaml.FullLoader)[num_p2]
+
     data = yaml.load(open("../t_design.yaml"), Loader=yaml.FullLoader)[num_p2]
     sph_pts = np.array(data['array'], dtype=np.float32)
     order = data['order']

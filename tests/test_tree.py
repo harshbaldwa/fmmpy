@@ -1,13 +1,12 @@
-import importlib.resources
-
+import pkg_resources
 import pytest
 import yaml
 from fmmpy.tree.tree import *
 
-# check_all_backends = pytest.mark.parametrize('backend',
-#                                              ['cython', 'opencl', 'cuda'])
 check_all_backends = pytest.mark.parametrize('backend',
-                                             ['cython'])
+                                             ['cython', 'opencl', 'cuda'])
+
+T_DESIGN = pkg_resources.resource_filename('fmmpy', 'data/t_design.yaml')
 
 
 def check_import(backend):
@@ -377,7 +376,7 @@ def test_setting_p2(backend):
     num_p2 = 6
     length = 1
     sz_cell = sqrt(3.0)*length/4
-    with importlib.resources.open_text("fmmpy", "t_design.yaml") as file:
+    with open(T_DESIGN, 'r') as file:
         data = yaml.load(file)[num_p2]
     sph_pts = np.array(data['array'], dtype=np.float32)
     r_out = sph_pts*out_r*sz_cell + 0.25
@@ -485,7 +484,7 @@ def test_build(backend):
     num_p2 = 6
     dimension = 3
 
-    with importlib.resources.open_text("fmmpy", "t_design.yaml") as file:
+    with open(T_DESIGN, 'r') as file:
         data = yaml.load(file)[num_p2]
     sph_pts = np.array(data['array'], dtype=np.float32)
     order = data['order']
