@@ -2,15 +2,11 @@
 # LATER: resize if certain cell is filled with particles
 # LATER: add legendre polynomial list as physical file
 
-import time
 from math import floor, sqrt
 
 import compyle.array as ary
 import numpy as np
-import pkg_resources
-import yaml
-from compyle.api import (Elementwise, Reduction, Scan, annotate, declare,
-                         get_config, wrap)
+from compyle.api import Elementwise, Reduction, Scan, annotate, declare
 from compyle.low_level import atomic_inc, cast
 from compyle.sort import radix_sort
 from compyle.template import Template
@@ -86,13 +82,13 @@ def single_node(i, leaf_sfc, leaf_sfc_a, bin_count, bin_idx):
     j = declare("int")
     if leaf_sfc[i] != leaf_sfc_a[i]:
         return
-    elif i != 0 and leaf_sfc[i-1] == leaf_sfc_a[i]:
+    elif i != 0 and leaf_sfc[i - 1] == leaf_sfc_a[i]:
         return
     else:
         j = 1
-        while leaf_sfc[i] == leaf_sfc[i+j]:
+        while leaf_sfc[i] == leaf_sfc[i + j]:
             bin_count[i] += 1
-            bin_idx[i+j] = 1
+            bin_idx[i + j] = 1
             j += 1
 
 
@@ -208,8 +204,8 @@ def id_duplicates(i, sfc, level, dp_idx):
     if i == 0:
         dp_idx[i] = 0
 
-    if sfc[i] == sfc[i+1] and level[i] == level[i+1]:
-        dp_idx[i+1] = 1
+    if sfc[i] == sfc[i + 1] and level[i] == level[i + 1]:
+        dp_idx[i + 1] = 1
 
 
 @annotate(i="int", gintp="dp_idx, sfc, level")
@@ -229,13 +225,13 @@ def get_relations(i, pc_sfc, pc_level, temp_idx, rel_idx,
         return
 
     for j in range(8):
-        if (pc_sfc[i] != pc_sfc[i-j-1] or
-            pc_level[i] != pc_level[i-j-1] or
-                temp_idx[i-j-1] == -1):
+        if (pc_sfc[i] != pc_sfc[i - j - 1] or
+            pc_level[i] != pc_level[i - j - 1] or
+                temp_idx[i - j - 1] == -1):
             return
         else:
-            parent_idx[temp_idx[i-j-1]] = rel_idx[i]
-            child_idx[8*rel_idx[i] + j] = temp_idx[i-j-1]
+            parent_idx[temp_idx[i - j - 1]] = rel_idx[i]
+            child_idx[8 * rel_idx[i] + j] = temp_idx[i - j - 1]
 
 
 @annotate(i="int", gintp="level, idx, parent, level_diff, move_up")
@@ -265,8 +261,9 @@ def complete_tree(i, level_diff, cumsum_diff, sfc, level, idx, parent, child,
     else:
         parent_n[cid] = -1
     for j in range(8):
-        if child[8*i+j] != -1:
-            child_n[8*cid+j] = child[8*i+j] + cumsum_diff[child[8*i+j]+1]
+        if child[8 * i + j] != -1:
+            child_n[8 * cid + j] = child[8 * i + j] + \
+                cumsum_diff[child[8 * i + j] + 1]
         else:
             break
 
@@ -279,12 +276,12 @@ def complete_tree(i, level_diff, cumsum_diff, sfc, level, idx, parent, child,
     else:
         for k in range(level_diff[i]):
             cid += 1
-            sfc_n[cid] = sfc_n[cid-1] >> dimension
-            level_n[cid] = level_n[cid-1] - 1
+            sfc_n[cid] = sfc_n[cid - 1] >> dimension
+            level_n[cid] = level_n[cid - 1] - 1
             idx_n[cid] = -1
-            parent_n[cid] = parent_n[cid-1]
-            parent_n[cid-1] = cid
-            child_n[8*cid] = cid - 1
+            parent_n[cid] = parent_n[cid - 1]
+            parent_n[cid - 1] = cid
+            child_n[8 * cid] = cid - 1
 
 
 @annotate(i="int", gintp="idx, bin_count, start_idx, part2bin, p2b_offset, "
@@ -323,9 +320,9 @@ def calc_center(i, sfc, level, cx, cy, cz, x_min, y_min, z_min, length, coeff):
     y = deinterleave(sfc[i] >> 1, coeff)
     z = deinterleave(sfc[i] >> 2, coeff)
 
-    cx[i] = x_min + length*(x + 0.5)/(2.0 ** level[i])
-    cy[i] = y_min + length*(y + 0.5)/(2.0 ** level[i])
-    cz[i] = z_min + length*(z + 0.5)/(2.0 ** level[i])
+    cx[i] = x_min + length * (x + 0.5) / (2.0 ** level[i])
+    cy[i] = y_min + length * (y + 0.5) / (2.0 ** level[i])
+    cz[i] = z_min + length * (z + 0.5) / (2.0 ** level[i])
 
 
 @annotate(int="i, num_p2", gintp="level, index", double="length, out_r, in_r",
@@ -334,16 +331,16 @@ def setting_p2(i, out_x, out_y, out_z, in_x, in_y, in_z, sph_pts, cx, cy, cz,
                out_r, in_r, length, level, num_p2, index):
     cid, sid = declare("int", 2)
     sz_cell = declare("double")
-    cid = cast(floor(i*1.0/num_p2), "int")
+    cid = cast(floor(i * 1.0 / num_p2), "int")
     cid = index[cid]
     sid = i % num_p2
-    sz_cell = sqrt(3.0)*length/(2.0**(level[cid]+1))
-    out_x[i] = cx[cid] + out_r*sz_cell*sph_pts[3*sid]
-    out_y[i] = cy[cid] + out_r*sz_cell*sph_pts[3*sid+1]
-    out_z[i] = cz[cid] + out_r*sz_cell*sph_pts[3*sid+2]
-    in_x[i] = cx[cid] + in_r*sz_cell*sph_pts[3*sid]
-    in_y[i] = cy[cid] + in_r*sz_cell*sph_pts[3*sid+1]
-    in_z[i] = cz[cid] + in_r*sz_cell*sph_pts[3*sid+2]
+    sz_cell = sqrt(3.0) * length / (2.0**(level[cid] + 1))
+    out_x[i] = cx[cid] + out_r * sz_cell * sph_pts[3 * sid]
+    out_y[i] = cy[cid] + out_r * sz_cell * sph_pts[3 * sid + 1]
+    out_z[i] = cz[cid] + out_r * sz_cell * sph_pts[3 * sid + 2]
+    in_x[i] = cx[cid] + in_r * sz_cell * sph_pts[3 * sid]
+    in_y[i] = cy[cid] + in_r * sz_cell * sph_pts[3 * sid + 1]
+    in_z[i] = cz[cid] + in_r * sz_cell * sph_pts[3 * sid + 2]
 
 
 @annotate(int="i, max_depth", gintp="level, lev_n, idx")
@@ -385,28 +382,19 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     copy2 = CopyArrays('copy2', [
         'a1', 'a2',
         'b1', 'b2']).function
-    copy3 = CopyArrays('copy3', [
-        'a1', 'a2', 'a3',
-        'b1', 'b2', 'b3']).function
     copy4 = CopyArrays('copy4', [
         'a1', 'a2', 'a3', 'a4',
         'b1', 'b2', 'b3', 'b4']).function
     copy5 = CopyArrays('copy5', [
         'a1', 'a2', 'a3', 'a4', 'a5',
         'b1', 'b2', 'b3', 'b4', 'b5']).function
-    copy6 = CopyArrays('copy6', [
-        'a1', 'a2', 'a3', 'a4', 'a5', 'a6',
-        'b1', 'b2', 'b3', 'b4', 'b5', 'b6']).function
 
     ecopy2 = Elementwise(copy2, backend=backend)
-    ecopy3 = Elementwise(copy3, backend=backend)
     ecopy4 = Elementwise(copy4, backend=backend)
     ecopy5 = Elementwise(copy5, backend=backend)
-    ecopy6 = Elementwise(copy6, backend=backend)
 
     einternal_nodes = Elementwise(internal_nodes, backend=backend)
 
-    reverse1 = ReverseArrays('reverse1', ['a', 'b']).function
     reverse2 = ReverseArrays('reverse2', [
         'a1', 'a2',
         'b1', 'b2']).function
@@ -417,7 +405,6 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
         'a1', 'a2', 'a3', 'a4', 'a5',
         'b1', 'b2', 'b3', 'b4', 'b5']).function
 
-    ereverse1 = Elementwise(reverse1, backend=backend)
     ereverse2 = Elementwise(reverse2, backend=backend)
     ereverse3 = Elementwise(reverse3, backend=backend)
     ereverse5 = Elementwise(reverse5, backend=backend)
@@ -469,27 +456,28 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
 
     # setting up the arrays
     leaf_idx_pointer = ary.arange(0, M, 1, dtype=np.int32, backend=backend)
-    leaf_nodes_idx = ary.arange(0, 2*M-1, 1, dtype=np.int32, backend=backend)
+    leaf_nodes_idx = ary.arange(
+        0, 2 * M - 1, 1, dtype=np.int32, backend=backend)
     leaf_level = ary.empty(M, dtype=np.int32, backend=backend)
     leaf_level.fill(max_depth)
 
-    nodes_sfc = ary.zeros(M-1, dtype=np.int32, backend=backend)
-    nodes_level = ary.zeros(M-1, dtype=np.int32, backend=backend)
+    nodes_sfc = ary.zeros(M - 1, dtype=np.int32, backend=backend)
+    nodes_level = ary.zeros(M - 1, dtype=np.int32, backend=backend)
 
-    dp_idx = ary.zeros(M-1, dtype=np.int32, backend=backend)
+    dp_idx = ary.zeros(M - 1, dtype=np.int32, backend=backend)
 
-    sfc = ary.zeros(2*M-1, dtype=np.int32, backend=backend)
-    level = ary.zeros(2*M-1, dtype=np.int32, backend=backend)
-    idx = ary.empty(2*M-1, dtype=np.int32, backend=backend)
+    sfc = ary.zeros(2 * M - 1, dtype=np.int32, backend=backend)
+    level = ary.zeros(2 * M - 1, dtype=np.int32, backend=backend)
+    idx = ary.empty(2 * M - 1, dtype=np.int32, backend=backend)
     idx.fill(-1)
 
-    pc_sfc = ary.empty(4*M-2, dtype=np.int32, backend=backend)
-    pc_level = ary.empty(4*M-2, dtype=np.int32, backend=backend)
-    pc_idx = ary.empty(4*M-2, dtype=np.int32, backend=backend)
-    temp_idx = ary.empty(4*M-2, dtype=np.int32, backend=backend)
-    parent = ary.empty(2*M-1, dtype=np.int32, backend=backend)
-    child = ary.empty(8*(2*M-1), dtype=np.int32, backend=backend)
-    rel_idx = ary.empty(4*M-2, dtype=np.int32, backend=backend)
+    pc_sfc = ary.empty(4 * M - 2, dtype=np.int32, backend=backend)
+    pc_level = ary.empty(4 * M - 2, dtype=np.int32, backend=backend)
+    pc_idx = ary.empty(4 * M - 2, dtype=np.int32, backend=backend)
+    temp_idx = ary.empty(4 * M - 2, dtype=np.int32, backend=backend)
+    parent = ary.empty(2 * M - 1, dtype=np.int32, backend=backend)
+    child = ary.empty(8 * (2 * M - 1), dtype=np.int32, backend=backend)
+    rel_idx = ary.empty(4 * M - 2, dtype=np.int32, backend=backend)
     pc_sfc.fill(-1)
     pc_level.fill(-1)
     pc_idx.fill(-1)
@@ -498,15 +486,15 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     child.fill(-1)
     rel_idx.fill(-1)
 
-    pc_sfc_s = ary.zeros(4*M-2, dtype=np.int32, backend=backend)
-    pc_level_s = ary.zeros(4*M-2, dtype=np.int32, backend=backend)
-    pc_idx_s = ary.zeros(4*M-2, dtype=np.int32, backend=backend)
-    rel_idx_s = ary.zeros(4*M-2, dtype=np.int32, backend=backend)
-    temp_idx_s = ary.zeros(4*M-2, dtype=np.int32, backend=backend)
+    pc_sfc_s = ary.zeros(4 * M - 2, dtype=np.int32, backend=backend)
+    pc_level_s = ary.zeros(4 * M - 2, dtype=np.int32, backend=backend)
+    pc_idx_s = ary.zeros(4 * M - 2, dtype=np.int32, backend=backend)
+    rel_idx_s = ary.zeros(4 * M - 2, dtype=np.int32, backend=backend)
+    temp_idx_s = ary.zeros(4 * M - 2, dtype=np.int32, backend=backend)
 
-    level_diff = ary.zeros(2*M-1, dtype=np.int32, backend=backend)
-    cumsum_diff = ary.zeros(2*M-1, dtype=np.int32, backend=backend)
-    move_up = ary.zeros(2*M-1, dtype=np.int32, backend=backend)
+    level_diff = ary.zeros(2 * M - 1, dtype=np.int32, backend=backend)
+    cumsum_diff = ary.zeros(2 * M - 1, dtype=np.int32, backend=backend)
+    move_up = ary.zeros(2 * M - 1, dtype=np.int32, backend=backend)
 
     einternal_nodes(leaf_sfc[:-1], leaf_sfc[1:], leaf_level[:-1],
                     leaf_level[1:], nodes_sfc, nodes_level, dimension)
@@ -515,7 +503,7 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
         [nodes_level, nodes_sfc], backend=backend)
 
     ereverse2(nodes_level, nodes_sfc, nodes_level_sorted,
-              nodes_sfc_sorted, M-1)
+              nodes_sfc_sorted, M - 1)
 
     esfc_same(nodes_sfc, nodes_level, max_depth, dimension)
 
@@ -534,7 +522,7 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     ecopy2(nodes_sfc, nodes_level, nodes_sfc_sorted, nodes_level_sorted)
 
     node_repeated = reduction(dp_idx_sorted)
-    cells = 2*M-1 - node_repeated
+    cells = 2 * M - 1 - node_repeated
 
     ecopy5(sfc[:M], sfc[M:], level[:M], level[M:], idx[:M], leaf_sfc,
            nodes_sfc, leaf_level, nodes_level, leaf_idx_pointer)
@@ -547,7 +535,7 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     level_s.resize(cells)
     idx_s.resize(cells)
     parent.resize(cells)
-    child.resize(8*cells)
+    child.resize(8 * cells)
     level_diff.resize(cells)
     cumsum_diff.resize(cells)
     move_up.resize(cells)
@@ -556,8 +544,9 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
            sfc_s, level_s, idx_s, leaf_nodes_idx)
 
     efind_parents(sfc_s[:-1], sfc_s[1:], level_s[:-1], level_s[1:],
-                  leaf_nodes_idx[:-1], pc_sfc[2*M-1:], pc_level[2*M-1:],
-                  temp_idx[2*M-1:], dimension)
+                  leaf_nodes_idx[:-1], pc_sfc[2 *
+                                              M - 1:], pc_level[2 * M - 1:],
+                  temp_idx[2 * M - 1:], dimension)
 
     [pc_level_s, pc_sfc_s, pc_idx_s,
      rel_idx_s, temp_idx_s], _ = radix_sort(
@@ -565,17 +554,17 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
 
     ereverse5(pc_level, pc_sfc, pc_idx, rel_idx,
               temp_idx, pc_level_s, pc_sfc_s,
-              pc_idx_s, rel_idx_s, temp_idx_s, 4*M-2)
+              pc_idx_s, rel_idx_s, temp_idx_s, 4 * M - 2)
 
-    esfc_same(pc_sfc[2*node_repeated+1:], pc_level[2*node_repeated+1:],
+    esfc_same(pc_sfc[2 * node_repeated + 1:], pc_level[2 * node_repeated + 1:],
               max_depth, dimension)
 
     [pc_sfc_s, pc_level_s, pc_idx_s,
      rel_idx_s, temp_idx_s], _ = radix_sort(
          [pc_sfc, pc_level, pc_idx, rel_idx, temp_idx], backend=backend)
 
-    esfc_real(pc_sfc_s[:-(2*node_repeated+1)],
-              pc_level_s[:-(2*node_repeated+1)], max_depth, dimension)
+    esfc_real(pc_sfc_s[:-(2 * node_repeated + 1)],
+              pc_level_s[:-(2 * node_repeated + 1)], max_depth, dimension)
 
     eget_relations(pc_sfc_s, pc_level_s, temp_idx_s, rel_idx_s, parent, child)
 
@@ -589,7 +578,7 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     level_n = ary.zeros(total_cells, dtype=np.int32, backend=backend)
     idx_n = ary.zeros(total_cells, dtype=np.int32, backend=backend)
     parent_n = ary.zeros(total_cells, dtype=np.int32, backend=backend)
-    child_n = ary.empty(8*total_cells, dtype=np.int32, backend=backend)
+    child_n = ary.empty(8 * total_cells, dtype=np.int32, backend=backend)
     child_n.fill(-1)
 
     ecomplete_tree(level_diff, cumsum_diff, sfc_s, level_s, idx_s, parent,
@@ -629,27 +618,26 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     lev_index = ary.zeros(total_cells, dtype=np.int32, backend=backend)
     lev_index_r = ary.zeros(total_cells, dtype=np.int32, backend=backend)
 
-    lev_n = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
-    levwise_n = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
-    lev_nr = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
-    levwise_nr = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
-    lev_cs = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
-    levwise_cs = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
+    lev_n = ary.zeros(max_depth + 1, dtype=np.int32, backend=backend)
+    levwise_n = ary.zeros(max_depth + 1, dtype=np.int32, backend=backend)
+    lev_nr = ary.zeros(max_depth + 1, dtype=np.int32, backend=backend)
+    levwise_nr = ary.zeros(max_depth + 1, dtype=np.int32, backend=backend)
+    lev_cs = ary.zeros(max_depth + 1, dtype=np.int32, backend=backend)
+    levwise_cs = ary.zeros(max_depth + 1, dtype=np.int32, backend=backend)
 
     cx = ary.zeros(total_cells, dtype=np.float32, backend=backend)
     cy = ary.zeros(total_cells, dtype=np.float32, backend=backend)
     cz = ary.zeros(total_cells, dtype=np.float32, backend=backend)
 
-    out_x = ary.zeros(total_cells*num_p2, dtype=np.float32, backend=backend)
-    out_y = ary.zeros(total_cells*num_p2, dtype=np.float32, backend=backend)
-    out_z = ary.zeros(total_cells*num_p2, dtype=np.float32, backend=backend)
-    out_vl = ary.zeros(total_cells*num_p2, dtype=np.float32, backend=backend)
-    in_x = ary.zeros(total_cells*num_p2, dtype=np.float32, backend=backend)
-    in_y = ary.zeros(total_cells*num_p2, dtype=np.float32, backend=backend)
-    in_z = ary.zeros(total_cells*num_p2, dtype=np.float32, backend=backend)
-    in_vl = ary.zeros(total_cells*num_p2, dtype=np.float32, backend=backend)
+    out_x = ary.zeros(total_cells * num_p2, dtype=np.float32, backend=backend)
+    out_y = ary.zeros(total_cells * num_p2, dtype=np.float32, backend=backend)
+    out_z = ary.zeros(total_cells * num_p2, dtype=np.float32, backend=backend)
+    out_vl = ary.zeros(total_cells * num_p2, dtype=np.float32, backend=backend)
+    in_x = ary.zeros(total_cells * num_p2, dtype=np.float32, backend=backend)
+    in_y = ary.zeros(total_cells * num_p2, dtype=np.float32, backend=backend)
+    in_z = ary.zeros(total_cells * num_p2, dtype=np.float32, backend=backend)
+    in_vl = ary.zeros(total_cells * num_p2, dtype=np.float32, backend=backend)
 
-    assoc = ary.zeros(total_cells*26, dtype=np.int32, backend=backend)
     part2bin = ary.zeros(N, dtype=np.int32, backend=backend)
     p2b_offset = ary.zeros(N, dtype=np.int32, backend=backend)
 
@@ -680,10 +668,10 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
 
     elev_info(level_n, idx_n, lev_n, max_depth)
     elevwise_info(level_n, levwise_n)
-    ereverse2(lev_nr, levwise_nr, lev_n, levwise_n, max_depth+1)
+    ereverse2(lev_nr, levwise_nr, lev_n, levwise_n, max_depth + 1)
     cumsum(in_arr=lev_nr, out_arr=lev_cs)
     cumsum(in_arr=levwise_nr, out_arr=levwise_cs)
-    ereverse2(lev_n, levwise_n, lev_cs, levwise_cs, max_depth+1)
+    ereverse2(lev_n, levwise_n, lev_cs, levwise_cs, max_depth + 1)
 
     esetting_p2(out_x, out_y, out_z, in_x, in_y, in_z, sph_pts, cx, cy, cz,
                 out_r, in_r, length, level_n, num_p2, s1_index)
@@ -695,40 +683,3 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
             parent_n, child_n, part2bin, p2b_offset, lev_n, levwise_n,
             s1_index, s1r_index, lev_index, lev_index_r, cx, cy, cz, out_x,
             out_y, out_z, in_x, in_y, in_z, out_vl, in_vl)
-
-
-# if __name__ == "__main__":
-#     dimension = 3
-#     N = 12
-#     max_depth = 3
-#     num_p2 = 6
-#     np.random.seed(0)
-#     part_val = np.zeros(N, dtype=np.float32)
-#     part_x = np.random.random(N).astype(dtype=np.float32)
-#     part_y = np.random.random(N).astype(dtype=np.float32)
-#     part_z = np.random.random(N).astype(dtype=np.float32)
-#     out_r = 1.1
-#     in_r = 1.05
-#     length = 1
-#     x_min = 0
-#     y_min = 0
-#     z_min = 0
-#     backend = "cython"
-
-#     data = yaml.load(open("../t_design.yaml"), Loader=yaml.FullLoader)[num_p2]
-#     sph_pts = np.array(data['array'], dtype=np.float32)
-#     order = data['order']
-#     deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF,
-#                               0x0000FFFF], dtype=np.int32)
-
-#     part_val, part_x, part_y, part_z, sph_pts, deleave_coeff = wrap(
-#         part_val, part_x, part_y, part_z, sph_pts, deleave_coeff,
-#         backend=backend)
-
-#     (cells, sfc, level, idx, bin_count, start_idx, leaf_idx, parent, child,
-#      part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index,
-#      lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_val,
-#      in_val) = build(
-#          N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
-#          out_r, in_r, length, num_p2, backend, dimension, sph_pts, order,
-#          deleave_coeff)

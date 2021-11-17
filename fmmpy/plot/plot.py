@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from math import sqrt
 from mayavi import mlab
 import yaml
@@ -7,9 +6,9 @@ import pkg_resources
 
 
 def draw_node(cx, cy, cz, length, color):
-    x = np.linspace(cx-length/2, cx+length/2, 3)
-    y = np.linspace(cy-length/2, cy+length/2, 3)
-    z = np.linspace(cz-length/2, cz+length/2, 3)
+    x = np.linspace(cx - length / 2, cx + length / 2, 3)
+    y = np.linspace(cy - length / 2, cy + length / 2, 3)
+    z = np.linspace(cz - length / 2, cz + length / 2, 3)
 
     x_f = np.zeros(48)
     y_f = np.zeros(48)
@@ -72,11 +71,11 @@ def draw_node(cx, cy, cz, length, color):
 
 
 def draw_sphere(cx, cy, cz, r, color):
-    u, v = np.mgrid[0:2*np.pi:50j, 0:np.pi:25j]
-    r *= sqrt(3)/2
-    x = cx + r*np.cos(u)*np.sin(v)
-    y = cy + r*np.sin(u)*np.sin(v)
-    z = cz + r*np.cos(v)
+    u, v = np.mgrid[0:2 * np.pi:50j, 0:np.pi:25j]
+    r *= sqrt(3) / 2
+    x = cx + r * np.cos(u) * np.sin(v)
+    y = cy + r * np.sin(u) * np.sin(v)
+    z = cz + r * np.cos(v)
     mlab.mesh(x, y, z, opacity=0.4, color=(1, 1, 1))
 
 
@@ -84,9 +83,12 @@ def plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, spheres, out_r,
               plot_points, plot_text, save_fig):
     for i in range(cells):
         if i in spheres:
-            draw_sphere(cx[i], cy[i], cz[i], out_r*length/(2**level[i]), 'red')
-        draw_node(cx[i], cy[i], cz[i], length/(2**level[i]),
-                  (0.3-level[i]*0.05, 0.3-level[i]*0.05, 0.3-level[i]*0.05))
+            draw_sphere(cx[i], cy[i], cz[i], out_r *
+                        length / (2**level[i]), 'red')
+        draw_node(cx[i], cy[i], cz[i], length / (2**level[i]),
+                  (0.3 - level[i] * 0.05,
+                   0.3 - level[i] * 0.05,
+                   0.3 - level[i] * 0.05))
 
     if plot_points:
         mlab.points3d(x, y, z, np.arange(N), scale_factor=0.25,

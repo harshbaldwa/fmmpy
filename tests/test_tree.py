@@ -105,8 +105,8 @@ def test_internal_nodes(backend):
     e = Elementwise(internal_nodes, backend=backend)
     e(sfc[:-1], sfc[1:], level[:-1], level[1:], lca_sfc, lca_level, dimension)
 
-    (np.testing.assert_array_equal(r_lca_sfc, lca_sfc) and
-     np.testing.assert_array_equal(r_lca_level, lca_level))
+    np.testing.assert_array_equal(r_lca_sfc, lca_sfc)
+    np.testing.assert_array_equal(r_lca_level, lca_level)
 
 
 @check_all_backends
@@ -375,12 +375,12 @@ def test_setting_p2(backend):
     in_r = 1.06
     num_p2 = 6
     length = 1
-    sz_cell = sqrt(3.0)*length/4
+    sz_cell = sqrt(3.0) * length / 4
     with open(T_DESIGN, 'r') as file:
         data = yaml.load(file)[num_p2]
     sph_pts = np.array(data['array'], dtype=np.float32)
-    r_out = sph_pts*out_r*sz_cell + 0.25
-    r_in = sph_pts*in_r*sz_cell + 0.25
+    r_out = sph_pts * out_r * sz_cell + 0.25
+    r_in = sph_pts * in_r * sz_cell + 0.25
     index = np.array([0], dtype=np.int32)
     r_out_x = np.array(r_out[::3])
     r_out_y = np.array(r_out[1::3])
@@ -454,11 +454,11 @@ def test_lev_cumsum(backend):
                   dtype=np.int32, backend=backend)
     reverse = ReverseArrays('reverse', ['a', 'b']).function
     ereverse = Elementwise(reverse, backend=backend)
-    lev_csr = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
-    lev_cs = ary.zeros(max_depth+1, dtype=np.int32, backend=backend)
+    lev_csr = ary.zeros(max_depth + 1, dtype=np.int32, backend=backend)
+    lev_cs = ary.zeros(max_depth + 1, dtype=np.int32, backend=backend)
 
     cumsum(in_arr=lev_nr, out_arr=lev_cs)
-    ereverse(lev_csr, lev_cs, max_depth+1)
+    ereverse(lev_csr, lev_cs, max_depth + 1)
 
     np.testing.assert_array_equal(r_lev_csr, lev_csr)
 
@@ -499,7 +499,7 @@ def test_build(backend):
     r_start_idx = np.array([0, 2, 3, 4, 5], dtype=np.int32)
     r_leaf_idx = np.array([0, 1, 4, 5, 2, 3], dtype=np.int32)
     r_parent = np.array([8, 3, 3, 4, 8, 7, 7, 8, -1], dtype=np.int32)
-    r_child = np.ones(72, dtype=np.int32)*-1
+    r_child = np.ones(72, dtype=np.int32) * -1
     r_child[24] = 1
     r_child[25] = 2
     r_child[32] = 3

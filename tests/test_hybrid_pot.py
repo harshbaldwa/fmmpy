@@ -18,7 +18,6 @@ def check_import(backend):
 
 
 def test_lgndre():
-    backend = "cython"
     lst = legendre(2)
     cos_g = 0.5
     lst_len = 3
@@ -58,20 +57,20 @@ def test_calc_p2_fine(backend):
     sph_pts = np.array(data['array'], dtype=np.float32)
     order = data['order']
 
-    out = sph_pts*out_r*sqrt(3)*length/2 + 0.5
+    out = sph_pts * out_r * sqrt(3) * length / 2 + 0.5
     out_val = np.zeros(num_p2, dtype=np.float32)
     out_x = np.array(out[0::3])
     out_y = np.array(out[1::3])
     out_z = np.array(out[2::3])
 
-    leg_lim = order//2 + 1
-    siz_leg = leg_lim*(leg_lim+1)//2 - 2
+    leg_lim = order // 2 + 1
+    siz_leg = leg_lim * (leg_lim + 1) // 2 - 2
     leg_lst = np.zeros(siz_leg, dtype=np.float32)
     count = 1
     for i in range(2, leg_lim):
         temp_lst = np.array(legendre(i)).astype(np.float32)
-        leg_lst[count:count+i+1] = temp_lst[::-1]
-        count += i+1
+        leg_lst[count:count + i + 1] = temp_lst[::-1]
+        count += i + 1
 
     (out_val, out_x, out_y, out_z, part_val, part_x, part_y, part_z, cx, cy,
      cz, index, leg_lst, level, idx, bin_count, start_idx, leaf_idx) = wrap(
@@ -82,7 +81,7 @@ def test_calc_p2_fine(backend):
     e = Elementwise(calc_p2_fine, backend=backend)
 
     e(out_val, out_x, out_y, out_z, part_val, part_x, part_y, part_z, cx, cy,
-      cz, num_p2, length, index, leg_lim, leg_lst, level, idx, out_r*sqrt(3),
+      cz, num_p2, length, index, leg_lim, leg_lst, level, idx, out_r * sqrt(3),
       bin_count, start_idx, leaf_idx)
 
     for i in range(len(part_val)):
@@ -116,11 +115,11 @@ def test_calc_p2(backend):
     index_r = np.array([0, 1, 2, 3, 4], dtype=np.int32)
     out_r = 1.1
     offset = 4
-    m2c_l = out_r*sqrt(3)*length/2
+    m2c_l = out_r * sqrt(3) * length / 2
     cx = np.array([0.25, 0.75, 0.25, 0.75, 0.5], dtype=np.float32)
     cy = np.array([0.25, 0.25, 0.75, 0.75, 0.5], dtype=np.float32)
     cz = np.array([0.25, 0.25, 0.25, 0.25, 0.5], dtype=np.float32)
-    child = np.ones(40, dtype=np.int32)*-1
+    child = np.ones(40, dtype=np.int32) * -1
     child[32] = 0
     child[33] = 1
     child[34] = 2
@@ -131,39 +130,39 @@ def test_calc_p2(backend):
     sph_pts = np.array(data['array'], dtype=np.float32)
     order = data['order']
 
-    out = sph_pts*out_r*sqrt(3)*length
-    out_val = np.zeros(5*num_p2, dtype=np.float32)
-    out_val[:4*num_p2] = 1/num_p2
-    out_x = np.zeros(5*num_p2, dtype=np.float32)
-    out_y = np.zeros(5*num_p2, dtype=np.float32)
-    out_z = np.zeros(5*num_p2, dtype=np.float32)
+    out = sph_pts * out_r * sqrt(3) * length
+    out_val = np.zeros(5 * num_p2, dtype=np.float32)
+    out_val[:4 * num_p2] = 1 / num_p2
+    out_x = np.zeros(5 * num_p2, dtype=np.float32)
+    out_y = np.zeros(5 * num_p2, dtype=np.float32)
+    out_z = np.zeros(5 * num_p2, dtype=np.float32)
 
-    out_x[:num_p2] = np.array(out[0::3])/4 + 0.25
-    out_x[num_p2:2*num_p2] = np.array(out[0::3])/4 + 0.75
-    out_x[2*num_p2:3*num_p2] = np.array(out[0::3])/4 + 0.25
-    out_x[3*num_p2:4*num_p2] = np.array(out[0::3])/4 + 0.75
-    out_x[4*num_p2:5*num_p2] = np.array(out[0::3])/2 + 0.5
+    out_x[:num_p2] = np.array(out[0::3]) / 4 + 0.25
+    out_x[num_p2:2 * num_p2] = np.array(out[0::3]) / 4 + 0.75
+    out_x[2 * num_p2:3 * num_p2] = np.array(out[0::3]) / 4 + 0.25
+    out_x[3 * num_p2:4 * num_p2] = np.array(out[0::3]) / 4 + 0.75
+    out_x[4 * num_p2:5 * num_p2] = np.array(out[0::3]) / 2 + 0.5
 
-    out_y[:num_p2] = np.array(out[1::3])/4 + 0.25
-    out_y[num_p2:2*num_p2] = np.array(out[1::3])/4 + 0.25
-    out_y[2*num_p2:3*num_p2] = np.array(out[1::3])/4 + 0.75
-    out_y[3*num_p2:4*num_p2] = np.array(out[1::3])/4 + 0.75
-    out_y[4*num_p2:5*num_p2] = np.array(out[1::3])/2 + 0.5
+    out_y[:num_p2] = np.array(out[1::3]) / 4 + 0.25
+    out_y[num_p2:2 * num_p2] = np.array(out[1::3]) / 4 + 0.25
+    out_y[2 * num_p2:3 * num_p2] = np.array(out[1::3]) / 4 + 0.75
+    out_y[3 * num_p2:4 * num_p2] = np.array(out[1::3]) / 4 + 0.75
+    out_y[4 * num_p2:5 * num_p2] = np.array(out[1::3]) / 2 + 0.5
 
-    out_z[:num_p2] = np.array(out[2::3])/4 + 0.25
-    out_z[num_p2:2*num_p2] = np.array(out[2::3])/4 + 0.25
-    out_z[2*num_p2:3*num_p2] = np.array(out[2::3])/4 + 0.25
-    out_z[3*num_p2:4*num_p2] = np.array(out[2::3])/4 + 0.25
-    out_z[4*num_p2:5*num_p2] = np.array(out[2::3])/2 + 0.5
+    out_z[:num_p2] = np.array(out[2::3]) / 4 + 0.25
+    out_z[num_p2:2 * num_p2] = np.array(out[2::3]) / 4 + 0.25
+    out_z[2 * num_p2:3 * num_p2] = np.array(out[2::3]) / 4 + 0.25
+    out_z[3 * num_p2:4 * num_p2] = np.array(out[2::3]) / 4 + 0.25
+    out_z[4 * num_p2:5 * num_p2] = np.array(out[2::3]) / 2 + 0.5
 
-    leg_lim = order//2 + 1
-    siz_leg = leg_lim*(leg_lim+1)//2 - 2
+    leg_lim = order // 2 + 1
+    siz_leg = leg_lim * (leg_lim + 1) // 2 - 2
     leg_lst = np.zeros(siz_leg, dtype=np.float32)
     count = 1
     for i in range(2, leg_lim):
         temp_lst = np.array(legendre(i)).astype(np.float32)
-        leg_lst[count:count+i+1] = temp_lst[::-1]
-        count += i+1
+        leg_lst[count:count + i + 1] = temp_lst[::-1]
+        count += i + 1
 
     (part_val, part_x, part_y, part_z, index, index_r, child, out_val, out_x,
      out_y, out_z, cx, cy, cz, leg_lst) = wrap(
@@ -172,14 +171,14 @@ def test_calc_p2(backend):
 
     e = Elementwise(calc_p2, backend=backend)
 
-    e(out_val[4*num_p2:5*num_p2], out_val, out_x, out_y, out_z, cx, cy, cz,
+    e(out_val[4 * num_p2:5 * num_p2], out_val, out_x, out_y, out_z, cx, cy, cz,
       num_p2, index, index_r, leg_lim, leg_lst, child, offset, m2c_l)
 
     for i in range(len(part_val)):
         res_direct += direct_comp(part_val[i], part_x[i], part_y[i], part_z[i],
                                   px, py, pz)
 
-    for i in range(4*num_p2, 5*num_p2):
+    for i in range(4 * num_p2, 5 * num_p2):
         res_multipole += direct_comp(out_val[i],
                                      out_x[i], out_y[i], out_z[i], px, py, pz)
 
@@ -187,7 +186,6 @@ def test_calc_p2(backend):
 
 
 def test_direct_comp():
-    backend = "cython"
     part_val = np.array([1, 1])
     part_x = np.array([0.25, 0.75])
     part_y = np.array([0.25, 0.25])
@@ -210,15 +208,14 @@ def test_direct_solv(backend):
     res = ary.zeros(2, dtype=np.float32, backend=backend)
     part_val, part_x, part_y, part_z, r_res = wrap(
         part_val, part_x, part_y, part_z, r_res, backend=backend)
-    
+
     e = Elementwise(direct_solv, backend=backend)
     e(part_val, part_x, part_y, part_z, res, 2)
-    
+
     np.testing.assert_array_almost_equal(res, r_res)
 
 
 def test_is_adj():
-    backend = "cython"
     cx = np.array([0.375, 0.75, 0.25, 0.625], dtype=np.float32)
     cy = np.array([0.375, 0.75, 0.25, 0.125], dtype=np.float32)
     cz = np.array([0.375, 0.75, 0.25, 0.125], dtype=np.float32)
@@ -309,17 +306,16 @@ def test_find_assoc(backend):
     efind_assoc(idx[0:3], cx, cy, cz, level, assoc, child,
                 parent, offset, index, index_r, length)
 
-    assert assoc[0] == 2 
-    assert assoc[1] == 5 
-    assert assoc[26] == 0 
-    assert assoc[27] == 5 
-    assert assoc[28] == 3 
-    assert assoc[52] == 5 
+    assert assoc[0] == 2
+    assert assoc[1] == 5
+    assert assoc[26] == 0
+    assert assoc[27] == 5
+    assert assoc[28] == 3
+    assert assoc[52] == 5
     assert assoc[53] == 2
 
 
 def test_loc_exp():
-    backend = "cython"
     num_p2 = 6
     length = 1
     in_r = 1.05
@@ -331,19 +327,19 @@ def test_loc_exp():
     cx = 0.25
     cy = 0.25
     cz = 0.25
-    
-    leg_lim = order//2+1
-    siz_leg = leg_lim*(leg_lim+1)//2 - 2
+
+    leg_lim = order // 2 + 1
+    siz_leg = leg_lim * (leg_lim + 1) // 2 - 2
     leg_lst = np.zeros(siz_leg, dtype=np.float32)
     count = 1
     for i in range(2, leg_lim):
         temp_lst = np.array(legendre(i)).astype(np.float32)
-        leg_lst[count:count+i+1] = temp_lst[::-1]
-        count += i+1
-    
-    sz_cell = sqrt(3.0)*length/4
-    i2c_l = in_r*sz_cell
-    r_in = sph_pts*i2c_l + 0.25
+        leg_lst[count:count + i + 1] = temp_lst[::-1]
+        count += i + 1
+
+    sz_cell = sqrt(3.0) * length / 4
+    i2c_l = in_r * sz_cell
+    r_in = sph_pts * i2c_l + 0.25
     in_val = np.arange(num_p2, dtype=np.float32)
     in_x = np.array(r_in[0::3])
     in_y = np.array(r_in[1::3])
@@ -355,9 +351,12 @@ def test_loc_exp():
     cos_z = -sph_pts[2::3]
     cos_f = (cos_x + cos_z) / sqrt(2)
     rr = 0.1 * sqrt(2) / i2c_l
-    r_res = np.sum((in_val/num_p2)*(1+3*rr*cos_f+5*rr**2*(3*cos_f**2-1)/2))
+    t0 = 1
+    t1 = 3 * rr * cos_f
+    t2 = 5 * rr**2 * (3 * cos_f**2 - 1) / 2
+    r_res = np.sum((in_val / num_p2) * (t0 + t1 + t2))
 
-    res = loc_exp(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2, 
+    res = loc_exp(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2,
                   i2c_l, offset, leg_lst, leg_lim)
 
     assert pytest.approx(res, 1e-6) == r_res
@@ -394,22 +393,22 @@ def test_loc_coeff(backend):
     (cells, sfc, level, idx, bin_count, start_idx, leaf_idx, parent, child,
      part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index,
      lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_val,
-     in_val) = tree.build(
+     in_val) = build(
          N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
          out_r, in_r, length, num_p2, backend, dimension, sph_pts, order,
          deleave_coeff)
-    
-    assoc = ary.empty(26*cells, dtype=np.int32, backend=backend)
+
+    assoc = ary.empty(26 * cells, dtype=np.int32, backend=backend)
     assoc.fill(-1)
 
-    leg_lim = order//2+1
-    siz_leg = leg_lim*(leg_lim+1)//2 - 2
+    leg_lim = order // 2 + 1
+    siz_leg = leg_lim * (leg_lim + 1) // 2 - 2
     leg_lst = np.zeros(siz_leg, dtype=np.float32)
     count = 1
     for i in range(2, leg_lim):
         temp_lst = np.array(legendre(i)).astype(np.float32)
-        leg_lst[count:count+i+1] = temp_lst[::-1]
-        count += i+1
+        leg_lst[count:count + i + 1] = temp_lst[::-1]
+        count += i + 1
 
     leg_lst = wrap(leg_lst, backend=backend)
 
@@ -418,44 +417,44 @@ def test_loc_coeff(backend):
     eassoc_coarse = Elementwise(assoc_coarse, backend=backend)
     efind_assoc = Elementwise(find_assoc, backend=backend)
     eloc_coeff = Elementwise(loc_coeff, backend=backend)
-    
-    ecalc_p2_fine(out_val[:lev_cs[max_depth-1]*num_p2], out_x, out_y, out_z,
-                  part_val, part_x, part_y, part_z, cx, cy, cz, num_p2,
-                  length, index, leg_lim, leg_lst, level, idx, out_r*sqrt(3),
+
+    ecalc_p2_fine(out_val[:lev_cs[max_depth - 1] * num_p2], out_x, out_y,
+                  out_z, part_val, part_x, part_y, part_z, cx, cy, cz, num_p2,
+                  length, index, leg_lim, leg_lst, level, idx, out_r * sqrt(3),
                   bin_count, start_idx, leaf_idx)
 
-    for lev in range(max_depth-1, 0, -1):
-        m2c_l = out_r*sqrt(3)*length/(2**(lev+1))
-        lev_offset = lev_cs[lev-1]-lev_cs[lev]
+    for lev in range(max_depth - 1, 0, -1):
+        m2c_l = out_r * sqrt(3) * length / (2**(lev + 1))
+        lev_offset = lev_cs[lev - 1] - lev_cs[lev]
         if lev_offset == 0:
             continue
-        ecalc_p2(out_val[:lev_offset*num_p2], out_val, out_x, out_y, out_z,
+        ecalc_p2(out_val[:lev_offset * num_p2], out_val, out_x, out_y, out_z,
                  cx, cy, cz, num_p2, index, index_r, leg_lim, leg_lst, child,
                  lev_cs[lev], m2c_l)
 
     eassoc_coarse(sfc[levwise_cs[1]:levwise_cs[0]], parent, child, lev_index,
                   assoc, levwise_cs[1])
 
-    for lev in range(2, max_depth+1):
-        lev_offset = levwise_cs[lev-1] - levwise_cs[lev]
+    for lev in range(2, max_depth + 1):
+        lev_offset = levwise_cs[lev - 1] - levwise_cs[lev]
         if lev_offset == 0:
             continue
         efind_assoc(idx[:lev_offset], cx, cy, cz, level,
                     assoc, child, parent, levwise_cs[lev], lev_index,
                     lev_index_r, length)
-    
-    eloc_coeff(in_val[:lev_cs[1]*num_p2], in_x, in_y, in_z, out_val, out_x,
+
+    eloc_coeff(in_val[:lev_cs[1] * num_p2], in_x, in_y, in_z, out_val, out_x,
                out_y, out_z, part_val, part_x, part_y, part_z, cx, cy, cz,
                assoc, child, parent, num_p2, level, index, index_r,
                lev_index_r, idx, leaf_idx, start_idx, bin_count, length)
 
-    res = loc_exp(in_val[:num_p2], in_x, in_y, in_z, cx[0], cy[0], cz[0], 
-                  part_x[0], part_y[0], part_z[0], num_p2, 
-                  sqrt(3)*length*in_r/8, 0, leg_lst, leg_lim)
-    
+    res = loc_exp(in_val[:num_p2], in_x, in_y, in_z, cx[0], cy[0], cz[0],
+                  part_x[0], part_y[0], part_z[0], num_p2,
+                  sqrt(3) * length * in_r / 8, 0, leg_lst, leg_lim)
+
     res_dir = 0
     for i in range(2, N):
-        res_dir += direct_comp(part_val[i], part_x[i], part_y[i], part_z[i], 
+        res_dir += direct_comp(part_val[i], part_x[i], part_y[i], part_z[i],
                                part_x[0], part_y[0], part_z[0])
 
     assert pytest.approx(res, abs=1e-2) == res_dir
@@ -478,37 +477,37 @@ def test_trans_loc(backend):
     part_x = np.array([0.0625, 0.0625, 0.9375, 0.9375], dtype=np.float32)
     part_y = np.array([0.0625, 0.1875, 0.0625, 0.1875], dtype=np.float32)
     part_z = np.array([0.0625, 0.0625, 0.0625, 0.0625], dtype=np.float32)
-    
+
     with open(T_DESIGN, 'r') as file:
         data = yaml.load(file, Loader=yaml.FullLoader)[num_p2]
     sph_pts = np.array(data['array'], dtype=np.float32)
     order = data['order']
     deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF,
                               0x0000FFFF], dtype=np.int32)
-    
+
     part_val, part_x, part_y, part_z, sph_pts, deleave_coeff = wrap(
         part_val, part_x, part_y, part_z, sph_pts, deleave_coeff,
         backend=backend)
-    
+
     (cells, sfc, level, idx, bin_count, start_idx, leaf_idx, parent, child,
      part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index,
      lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_val,
-     in_val) = tree.build(
+     in_val) = build(
          N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
          out_r, in_r, length, num_p2, backend, dimension, sph_pts, order,
          deleave_coeff)
 
-    assoc = ary.empty(26*cells, dtype=np.int32, backend=backend)
+    assoc = ary.empty(26 * cells, dtype=np.int32, backend=backend)
     assoc.fill(-1)
 
-    leg_lim = order//2+1
-    siz_leg = leg_lim*(leg_lim+1)//2 - 2
+    leg_lim = order // 2 + 1
+    siz_leg = leg_lim * (leg_lim + 1) // 2 - 2
     leg_lst = np.zeros(siz_leg, dtype=np.float32)
     count = 1
     for i in range(2, leg_lim):
         temp_lst = np.array(legendre(i)).astype(np.float32)
-        leg_lst[count:count+i+1] = temp_lst[::-1]
-        count += i+1
+        leg_lst[count:count + i + 1] = temp_lst[::-1]
+        count += i + 1
 
     leg_lst = wrap(leg_lst, backend=backend)
 
@@ -518,55 +517,55 @@ def test_trans_loc(backend):
     efind_assoc = Elementwise(find_assoc, backend=backend)
     eloc_coeff = Elementwise(loc_coeff, backend=backend)
     etrans_loc = Elementwise(trans_loc, backend=backend)
-    
-    ecalc_p2_fine(out_val[:lev_cs[max_depth-1]*num_p2], out_x, out_y, out_z,
-                  part_val, part_x, part_y, part_z, cx, cy, cz, num_p2,
-                  length, index, leg_lim, leg_lst, level, idx, out_r*sqrt(3),
+
+    ecalc_p2_fine(out_val[:lev_cs[max_depth - 1] * num_p2], out_x, out_y,
+                  out_z, part_val, part_x, part_y, part_z, cx, cy, cz, num_p2,
+                  length, index, leg_lim, leg_lst, level, idx, out_r * sqrt(3),
                   bin_count, start_idx, leaf_idx)
 
-    for lev in range(max_depth-1, 0, -1):
-        m2c_l = out_r*sqrt(3)*length/(2**(lev+1))
-        lev_offset = lev_cs[lev-1]-lev_cs[lev]
+    for lev in range(max_depth - 1, 0, -1):
+        m2c_l = out_r * sqrt(3) * length / (2**(lev + 1))
+        lev_offset = lev_cs[lev - 1] - lev_cs[lev]
         if lev_offset == 0:
             continue
-        ecalc_p2(out_val[:lev_offset*num_p2], out_val, out_x, out_y, out_z,
+        ecalc_p2(out_val[:lev_offset * num_p2], out_val, out_x, out_y, out_z,
                  cx, cy, cz, num_p2, index, index_r, leg_lim, leg_lst, child,
                  lev_cs[lev], m2c_l)
 
     eassoc_coarse(sfc[levwise_cs[1]:levwise_cs[0]], parent, child, lev_index,
                   assoc, levwise_cs[1])
 
-    for lev in range(2, max_depth+1):
-        lev_offset = levwise_cs[lev-1] - levwise_cs[lev]
+    for lev in range(2, max_depth + 1):
+        lev_offset = levwise_cs[lev - 1] - levwise_cs[lev]
         if lev_offset == 0:
             continue
         efind_assoc(idx[:lev_offset], cx, cy, cz, level,
                     assoc, child, parent, levwise_cs[lev], lev_index,
                     lev_index_r, length)
-    
-    eloc_coeff(in_val[:lev_cs[1]*num_p2], in_x, in_y, in_z, out_val, out_x,
+
+    eloc_coeff(in_val[:lev_cs[1] * num_p2], in_x, in_y, in_z, out_val, out_x,
                out_y, out_z, part_val, part_x, part_y, part_z, cx, cy, cz,
                assoc, child, parent, num_p2, level, index, index_r,
                lev_index_r, idx, leaf_idx, start_idx, bin_count, length)
-    
-    for lev in range(3, max_depth+1):
-        i2c_l = in_r*sqrt(3)*length/(2**(lev))
-        lev_offset = levwise_cs[lev-1] - levwise_cs[lev]
+
+    for lev in range(3, max_depth + 1):
+        i2c_l = in_r * sqrt(3) * length / (2**(lev))
+        lev_offset = levwise_cs[lev - 1] - levwise_cs[lev]
         if lev_offset == 0:
             continue
-        etrans_loc(in_val[:lev_offset*num_p2], in_val, in_x, in_y, in_z, cx,
+        etrans_loc(in_val[:lev_offset * num_p2], in_val, in_x, in_y, in_z, cx,
                    cy, cz, i2c_l, num_p2, leg_lst, leg_lim, index_r, lev_index,
                    parent, levwise_cs[lev])
-        
-    res = loc_exp(in_val[:num_p2], in_x, in_y, in_z, cx[0], cy[0], cz[0], 
-                  part_x[0], part_y[0], part_z[0], num_p2, 
-                  sqrt(3)*length*in_r/16, 0, leg_lst, leg_lim)
-    
+
+    res = loc_exp(in_val[:num_p2], in_x, in_y, in_z, cx[0], cy[0], cz[0],
+                  part_x[0], part_y[0], part_z[0], num_p2,
+                  sqrt(3) * length * in_r / 16, 0, leg_lst, leg_lim)
+
     res_dir = 0
     for i in range(2, N):
-        res_dir += direct_comp(part_val[i], part_x[i], part_y[i], part_z[i], 
+        res_dir += direct_comp(part_val[i], part_x[i], part_y[i], part_z[i],
                                part_x[0], part_y[0], part_z[0])
-    
+
     assert pytest.approx(res, abs=1e-3) == res_dir
 
 
@@ -596,27 +595,27 @@ def test_compute(backend):
 
     part_x, part_y, part_z, sph_pts, deleave_coeff = wrap(
         part_x, part_y, part_z, sph_pts, deleave_coeff, backend=backend)
-    
+
     (cells, sfc, level, idx, bin_count, start_idx, leaf_idx, parent, child,
      part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index,
      lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_val,
-     in_val) = tree.build(
+     in_val) = build(
          N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
          out_r, in_r, length, num_p2, backend, dimension, sph_pts, order,
          deleave_coeff)
 
     res = ary.zeros(N, dtype=np.float32, backend=backend)
-    assoc = ary.empty(26*cells, dtype=np.int32, backend=backend)
+    assoc = ary.empty(26 * cells, dtype=np.int32, backend=backend)
     assoc.fill(-1)
 
-    leg_lim = order//2+1
-    siz_leg = leg_lim*(leg_lim+1)//2 - 2
+    leg_lim = order // 2 + 1
+    siz_leg = leg_lim * (leg_lim + 1) // 2 - 2
     leg_lst = np.zeros(siz_leg, dtype=np.float32)
     count = 1
     for i in range(2, leg_lim):
         temp_lst = np.array(legendre(i)).astype(np.float32)
-        leg_lst[count:count+i+1] = temp_lst[::-1]
-        count += i+1
+        leg_lst[count:count + i + 1] = temp_lst[::-1]
+        count += i + 1
 
     leg_lst = wrap(leg_lst, backend=backend)
 
@@ -627,55 +626,55 @@ def test_compute(backend):
     eloc_coeff = Elementwise(loc_coeff, backend=backend)
     etrans_loc = Elementwise(trans_loc, backend=backend)
     ecompute = Elementwise(compute, backend=backend)
-    
-    ecalc_p2_fine(out_val[:lev_cs[max_depth-1]*num_p2], out_x, out_y, out_z,
-                  part_val, part_x, part_y, part_z, cx, cy, cz, num_p2,
-                  length, index, leg_lim, leg_lst, level, idx, out_r*sqrt(3),
+
+    ecalc_p2_fine(out_val[:lev_cs[max_depth - 1] * num_p2], out_x, out_y,
+                  out_z, part_val, part_x, part_y, part_z, cx, cy, cz, num_p2,
+                  length, index, leg_lim, leg_lst, level, idx, out_r * sqrt(3),
                   bin_count, start_idx, leaf_idx)
 
-    for lev in range(max_depth-1, 0, -1):
-        m2c_l = out_r*sqrt(3)*length/(2**(lev+1))
-        lev_offset = lev_cs[lev-1]-lev_cs[lev]
+    for lev in range(max_depth - 1, 0, -1):
+        m2c_l = out_r * sqrt(3) * length / (2**(lev + 1))
+        lev_offset = lev_cs[lev - 1] - lev_cs[lev]
         if lev_offset == 0:
             continue
-        ecalc_p2(out_val[:lev_offset*num_p2], out_val, out_x, out_y, out_z,
+        ecalc_p2(out_val[:lev_offset * num_p2], out_val, out_x, out_y, out_z,
                  cx, cy, cz, num_p2, index, index_r, leg_lim, leg_lst, child,
                  lev_cs[lev], m2c_l)
 
     eassoc_coarse(sfc[levwise_cs[1]:levwise_cs[0]], parent, child, lev_index,
                   assoc, levwise_cs[1])
 
-    for lev in range(2, max_depth+1):
-        lev_offset = levwise_cs[lev-1] - levwise_cs[lev]
+    for lev in range(2, max_depth + 1):
+        lev_offset = levwise_cs[lev - 1] - levwise_cs[lev]
         if lev_offset == 0:
             continue
         efind_assoc(idx[:lev_offset], cx, cy, cz, level,
                     assoc, child, parent, levwise_cs[lev], lev_index,
                     lev_index_r, length)
-    
-    eloc_coeff(in_val[:lev_cs[1]*num_p2], in_x, in_y, in_z, out_val, out_x,
+
+    eloc_coeff(in_val[:lev_cs[1] * num_p2], in_x, in_y, in_z, out_val, out_x,
                out_y, out_z, part_val, part_x, part_y, part_z, cx, cy, cz,
                assoc, child, parent, num_p2, level, index, index_r,
                lev_index_r, idx, leaf_idx, start_idx, bin_count, length)
-    
-    for lev in range(3, max_depth+1):
-        i2c_l = in_r*sqrt(3)*length/(2**(lev))
-        lev_offset = levwise_cs[lev-1] - levwise_cs[lev]
+
+    for lev in range(3, max_depth + 1):
+        i2c_l = in_r * sqrt(3) * length / (2**(lev))
+        lev_offset = levwise_cs[lev - 1] - levwise_cs[lev]
         if lev_offset == 0:
             continue
-        etrans_loc(in_val[:lev_offset*num_p2], in_val, in_x, in_y, in_z, cx,
+        etrans_loc(in_val[:lev_offset * num_p2], in_val, in_x, in_y, in_z, cx,
                    cy, cz, i2c_l, num_p2, leg_lst, leg_lim, index_r, lev_index,
                    parent, levwise_cs[lev])
-    
+
     ecompute(part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
              idx, parent, child, assoc, index_r, lev_index_r, leaf_idx,
              bin_count, start_idx, out_val, out_x, out_y, out_z, in_val, in_x,
              in_y, in_z, cx, cy, cz, res, leg_lst, num_p2, leg_lim, in_r,
              length)
-    
+
     res_dir = 0
     for i in range(1, N):
-        res_dir += direct_comp(part_val[i], part_x[i], part_y[i], part_z[i], 
+        res_dir += direct_comp(part_val[i], part_x[i], part_y[i], part_z[i],
                                part_x[0], part_y[0], part_z[0])
-        
+
     assert pytest.approx(res[0], abs=1e-4) == res_dir

@@ -22,4 +22,7 @@ setup(
         'data': ['fmmpy/data/']
     },
     classifiers=classifiers,
+    setup_requires=[
+        "flake8"
+    ]
 )
