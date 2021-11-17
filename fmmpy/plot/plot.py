@@ -5,6 +5,7 @@ from mayavi import mlab
 import yaml
 import pkg_resources
 
+
 def draw_node(cx, cy, cz, length, color):
     x = np.linspace(cx-length/2, cx+length/2, 3)
     y = np.linspace(cy-length/2, cy+length/2, 3)
@@ -79,18 +80,18 @@ def draw_sphere(cx, cy, cz, r, color):
     mlab.mesh(x, y, z, opacity=0.4, color=(1, 1, 1))
 
 
-def plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, spheres, out_r, 
+def plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, spheres, out_r,
               plot_points, plot_text, save_fig):
     for i in range(cells):
         if i in spheres:
             draw_sphere(cx[i], cy[i], cz[i], out_r*length/(2**level[i]), 'red')
-        draw_node(cx[i], cy[i], cz[i], length/(2**level[i]), 
+        draw_node(cx[i], cy[i], cz[i], length/(2**level[i]),
                   (0.3-level[i]*0.05, 0.3-level[i]*0.05, 0.3-level[i]*0.05))
 
     if plot_points:
-        mlab.points3d(x, y, z, np.arange(N), scale_factor=0.25, 
+        mlab.points3d(x, y, z, np.arange(N), scale_factor=0.25,
                       scale_mode='none', color=(1, 1, 1))
-    
+
     if plot_text:
         for i in range(N):
             mlab.text3d(x[i], y[i], z[i], str(i), scale=(0.5, 0.5, 0.5))
@@ -114,8 +115,8 @@ def test_plot(plot_points, plot_text, save_fig):
     y = np.array([5])
     z = np.array([5])
     spheres = [0]
-    
-    plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, spheres, out_r, 
+
+    plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, spheres, out_r,
               plot_points, plot_text, save_fig)
 
 
@@ -136,5 +137,24 @@ def plot(plot_points, plot_text, save_fig):
         z = data['part_z']
         spheres = data['spheres']
 
-    plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, spheres, out_r, 
+    plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, spheres, out_r,
               plot_points, plot_text, save_fig)
+
+
+if __name__ == '__main__':
+    cells = 9
+    N = cells
+    length = 10
+    out_r = 1.1
+    level = np.array([3, 3, 2, 1, 3, 3, 2, 1, 0])
+    cx = np.array([0.0625, 0.0625, 0.125, 0.25, 0.9375,
+                  0.9375, 0.875, 0.75, 0.5]) * length
+    cy = np.array([0.0625, 0.1875, 0.125, 0.25, 0.0625,
+                  0.1875, 0.125, 0.25, 0.5]) * length
+    cz = np.array([0.0625, 0.0625, 0.125, 0.25, 0.0625,
+                  0.0625, 0.125, 0.25, 0.5]) * length
+
+    spheres = []
+
+    plot_tree(cells, cx, cy, cz, length, level, N, cx, cy, cz, spheres, out_r,
+              True, True, False)
