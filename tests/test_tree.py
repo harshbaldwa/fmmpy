@@ -1,7 +1,7 @@
 import pkg_resources
 import pytest
 import yaml
-from fmmpy.tree.tree import *
+from fmmpy.tree import *
 
 check_all_backends = pytest.mark.parametrize('backend',
                                              ['cython', 'opencl', 'cuda'])

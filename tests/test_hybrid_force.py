@@ -1,6 +1,6 @@
 import pytest
 from fmmpy.fmm.hybrid_force import *
-from fmmpy.tree.tree import build
+from fmmpy.tree import build
 import pkg_resources
 import yaml
 

@@ -2,7 +2,7 @@ import pkg_resources
 import pytest
 import yaml
 from fmmpy.fmm.hybrid_pot import *
-from fmmpy.tree.tree import build
+from fmmpy.tree import build
 
 check_all_backends = pytest.mark.parametrize('backend',
                                              ['cython', 'opencl', 'cuda'])
