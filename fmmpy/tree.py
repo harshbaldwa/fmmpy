@@ -262,8 +262,8 @@ def complete_tree(i, level_diff, cumsum_diff, sfc, level, idx, parent, child,
         parent_n[cid] = -1
     for j in range(8):
         if child[8 * i + j] != -1:
-            child_n[8 * cid + j] = child[8 * i + j] + \
-                cumsum_diff[child[8 * i + j] + 1]
+            child_n[8 * cid + j] = (child[8 * i + j] +
+                                    cumsum_diff[child[8 * i + j] + 1])
         else:
             break
 

@@ -9,7 +9,7 @@ from compyle.api import Elementwise, annotate, declare, wrap
 from compyle.low_level import cast
 from scipy.special import legendre
 
-from ..tree import tree
+from ..tree import build
 
 
 @annotate(int="lst_len, idx", cos_g="float",
@@ -101,8 +101,8 @@ def calc_p2(i, out_temp, out_val, out_x, out_y, out_z, cx, cy, cz, num_p2,
                     sid = 1
                     for leg in range(2, leg_lim):
                         leg_res = lgndre(leg_lst, cos_g, leg + 1, sid)
-                        out_res += leg_res * \
-                            (2 * leg + 1) * (rr**leg) * out_val[tid]
+                        out_res += (leg_res * (2 * leg + 1) * (rr**leg) *
+                                    out_val[tid])
                         sid += leg + 1
 
     out_val[outid] = out_res / num_p2
@@ -186,8 +186,8 @@ def assoc_coarse(i, sfc, parent, child, index, assoc, offset):
 def find_assoc(i, idx, cx, cy, cz, level, assoc, child, parent, offset,
                index, index_r, length):
 
-    bid, rid, paid, pid, aid, cid, count, lev, j, k, adj, well = declare(
-        "int", 12)
+    bid, rid, paid, pid, aid, cid = declare("int", 6)
+    count, lev, j, k, adj, well = declare("int", 6)
     cr, cR = declare("float", 2)
     bid = i + offset
     rid = index[bid]
@@ -419,8 +419,8 @@ def loc_exp_force(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2,
             dcgz = (i2c[2] * rr - cg * p2c[2])
             sid = 1
             for leg in range(2, leg_lim):
-                pre_f = (2 * leg + 1) * (rr**(leg - 2)) * \
-                    in_val[s1id] / (i2c_l**2)
+                pre_f = ((2 * leg + 1) * (rr**(leg - 2)) *
+                         in_val[s1id] / (i2c_l**2))
                 leg_res = lgndre(leg_lst, cg, leg + 1, sid)
                 dleg_res = lgndre(dleg_lst, cg, leg + 1, sid)
                 sid += leg + 1
@@ -573,7 +573,7 @@ def solver_force(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min,
     (cells, sfc, level, idx, bin_count, start_idx, leaf_idx, parent, child,
      part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index,
      lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_val,
-     in_val) = tree.build(
+     in_val) = build(
          N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
          out_r, in_r, length, num_p2, backend, dimension, sph_pts, order,
          deleave_coeff)
