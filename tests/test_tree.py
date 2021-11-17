@@ -378,7 +378,7 @@ def test_setting_p2(backend):
     length = 1
     sz_cell = sqrt(3.0) * length / 4
     with open(T_DESIGN, 'r') as file:
-        data = yaml.load(file)[num_p2]
+        data = yaml.load(file, Loader=yaml.FullLoader)[num_p2]
     sph_pts = np.array(data['array'], dtype=np.float32)
     r_out = sph_pts * out_r * sz_cell + 0.25
     r_in = sph_pts * in_r * sz_cell + 0.25
@@ -486,7 +486,7 @@ def test_build(backend):
     dimension = 3
 
     with open(T_DESIGN, 'r') as file:
-        data = yaml.load(file)[num_p2]
+        data = yaml.load(file, Loader=yaml.FullLoader)[num_p2]
     sph_pts = np.array(data['array'], dtype=np.float32)
     order = data['order']
     deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF,
