@@ -1,5 +1,5 @@
 import numpy as np
-from math import sqrt
+from math import sqrt, ceil
 from mayavi import mlab
 import yaml
 import pkg_resources
@@ -65,7 +65,7 @@ def draw_node(cx, cy, cz, length, color):
     z_f[42:45] = z[2]
     z_f[45:48] = z[::-1]
 
-    radius = length / 100 + 0.025
+    radius = length / 100 + 0.0025
 
     mlab.plot3d(x_f, y_f, z_f, tube_radius=radius, color=color)
 
@@ -79,8 +79,8 @@ def draw_sphere(cx, cy, cz, r, color):
     mlab.mesh(x, y, z, opacity=0.4, color=(1, 1, 1))
 
 
-def plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, spheres, out_r,
-              plot_points, plot_text, save_fig):
+def plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, part2bin, spheres,
+              out_r, plot_points, plot_text, save_fig):
     for i in range(cells):
         if i in spheres:
             draw_sphere(cx[i], cy[i], cz[i], out_r *
@@ -91,12 +91,20 @@ def plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, spheres, out_r,
                    0.3 - level[i] * 0.05))
 
     if plot_points:
-        mlab.points3d(x, y, z, np.arange(N), scale_factor=0.25,
+        mlab.points3d(x, y, z, np.arange(N), scale_factor=0.025,
                       scale_mode='none', color=(1, 1, 1))
 
     if plot_text:
         for i in range(N):
-            mlab.text3d(x[i], y[i], z[i], str(i), scale=(0.5, 0.5, 0.5))
+            mlab.text3d(x[i], y[i], z[i], str(i) + ", " + str(part2bin[i]),
+                        scale=(0.03, 0.03, 0.03))
+
+    if True:
+        mlab.points3d(cx, cy, cz, np.arange(cells), scale_factor=0.025,
+                      scale_mode='none', color=(0, 0, 0))
+        for i in range(cells):
+            mlab.text3d(cx[i], cy[i], cz[i], str(i), scale=(0.04, 0.04, 0.04),
+                        color=(0, 0, 0))
 
     if save_fig:
         mlab.savefig("snapshot.obj")
@@ -117,9 +125,10 @@ def test_plot(plot_points, plot_text, save_fig):
     y = np.array([5])
     z = np.array([5])
     spheres = [0]
+    part2bin = np.zeros(N)
 
-    plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, spheres, out_r,
-              plot_points, plot_text, save_fig)
+    plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, part2bin, spheres,
+              out_r, plot_points, plot_text, save_fig)
 
 
 def plot(plot_points, plot_text, save_fig):
@@ -137,26 +146,53 @@ def plot(plot_points, plot_text, save_fig):
         x = data['part_x']
         y = data['part_y']
         z = data['part_z']
+        part2bin = data['part2bin']
         spheres = data['spheres']
 
-    plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, spheres, out_r,
-              plot_points, plot_text, save_fig)
+    plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, part2bin, spheres,
+              out_r, plot_points, plot_text, save_fig)
 
 
-if __name__ == '__main__':
-    cells = 9
-    N = cells
-    length = 10
-    out_r = 1.1
-    level = np.array([3, 3, 2, 1, 3, 3, 2, 1, 0])
-    cx = np.array([0.0625, 0.0625, 0.125, 0.25, 0.9375,
-                  0.9375, 0.875, 0.75, 0.5]) * length
-    cy = np.array([0.0625, 0.1875, 0.125, 0.25, 0.0625,
-                  0.1875, 0.125, 0.25, 0.5]) * length
-    cz = np.array([0.0625, 0.0625, 0.125, 0.25, 0.0625,
-                  0.0625, 0.125, 0.25, 0.5]) * length
+@mlab.show
+@mlab.animate(delay=100, support_movie=True)
+def anim(Ns, s, x, y, z):
+    for i in range(Ns):
+        s.mlab_source.set(x=x[i], y=y[i], z=z[i])
+        yield
 
-    spheres = []
 
-    plot_tree(cells, cx, cy, cz, length, level, N, cx, cy, cz, spheres, out_r,
-              True, True, False)
+def find_dist(m, M, x, y, z):
+    return sqrt((x[M] - x[m])**2 + (y[M] - y[m])**2 + (z[M] - z[m])**2)
+
+
+def find_span(x, y, z):
+    xM = np.argmax(x)
+    xm = np.argmin(x)
+    yM = np.argmax(y)
+    ym = np.argmin(y)
+    zM = np.argmax(z)
+    zm = np.argmin(z)
+    xl = find_dist(xm, xM, x, y, z)
+    yl = find_dist(ym, yM, x, y, z)
+    zl = find_dist(zm, zM, x, y, z)
+    l_max = max(xl, yl, zl)
+    return l_max
+
+
+def simulate(Ns, N, step):
+    p_count = ceil(Ns / step)
+    x = np.zeros((p_count, N))
+    y = np.zeros((p_count, N))
+    z = np.zeros((p_count, N))
+    for i in range(p_count):
+        infile = pkg_resources.resource_filename(
+            'fmmpy', f'data/simulation/sim_{i:02d}.npz')
+        npzfile = np.load(infile)
+        x[i, :] = npzfile['x']
+        y[i, :] = npzfile['y']
+        z[i, :] = npzfile['z']
+        # print(find_span(x[i, :], y[i, :], z[i, :]))
+
+    mlab.figure(bgcolor=(0, 0, 0), size=(800, 800))
+    s = mlab.points3d(x[0], y[0], z[0], scale_factor=25)
+    anim(p_count, s, x, y, z)

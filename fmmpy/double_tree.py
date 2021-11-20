@@ -13,7 +13,7 @@ from compyle.template import Template
 
 
 # TODO: Make dimension independent
-@annotate(i="int", index="gintp", gfloatp="x, y, z",
+@annotate(i="int", index="gintp", gdoublep="x, y, z",
           double="max_index, length, x_min, y_min, z_min")
 def get_particle_index(i, index, x, y, z, max_index, length, x_min, y_min,
                        z_min):
@@ -312,7 +312,7 @@ def deinterleave(x, coeff):
     return x
 
 
-@annotate(i="int", gintp="sfc, level, coeff", gfloatp="cx, cy, cz",
+@annotate(i="int", gintp="sfc, level, coeff", gdoublep="cx, cy, cz",
           double="x_min, y_min, z_min, length")
 def calc_center(i, sfc, level, cx, cy, cz, x_min, y_min, z_min, length, coeff):
     x, y, z = declare("int", 3)
@@ -326,7 +326,8 @@ def calc_center(i, sfc, level, cx, cy, cz, x_min, y_min, z_min, length, coeff):
 
 
 @annotate(int="i, num_p2", gintp="level, index", double="length, out_r, in_r",
-          gfloatp="cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, sph_pts")
+          gdoublep="cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, sph_pts"
+          )
 def setting_p2(i, out_x, out_y, out_z, in_x, in_y, in_z, sph_pts, cx, cy, cz,
                out_r, in_r, length, level, num_p2, index):
     cid, sid = declare("int", 2)
@@ -623,18 +624,18 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     lev_cs = ary.zeros(max_depth + 1, dtype=np.int32, backend=backend)
     levwise_cs = ary.zeros(max_depth + 1, dtype=np.int32, backend=backend)
 
-    cx = ary.zeros(total_cells, dtype=np.float32, backend=backend)
-    cy = ary.zeros(total_cells, dtype=np.float32, backend=backend)
-    cz = ary.zeros(total_cells, dtype=np.float32, backend=backend)
+    cx = ary.zeros(total_cells, dtype=np.double, backend=backend)
+    cy = ary.zeros(total_cells, dtype=np.double, backend=backend)
+    cz = ary.zeros(total_cells, dtype=np.double, backend=backend)
 
-    out_x = ary.zeros(total_cells * num_p2, dtype=np.float32, backend=backend)
-    out_y = ary.zeros(total_cells * num_p2, dtype=np.float32, backend=backend)
-    out_z = ary.zeros(total_cells * num_p2, dtype=np.float32, backend=backend)
-    out_vl = ary.zeros(total_cells * num_p2, dtype=np.float32, backend=backend)
-    in_x = ary.zeros(total_cells * num_p2, dtype=np.float32, backend=backend)
-    in_y = ary.zeros(total_cells * num_p2, dtype=np.float32, backend=backend)
-    in_z = ary.zeros(total_cells * num_p2, dtype=np.float32, backend=backend)
-    in_vl = ary.zeros(total_cells * num_p2, dtype=np.float32, backend=backend)
+    out_x = ary.zeros(total_cells * num_p2, dtype=np.double, backend=backend)
+    out_y = ary.zeros(total_cells * num_p2, dtype=np.double, backend=backend)
+    out_z = ary.zeros(total_cells * num_p2, dtype=np.double, backend=backend)
+    out_vl = ary.zeros(total_cells * num_p2, dtype=np.double, backend=backend)
+    in_x = ary.zeros(total_cells * num_p2, dtype=np.double, backend=backend)
+    in_y = ary.zeros(total_cells * num_p2, dtype=np.double, backend=backend)
+    in_z = ary.zeros(total_cells * num_p2, dtype=np.double, backend=backend)
+    in_vl = ary.zeros(total_cells * num_p2, dtype=np.double, backend=backend)
 
     part2bin = ary.zeros(N, dtype=np.int32, backend=backend)
     p2b_offset = ary.zeros(N, dtype=np.int32, backend=backend)
