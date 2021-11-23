@@ -1,0 +1,9 @@
+N: 20000
+Ns: 50
+dimension: 3
+dt: 0.001
+in_r: 1.05
+max_depth: 4
+num_p2: 24
+out_r: 1.1
+step: 1

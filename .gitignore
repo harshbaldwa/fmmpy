@@ -133,3 +133,4 @@ dmypy.json
 
 # Testing area
 .test_area/
+old/
