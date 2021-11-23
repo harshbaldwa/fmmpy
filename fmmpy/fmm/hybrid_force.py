@@ -700,7 +700,6 @@ def solver_force(part_val, part_x, part_y, part_z, vel_x, vel_y, vel_z,
         etimestep(part_x, part_y, part_z, vel_x, vel_y, vel_z, res_x, res_y,
                   res_z, dt)
 
-        print(f"{sim = }")
         if sim % step == 0:
             save_sim(part_x, part_y, part_z, p_count, backend)
             p_count += 1
