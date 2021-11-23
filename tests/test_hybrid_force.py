@@ -222,9 +222,12 @@ def test_direct_solv_force(backend):
     part_x = np.array([0.25, 0.75], dtype=np.float32)
     part_y = np.array([0.25, 0.75], dtype=np.float32)
     part_z = np.array([0.25, 0.75], dtype=np.float32)
-    r_res_x = np.array([1, -1], dtype=np.float32) * 1 / (0.75 * sqrt(3))
-    r_res_y = np.array([1, -1], dtype=np.float32) * 1 / (0.75 * sqrt(3))
-    r_res_z = np.array([1, -1], dtype=np.float32) * 1 / (0.75 * sqrt(3))
+    r_res_x = np.array([1, -1], dtype=np.float32) * 0.5 / (3 * 0.5**2 +
+                                                           0.01**2)**1.5
+    r_res_y = np.array([1, -1], dtype=np.float32) * 0.5 / (3 * 0.5**2 +
+                                                           0.01**2)**1.5
+    r_res_z = np.array([1, -1], dtype=np.float32) * 0.5 / (3 * 0.5**2 +
+                                                           0.01**2)**1.5
     res_x = ary.zeros(2, dtype=np.float32, backend=backend)
     res_y = ary.zeros(2, dtype=np.float32, backend=backend)
     res_z = ary.zeros(2, dtype=np.float32, backend=backend)
