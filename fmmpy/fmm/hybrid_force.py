@@ -1,7 +1,6 @@
 # TODO: Rearrange all the function variables
 from math import fabs, floor, sqrt
-from ..api import read_initial_state
-from .simulation import timestep, save_sim
+from ..api import read_initial_state, save_sim, timestep, find_span
 
 import compyle.array as ary
 import numpy as np
@@ -466,7 +465,7 @@ def compute_force(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z,
                   in_val, in_x, in_y, in_z, cx, cy, cz, res_x, res_y, res_z,
                   leg_lst, dleg_lst, num_p2, leg_lim, in_r, length):
     h = declare('matrix(10, "int")')
-    j, n, bid, baid, brid, lev, pid, aid, chid, t = declare("int", 10)
+    j, n, bid, baid, brid, lev, pid, aid, chid, t, adj = declare("int", 11)
     i2c_l = declare("float")
 
     for t in range(10):
@@ -507,8 +506,6 @@ def compute_force(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z,
                                      length / (2.0**(level[chid] + 1)),
                                      cx[bid], cy[bid], cz[bid], cr_bid)
                         if adj == 0:
-                            # if pid == 0:
-                            #     printf("chid - %d\n", chid)
                             w_list_force(
                                 out_val, out_x, out_y, out_z, part_x, part_y,
                                 part_z, index_r[chid] * num_p2, num_p2, pid,
@@ -518,7 +515,7 @@ def compute_force(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z,
                             aid = chid
                             break
 
-                    if h[level[aid]] == -1:
+                    if h[level[aid]] == -1 or child[8 * aid + 7] != -1:
                         h[level[aid]] = 0
                         if level[aid] == lev:
                             break
@@ -533,21 +530,10 @@ def compute_force(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z,
                             res_x, res_y, res_z)
                         break
                     else:
-                        adj = is_adj(cx[aid], cy[aid], cz[aid],
-                                     length / (2.0**(level[aid] + 1)),
-                                     cx[bid], cy[bid], cz[bid], cr_bid)
-                        if adj == 1:
-                            u_list_force(
-                                part_val, part_x, part_y, part_z, leaf_idx,
-                                bin_count[idx[aid]], start_idx[idx[aid]],
-                                pid, res_x, res_y, res_z)
-                        else:
-                            # if pid == 0:
-                            #     printf("aid - %d\n", aid)
-                            w_list_force(
-                                out_val, out_x, out_y, out_z, part_x, part_y,
-                                part_z, index_r[aid] * num_p2, num_p2, pid,
-                                res_x, res_y, res_z)
+                        u_list_force(
+                            part_val, part_x, part_y, part_z, leaf_idx,
+                            bin_count[idx[aid]], start_idx[idx[aid]],
+                            pid, res_x, res_y, res_z)
 
                         aid = parent[aid]
 
@@ -558,27 +544,14 @@ def compute_force(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z,
                   res_z, pid)
 
 
-# def solver_force(N, max_depth, part_val, part_x, part_y, part_z, x_min,
-#                  y_min, z_min, out_r, in_r, length, num_p2, backend,
-#                  dimension, direct_call=False, vis=False):
-def solver_force(backend, direct_call=False):
+def solver_force(part_val, part_x, part_y, part_z, vel_x, vel_y, vel_z,
+                 backend, direct_call=False):
 
     data = read_initial_state()
     N = data["N"]
     max_depth = data["max_depth"]
-    part_val = np.array(data["part_val"], dtype=np.float32)
-    part_x = np.array(data["part_x"], dtype=np.float32)
-    part_y = np.array(data["part_y"], dtype=np.float32)
-    part_z = np.array(data["part_z"], dtype=np.float32)
-    vel_x = np.array(data["vel_x"], dtype=np.float32)
-    vel_y = np.array(data["vel_y"], dtype=np.float32)
-    vel_z = np.array(data["vel_z"], dtype=np.float32)
-    x_min = data["x_min"]
-    y_min = data["y_min"]
-    z_min = data["z_min"]
     out_r = data["out_r"]
     in_r = data["in_r"]
-    length = data["length"]
     num_p2 = data["num_p2"]
     dimension = data["dimension"]
     sph_pts = np.array(data['array'], dtype=np.float32)
@@ -599,6 +572,8 @@ def solver_force(backend, direct_call=False):
     edirect = Elementwise(direct_solv_force, backend=backend)
     etimestep = Elementwise(timestep, backend=backend)
 
+    save_sim(part_x, part_y, part_z, -1, backend)
+
     for sim in range(Ns):
         res_x = ary.zeros(N, dtype=np.float32, backend=backend)
         res_y = ary.zeros(N, dtype=np.float32, backend=backend)
@@ -609,6 +584,7 @@ def solver_force(backend, direct_call=False):
                     res_z, N)
 
         else:
+            length, x_min, y_min, z_min = find_span(part_x, part_y, part_z)
             (cells, sfc, level, idx, bin_count, start_idx, leaf_idx, parent,
              child, part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r,
              lev_index, lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x,
@@ -693,12 +669,38 @@ def solver_force(backend, direct_call=False):
                 in_x, in_y, in_z, cx, cy, cz, res_x, res_y, res_z, leg_lst,
                 dleg_lst, num_p2, leg_lim, in_r, length)
 
-        # print(f"Force = {np.max(res_x)} at {np.argmax(res_x)}")
-        # print(f"Velocity = {np.max(vel_x)} at {np.argmax(vel_x)}")
+            sfc.resize(0)
+            level.resize(0)
+            idx.resize(0)
+            bin_count.resize(0)
+            start_idx.resize(0)
+            leaf_idx.resize(0)
+            parent.resize(0)
+            child.resize(0)
+            part2bin.resize(0)
+            p2b_offset.resize(0)
+            lev_cs.resize(0)
+            levwise_cs.resize(0)
+            index.resize(0)
+            index_r.resize(0)
+            lev_index.resize(0)
+            lev_index_r.resize(0)
+            cx.resize(0)
+            cy.resize(0)
+            cz.resize(0)
+            out_x.resize(0)
+            out_y.resize(0)
+            out_z.resize(0)
+            in_x.resize(0)
+            in_y.resize(0)
+            in_z.resize(0)
+            out_val.resize(0)
+            in_val.resize(0)
 
         etimestep(part_x, part_y, part_z, vel_x, vel_y, vel_z, res_x, res_y,
                   res_z, dt)
 
+        print(f"{sim = }")
         if sim % step == 0:
             save_sim(part_x, part_y, part_z, p_count, backend)
             p_count += 1

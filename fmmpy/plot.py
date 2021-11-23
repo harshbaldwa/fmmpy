@@ -127,12 +127,13 @@ def test_plot(plot_points, plot_text, save_fig):
     spheres = [0]
     part2bin = np.zeros(N)
 
+    mlab.figure(bgcolor=(0, 0, 0), size=(800, 800))
     plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, part2bin, spheres,
               out_r, plot_points, plot_text, save_fig)
 
 
 def plot(plot_points, plot_text, save_fig):
-    PLOT_FILE = pkg_resources.resource_filename('fmmpy', 'data/plot.yaml')
+    PLOT_FILE = pkg_resources.resource_filename('fmmpy', 'data/tree.yaml')
     with open(PLOT_FILE) as file:
         data = yaml.load(file)
         N = data['N']
@@ -153,29 +154,21 @@ def plot(plot_points, plot_text, save_fig):
               out_r, plot_points, plot_text, save_fig)
 
 
-@mlab.show
-@mlab.animate(delay=100, support_movie=True)
+@mlab.animate(delay=1000, support_movie=True)
 def anim(Ns, s, x, y, z):
     for i in range(Ns):
         s.mlab_source.set(x=x[i], y=y[i], z=z[i])
         yield
 
 
-def find_dist(m, M, x, y, z):
-    return sqrt((x[M] - x[m])**2 + (y[M] - y[m])**2 + (z[M] - z[m])**2)
-
-
 def find_span(x, y, z):
-    xM = np.argmax(x)
-    xm = np.argmin(x)
-    yM = np.argmax(y)
-    ym = np.argmin(y)
-    zM = np.argmax(z)
-    zm = np.argmin(z)
-    xl = find_dist(xm, xM, x, y, z)
-    yl = find_dist(ym, yM, x, y, z)
-    zl = find_dist(zm, zM, x, y, z)
-    l_max = max(xl, yl, zl)
+    xM = np.max(x)
+    xm = np.min(x)
+    yM = np.max(y)
+    ym = np.min(y)
+    zM = np.max(z)
+    zm = np.min(z)
+    l_max = max(xM - xm, yM - ym, zM - zm)
     return l_max
 
 
@@ -191,8 +184,46 @@ def simulate(Ns, N, step):
         x[i, :] = npzfile['x']
         y[i, :] = npzfile['y']
         z[i, :] = npzfile['z']
-        # print(find_span(x[i, :], y[i, :], z[i, :]))
 
     mlab.figure(bgcolor=(0, 0, 0), size=(800, 800))
-    s = mlab.points3d(x[0], y[0], z[0], scale_factor=25)
+    s = mlab.points3d(x[0], y[0], z[0], scale_factor=0.25)
     anim(p_count, s, x, y, z)
+    f = mlab.gcf()
+    f.scene.camera.position = [16.241962354734, 12.8195323162745,
+                               12.810883443906]
+    f.scene.camera.focal_point = [3.4289073944091797, 0.00647735595703125,
+                                  -0.0021715164184570312]
+    f.scene.camera.view_angle = 30.0
+    f.scene.camera.view_up = [-0.33515687663454374, -0.35569205422800776,
+                              0.8724408464782225]
+    f.scene.camera.clipping_range = [13.0517475336264, 274.84607763015]
+    f.scene.camera.compute_view_plane_normal()
+    f.scene.render()
+    mlab.show()
+
+
+def plot_state(filename, N):
+    x = np.zeros(N)
+    y = np.zeros(N)
+    z = np.zeros(N)
+    infile = pkg_resources.resource_filename(
+        'fmmpy', f'data/simulation/sim_{filename}.npz')
+    npzfile = np.load(infile)
+    x[:] = npzfile['x']
+    y[:] = npzfile['y']
+    z[:] = npzfile['z']
+    mlab.figure(bgcolor=(0, 0, 0), size=(800, 800))
+    mlab.points3d(x, y, z, scale_factor=25)
+    # anim(p_count, s, x, y, z)
+    f = mlab.gcf()
+    f.scene.camera.position = [7386.241962354734, 7382.8195323162745,
+                               7382.810883443906]
+    f.scene.camera.focal_point = [3.4289073944091797, 0.00647735595703125,
+                                  -0.0021715164184570312]
+    f.scene.camera.view_angle = 30.0
+    f.scene.camera.view_up = [-0.33515687663454374, -0.35569205422800776,
+                              0.8724408464782225]
+    f.scene.camera.clipping_range = [1346.0517475336264, 27452.84607763015]
+    f.scene.camera.compute_view_plane_normal()
+    f.scene.render()
+    mlab.show()
