@@ -154,7 +154,7 @@ def plot(plot_points, plot_text, save_fig):
               out_r, plot_points, plot_text, save_fig)
 
 
-@mlab.animate(delay=1000, support_movie=True)
+@mlab.animate(delay=50, support_movie=True)
 def anim(Ns, s, x, y, z):
     for i in range(Ns):
         s.mlab_source.set(x=x[i], y=y[i], z=z[i])
@@ -213,17 +213,5 @@ def plot_state(filename, N):
     y[:] = npzfile['y']
     z[:] = npzfile['z']
     mlab.figure(bgcolor=(0, 0, 0), size=(800, 800))
-    mlab.points3d(x, y, z, scale_factor=25)
-    # anim(p_count, s, x, y, z)
-    f = mlab.gcf()
-    f.scene.camera.position = [7386.241962354734, 7382.8195323162745,
-                               7382.810883443906]
-    f.scene.camera.focal_point = [3.4289073944091797, 0.00647735595703125,
-                                  -0.0021715164184570312]
-    f.scene.camera.view_angle = 30.0
-    f.scene.camera.view_up = [-0.33515687663454374, -0.35569205422800776,
-                              0.8724408464782225]
-    f.scene.camera.clipping_range = [1346.0517475336264, 27452.84607763015]
-    f.scene.camera.compute_view_plane_normal()
-    f.scene.render()
+    mlab.points3d(x, y, z, scale_factor=0.025)
     mlab.show()

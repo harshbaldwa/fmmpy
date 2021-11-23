@@ -210,9 +210,9 @@ def test_direct_comp_force():
     direct_comp_force(part_val[1], part_x[1], part_y[1], part_z[1], part_x[0],
                       part_y[0], part_z[0], res_x, res_y, res_z, 0)
 
-    assert pytest.approx(res_x[0], 1e-6) == 1 / (0.75 * sqrt(3))
-    assert pytest.approx(res_y[0], 1e-6) == 1 / (0.75 * sqrt(3))
-    assert pytest.approx(res_z[0], 1e-6) == 1 / (0.75 * sqrt(3))
+    assert pytest.approx(res_x[0], 1e-6) == 0.5 / (3 * 0.5**2 + 0.01**2)**1.5
+    assert pytest.approx(res_y[0], 1e-6) == 0.5 / (3 * 0.5**2 + 0.01**2)**1.5
+    assert pytest.approx(res_z[0], 1e-6) == 0.5 / (3 * 0.5**2 + 0.01**2)**1.5
 
 
 @check_all_backends
@@ -673,9 +673,9 @@ def test_loc_coeff_force(backend):
                           part_x[0], part_y[0], part_z[0], res_dir_x,
                           res_dir_y, res_dir_z, 0)
 
-    assert pytest.approx(res_x[0], abs=3e-3) == res_dir_x[0]
-    assert pytest.approx(res_y[0], abs=3e-3) == res_dir_y[0]
-    assert pytest.approx(res_z[0], abs=3e-3) == res_dir_z[0]
+    assert pytest.approx(res_x[0], abs=5e-3) == res_dir_x[0]
+    assert pytest.approx(res_y[0], abs=5e-3) == res_dir_y[0]
+    assert pytest.approx(res_z[0], abs=5e-3) == res_dir_z[0]
 
 
 @check_all_backends
