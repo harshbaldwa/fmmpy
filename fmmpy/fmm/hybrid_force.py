@@ -1,6 +1,4 @@
-# TODO: Rearrange all the function variables
 from math import fabs, floor, sqrt
-from ..api import read_initial_state, save_sim, timestep, find_span
 
 import compyle.array as ary
 import numpy as np
@@ -8,11 +6,11 @@ from compyle.api import Elementwise, annotate, declare, wrap
 from compyle.low_level import cast
 from scipy.special import legendre
 
+from ..api import find_span, read_initial_state, save_sim, timestep
 from ..tree import build
 
 
-@annotate(int="lst_len, idx", cos_g="float",
-          lst="gfloatp", return_="float")
+@annotate(int="lst_len, idx", cos_g="float", lst="gfloatp", return_="float")
 def lgndre(lst, cos_g, lst_len, idx):
     i = declare("int")
     result = declare("float")
@@ -138,8 +136,7 @@ def direct_solv_force(i, val, x, y, z, res_x, res_y, res_z, num_part):
                               res_x, res_y, res_z, i)
 
 
-@annotate(float="cx, cy, cz, cr, ax, ay, az, ar",
-          return_="int")
+@annotate(float="cx, cy, cz, cr, ax, ay, az, ar", return_="int")
 def is_adj(cx, cy, cz, cr, ax, ay, az, ar):
     dis_x, dis_y, dis_z, rr = declare("float", 4)
     dis_x = fabs(cx - ax)
@@ -385,7 +382,7 @@ def loc_exp(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2, i2c_l,
 
 
 @annotate(gfloatp="in_val, in_x, in_y, in_z, leg_lst, dleg_lst, res_x, res_y, "
-                  "res_z", float="cx, cy, cz, px, py, pz, i2c_l",
+          "res_z", float="cx, cy, cz, px, py, pz, i2c_l",
           int="offset, leg_lim, num_p2, pid")
 def loc_exp_force(in_val, in_x, in_y, in_z, cx, cy, cz, px, py, pz, num_p2,
                   i2c_l, offset, leg_lst, dleg_lst, leg_lim, res_x, res_y,
@@ -522,19 +519,13 @@ def compute_force(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z,
                         aid = parent[aid]
 
                 else:
-                    # Change here is_adj to well separated if the level is same
+                    u_list_force(
+                        part_val, part_x, part_y, part_z, leaf_idx,
+                        bin_count[idx[aid]], start_idx[idx[aid]], pid,
+                        res_x, res_y, res_z)
                     if level[aid] == lev:
-                        u_list_force(
-                            part_val, part_x, part_y, part_z, leaf_idx,
-                            bin_count[idx[aid]], start_idx[idx[aid]], pid,
-                            res_x, res_y, res_z)
                         break
                     else:
-                        u_list_force(
-                            part_val, part_x, part_y, part_z, leaf_idx,
-                            bin_count[idx[aid]], start_idx[idx[aid]],
-                            pid, res_x, res_y, res_z)
-
                         aid = parent[aid]
 
     # calculation using the local expansions
@@ -572,6 +563,20 @@ def solver_force(part_val, part_x, part_y, part_z, vel_x, vel_y, vel_z,
     edirect = Elementwise(direct_solv_force, backend=backend)
     etimestep = Elementwise(timestep, backend=backend)
 
+    leg_lim = order // 2 + 1
+    siz_leg = leg_lim * (leg_lim + 1) // 2 - 2
+    leg_lst = np.zeros(siz_leg, dtype=np.float32)
+    dleg_lst = np.zeros(siz_leg, dtype=np.float32)
+    count = 1
+    for i in range(2, leg_lim):
+        temp_lst = legendre(i)
+        dtemp_lst = temp_lst.deriv()
+        leg_lst[count:count + i + 1] = np.array(temp_lst)[::-1]
+        dleg_lst[count:count + i] = np.array(dtemp_lst)[::-1]
+        count += i + 1
+
+    leg_lst, dleg_lst = wrap(leg_lst, dleg_lst, backend=backend)
+
     save_sim(part_x, part_y, part_z, -1, backend)
 
     for sim in range(Ns):
@@ -595,20 +600,6 @@ def solver_force(part_val, part_x, part_y, part_z, vel_x, vel_y, vel_z,
 
             assoc = ary.empty(80 * cells, dtype=np.int32, backend=backend)
             assoc.fill(-1)
-
-            leg_lim = order // 2 + 1
-            siz_leg = leg_lim * (leg_lim + 1) // 2 - 2
-            leg_lst = np.zeros(siz_leg, dtype=np.float32)
-            dleg_lst = np.zeros(siz_leg, dtype=np.float32)
-            count = 1
-            for i in range(2, leg_lim):
-                temp_lst = legendre(i)
-                dtemp_lst = temp_lst.deriv()
-                leg_lst[count:count + i + 1] = np.array(temp_lst)[::-1]
-                dleg_lst[count:count + i] = np.array(dtemp_lst)[::-1]
-                count += i + 1
-
-            leg_lst, dleg_lst = wrap(leg_lst, dleg_lst, backend=backend)
 
             ecalc_p2_fine = Elementwise(calc_p2_fine, backend=backend)
             ecalc_p2 = Elementwise(calc_p2, backend=backend)
@@ -699,6 +690,10 @@ def solver_force(part_val, part_x, part_y, part_z, vel_x, vel_y, vel_z,
 
         etimestep(part_x, part_y, part_z, vel_x, vel_y, vel_z, res_x, res_y,
                   res_z, dt)
+
+        res_x.resize(0)
+        res_y.resize(0)
+        res_z.resize(0)
 
         if sim % step == 0:
             save_sim(part_x, part_y, part_z, p_count, backend)

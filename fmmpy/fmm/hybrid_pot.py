@@ -1,19 +1,16 @@
-# TODO: Rearrange all the function variables
 from math import fabs, floor, sqrt
 
 import compyle.array as ary
 import numpy as np
-import pkg_resources
-import yaml
 from compyle.api import Elementwise, annotate, declare, wrap
 from compyle.low_level import cast
 from scipy.special import legendre
 
+from ..api import find_span, read_initial_state
 from ..tree import build
 
 
-@annotate(int="lst_len, idx", cos_g="float",
-          lst="gfloatp", return_="float")
+@annotate(int="lst_len, idx", cos_g="float", lst="gfloatp", return_="float")
 def lgndre(lst, cos_g, lst_len, idx):
     i = declare("int")
     result = declare("float")
@@ -439,31 +436,19 @@ def compute(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
                             aid = chid
                             break
 
-                    if h[level[aid]] == -1:
+                    if h[level[aid]] == -1 or child[8 * aid + 7] != -1:
                         h[level[aid]] = 0
                         if level[aid] == lev:
                             break
                         aid = parent[aid]
 
                 else:
+                    result[pid] += u_list(
+                        part_val, part_x, part_y, part_z, leaf_idx,
+                        bin_count[idx[aid]], start_idx[idx[aid]], pid)
                     if level[aid] == lev:
-                        result[pid] += u_list(
-                            part_val, part_x, part_y, part_z, leaf_idx,
-                            bin_count[idx[aid]], start_idx[idx[aid]], pid)
                         break
                     else:
-                        adj = is_adj(cx[aid], cy[aid], cz[aid],
-                                     length / (2.0**(level[aid] + 1)),
-                                     cx[bid], cy[bid], cz[bid], cr_bid)
-                        if adj == 1:
-                            result[pid] += u_list(
-                                part_val, part_x, part_y, part_z, leaf_idx,
-                                bin_count[idx[aid]], start_idx[idx[aid]], pid)
-                        else:
-                            result[pid] += w_list(
-                                out_val, out_x, out_y, out_z, part_x, part_y,
-                                part_z, index_r[aid] * num_p2, num_p2, pid)
-
                         aid = parent[aid]
 
     result[pid] += loc_exp(in_val, in_x, in_y, in_z, cx[bid], cy[bid],
@@ -471,33 +456,26 @@ def compute(i, part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
                            num_p2, i2c_l, brid * num_p2, leg_lst, leg_lim)
 
 
-def solver(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
-           out_r, in_r, length, num_p2, backend, dimension, direct_call=False):
+def solver(part_val, part_x, part_y, part_z, backend, direct_call=False):
 
-    T_DESIGN = pkg_resources.resource_filename('fmmpy', 'data/t_design.yaml')
-    with open(T_DESIGN, 'r') as file:
-        data = yaml.load(file, Loader=yaml.FullLoader)[num_p2]
+    data = read_initial_state()
+    N = data["N"]
+    max_depth = data["max_depth"]
+    out_r = data["out_r"]
+    in_r = data["in_r"]
+    num_p2 = data["num_p2"]
+    dimension = data["dimension"]
     sph_pts = np.array(data['array'], dtype=np.float32)
     order = data['order']
     deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF,
                               0x0000FFFF], dtype=np.int32)
 
-    part_val, part_x, part_y, part_z, sph_pts, deleave_coeff = wrap(
+    (part_val, part_x, part_y, part_z, sph_pts, deleave_coeff) = wrap(
         part_val, part_x, part_y, part_z, sph_pts, deleave_coeff,
         backend=backend)
 
-    (cells, sfc, level, idx, bin_count, start_idx, leaf_idx, parent, child,
-     part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index,
-     lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_val,
-     in_val) = build(
-         N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
-         out_r, in_r, length, num_p2, backend, dimension, sph_pts, order,
-         deleave_coeff)
-
+    edirect = Elementwise(direct_solv, backend=backend)
     res = ary.zeros(N, dtype=np.float32, backend=backend)
-    res_dir = ary.zeros(N, dtype=np.float32, backend=backend)
-    assoc = ary.empty(26 * cells, dtype=np.int32, backend=backend)
-    assoc.fill(-1)
 
     leg_lim = order // 2 + 1
     siz_leg = leg_lim * (leg_lim + 1) // 2 - 2
@@ -510,62 +488,77 @@ def solver(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
 
     leg_lst = wrap(leg_lst, backend=backend)
 
-    ecalc_p2_fine = Elementwise(calc_p2_fine, backend=backend)
-    ecalc_p2 = Elementwise(calc_p2, backend=backend)
-    eassoc_coarse = Elementwise(assoc_coarse, backend=backend)
-    efind_assoc = Elementwise(find_assoc, backend=backend)
-    eloc_coeff = Elementwise(loc_coeff, backend=backend)
-    etrans_loc = Elementwise(trans_loc, backend=backend)
-    ecompute = Elementwise(compute, backend=backend)
+    part_val, part_x, part_y, part_z, sph_pts, deleave_coeff = wrap(
+        part_val, part_x, part_y, part_z, sph_pts, deleave_coeff,
+        backend=backend)
     edirect = Elementwise(direct_solv, backend=backend)
 
-    ecalc_p2_fine(out_val[:lev_cs[max_depth - 1] * num_p2], out_x, out_y,
-                  out_z, part_val, part_x, part_y, part_z, cx, cy, cz, num_p2,
-                  length, index, leg_lim, leg_lst, level, idx, out_r * sqrt(3),
-                  bin_count, start_idx, leaf_idx)
-
-    for lev in range(max_depth - 1, 0, -1):
-        m2c_l = out_r * sqrt(3) * length / (2**(lev + 1))
-        lev_offset = lev_cs[lev - 1] - lev_cs[lev]
-        if lev_offset == 0:
-            continue
-        ecalc_p2(out_val[:lev_offset * num_p2], out_val, out_x, out_y, out_z,
-                 cx, cy, cz, num_p2, index, index_r, leg_lim, leg_lst, child,
-                 lev_cs[lev], m2c_l)
-
-    eassoc_coarse(sfc[levwise_cs[1]:levwise_cs[0]], parent, child, lev_index,
-                  assoc, levwise_cs[1])
-
-    for lev in range(2, max_depth + 1):
-        lev_offset = levwise_cs[lev - 1] - levwise_cs[lev]
-        if lev_offset == 0:
-            continue
-        efind_assoc(idx[:lev_offset], cx, cy, cz, level,
-                    assoc, child, parent, levwise_cs[lev], lev_index,
-                    lev_index_r, length)
-
-    eloc_coeff(in_val[:lev_cs[1] * num_p2], in_x, in_y, in_z, out_val, out_x,
-               out_y, out_z, part_val, part_x, part_y, part_z, cx, cy, cz,
-               assoc, child, parent, num_p2, level, index, index_r,
-               lev_index_r, idx, leaf_idx, start_idx, bin_count, length)
-
-    for lev in range(3, max_depth + 1):
-        i2c_l = in_r * sqrt(3) * length / (2**(lev))
-        lev_offset = levwise_cs[lev - 1] - levwise_cs[lev]
-        if lev_offset == 0:
-            continue
-        etrans_loc(in_val[:lev_offset * num_p2], in_val, in_x, in_y, in_z, cx,
-                   cy, cz, i2c_l, num_p2, leg_lst, leg_lim, index_r, lev_index,
-                   parent, levwise_cs[lev])
-
-    ecompute(part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
-             idx, parent, child, assoc, index_r, lev_index_r, leaf_idx,
-             bin_count, start_idx, out_val, out_x, out_y, out_z, in_val, in_x,
-             in_y, in_z, cx, cy, cz, res, leg_lst, num_p2, leg_lim, in_r,
-             length)
-
     if direct_call:
-        edirect(part_val, part_x, part_y, part_z, res_dir, N)
-        return res, res_dir
+        edirect(part_val, part_x, part_y, part_z, res, N)
     else:
-        return res
+        length, x_min, y_min, z_min = find_span(part_x, part_y, part_z)
+        (cells, sfc, level, idx, bin_count, start_idx, leaf_idx, parent, child,
+         part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index,
+         lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z,
+         out_val, in_val) = build(
+            N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min,
+            z_min, out_r, in_r, length, num_p2, backend, dimension, sph_pts,
+            order, deleave_coeff)
+
+        assoc = ary.empty(26 * cells, dtype=np.int32, backend=backend)
+        assoc.fill(-1)
+
+        ecalc_p2_fine = Elementwise(calc_p2_fine, backend=backend)
+        ecalc_p2 = Elementwise(calc_p2, backend=backend)
+        eassoc_coarse = Elementwise(assoc_coarse, backend=backend)
+        efind_assoc = Elementwise(find_assoc, backend=backend)
+        eloc_coeff = Elementwise(loc_coeff, backend=backend)
+        etrans_loc = Elementwise(trans_loc, backend=backend)
+        ecompute = Elementwise(compute, backend=backend)
+
+        ecalc_p2_fine(out_val[:lev_cs[max_depth - 1] * num_p2], out_x, out_y,
+                      out_z, part_val, part_x, part_y, part_z, cx, cy, cz,
+                      num_p2, length, index, leg_lim, leg_lst, level, idx,
+                      out_r * sqrt(3), bin_count, start_idx, leaf_idx)
+
+        for lev in range(max_depth - 1, 0, -1):
+            m2c_l = out_r * sqrt(3) * length / (2**(lev + 1))
+            lev_offset = lev_cs[lev - 1] - lev_cs[lev]
+            if lev_offset == 0:
+                continue
+            ecalc_p2(out_val[:lev_offset * num_p2], out_val, out_x, out_y,
+                     out_z, cx, cy, cz, num_p2, index, index_r, leg_lim,
+                     leg_lst, child, lev_cs[lev], m2c_l)
+
+        eassoc_coarse(sfc[levwise_cs[1]:levwise_cs[0]], parent, child,
+                      lev_index, assoc, levwise_cs[1])
+
+        for lev in range(2, max_depth + 1):
+            lev_offset = levwise_cs[lev - 1] - levwise_cs[lev]
+            if lev_offset == 0:
+                continue
+            efind_assoc(idx[:lev_offset], cx, cy, cz, level,
+                        assoc, child, parent, levwise_cs[lev], lev_index,
+                        lev_index_r, length)
+
+        eloc_coeff(in_val[:lev_cs[1] * num_p2], in_x, in_y, in_z, out_val,
+                   out_x, out_y, out_z, part_val, part_x, part_y, part_z, cx,
+                   cy, cz, assoc, child, parent, num_p2, level, index, index_r,
+                   lev_index_r, idx, leaf_idx, start_idx, bin_count, length)
+
+        for lev in range(3, max_depth + 1):
+            i2c_l = in_r * sqrt(3) * length / (2**(lev))
+            lev_offset = levwise_cs[lev - 1] - levwise_cs[lev]
+            if lev_offset == 0:
+                continue
+            etrans_loc(in_val[:lev_offset * num_p2], in_val, in_x, in_y, in_z,
+                       cx, cy, cz, i2c_l, num_p2, leg_lst, leg_lim, index_r,
+                       lev_index, parent, levwise_cs[lev])
+
+        ecompute(part2bin, p2b_offset, part_val, part_x, part_y, part_z, level,
+                 idx, parent, child, assoc, index_r, lev_index_r, leaf_idx,
+                 bin_count, start_idx, out_val, out_x, out_y, out_z, in_val,
+                 in_x, in_y, in_z, cx, cy, cz, res, leg_lst, num_p2, leg_lim,
+                 in_r, length)
+
+    return res

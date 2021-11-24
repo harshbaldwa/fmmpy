@@ -185,7 +185,7 @@ def simulate(Ns, N, step):
         y[i, :] = npzfile['y']
         z[i, :] = npzfile['z']
 
-    mlab.figure(bgcolor=(0, 0, 0), size=(800, 800))
+    mlab.figure(bgcolor=(0, 0, 0), size=(1920, 1080))
     s = mlab.points3d(x[0], y[0], z[0], scale_factor=0.25)
     anim(p_count, s, x, y, z)
     f = mlab.gcf()

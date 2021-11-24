@@ -134,3 +134,4 @@ dmypy.json
 # Testing area
 .test_area/
 old/
+fmmpy/data/simulation/

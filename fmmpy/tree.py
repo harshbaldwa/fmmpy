@@ -1,4 +1,3 @@
-# TODO: rearrange all the function variables
 # LATER: resize if certain cell is filled with particles
 # LATER: add legendre polynomial list as physical file
 
