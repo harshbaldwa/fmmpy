@@ -1,6 +1,4 @@
-# LATER: resize if certain cell is filled with particles
 # LATER: add legendre polynomial list as physical file
-
 from math import floor, sqrt
 
 import compyle.array as ary
@@ -295,6 +293,86 @@ def p2bin(i, idx, bin_count, start_idx, part2bin, p2b_offset, leaf_idx):
             p2b_offset[leaf_idx[start_idx[idx[i]] + n]] = n
 
 
+@annotate(i='int', gintp='new_count, idx, bin_count')
+def set_new_count(i, new_count, idx, bin_count):
+    if idx[i] == -1:
+        return
+    else:
+        new_count[i] = bin_count[idx[i]]
+
+
+@annotate(i='int', gintp='new_count, idx, bin_count, level')
+def find_num_part(i, new_count, idx, level, bin_count):
+    j = declare('int')
+    j = 1
+    if i == 0:
+        return
+    elif level[i] < level[i - 1]:
+        while level[i] < level[i - j] and i - j >= 0:
+            if idx[i - j] != -1:
+                new_count[i] += new_count[i - j]
+            j += 1
+    else:
+        return
+
+
+@annotate(int='i, n_max', gintp='new_count, level, idx, merge_idx, parent, '
+          'child')
+def merge_mark(i, idx, level, new_count, merge_idx, n_max, parent, child):
+    j, k, cid, pid, nid = declare('int', 5)
+    if new_count[i] > n_max or idx[i] != -1:
+        return
+    elif new_count[i] <= n_max and idx[i] == -1:
+        pid = parent[i]
+        cid = i
+        nid = 0
+        if new_count[pid] > n_max:
+            for j in range(8):
+                if child[8 * pid + j] == cid:
+                    if j != 0:
+                        nid = child[8 * pid + j - 1]
+                    else:
+                        while idx[cid] == -1:
+                            pid = cid
+                            cid = child[8 * pid]
+                        nid = cid - 1
+                    for k in range(nid + 1, i):
+                        merge_idx[k] = 1
+                    return
+
+
+@annotate(i='int', gintp='sfc_n, level_n, idx_n, parent_n, child_n, sfc, '
+          'level, temp_idx, parent, child, cumsum_merge, merge_idx, '
+          'temp_count, new_count')
+def merge(i, sfc_n, level_n, idx_n, parent_n, child_n, sfc, level, temp_idx,
+          parent, child, cumsum_merge, merge_idx, temp_count, new_count):
+    n, j, chid = declare('int', 3)
+    if merge_idx[i] == 0:
+        n = i - cumsum_merge[i]
+        sfc[n] = sfc_n[i]
+        level[n] = level_n[i]
+        parent[n] = parent_n[i] - cumsum_merge[parent_n[i]]
+
+        if (i != 0 and merge_idx[i - 1] == 1) or idx_n[i] != -1:
+            temp_idx[n] = 1
+            temp_count[n] = new_count[i]
+        elif idx_n[i] == -1:
+            temp_idx[n] = 0
+            for j in range(8):
+                chid = child_n[8 * i + j]
+                if chid != -1:
+                    child[8 * n + j] = chid - cumsum_merge[chid]
+
+
+@annotate(i='int', gintp='idx, temp_idx, cumsum_idx, bin_count, temp_count')
+def correct_idx(i, idx, temp_idx, cumsum_idx, bin_count, temp_count):
+    if temp_idx[i] == 0:
+        idx[i] = -1
+    else:
+        idx[i] = cumsum_idx[i]
+        bin_count[idx[i]] = temp_count[i]
+
+
 # TODO: make dimension a parameter
 @annotate(x="int", coeff="gintp", return_="int")
 def deinterleave(x, coeff):
@@ -355,8 +433,8 @@ def levwise_info(i, level, lev_n):
     _ = atomic_inc(lev_n[level[i]])
 
 
-def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
-          out_r, in_r, length, num_p2, backend, dimension, sph_pts, order,
+def build(N, max_depth, n_max, part_x, part_y, part_z, x_min, y_min, z_min,
+          out_r, in_r, length, num_p2, backend, dimension, sph_pts,
           deleave_coeff):
 
     max_index = 2 ** max_depth
@@ -366,7 +444,7 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     leaf_idx = ary.arange(0, N, 1, dtype=np.int32, backend=backend)
     bin_count = ary.ones(N, dtype=np.int32, backend=backend)
     bin_idx = ary.zeros(N, dtype=np.int32, backend=backend)
-    start_idx = ary.zeros(N, dtype=np.int32, backend=backend)
+    # start_idx = ary.zeros(N, dtype=np.int32, backend=backend)
 
     # different functions start from here
     eget_particle_index = Elementwise(get_particle_index, backend=backend)
@@ -436,12 +514,12 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     [bin_idx_sorted, bin_count_sorted, leaf_sfc], _ = radix_sort(
         [bin_idx, bin_count, leaf_sfc_sorted], backend=backend)
 
-    cumsum(in_arr=bin_count_sorted, out_arr=start_idx)
+    # cumsum(in_arr=bin_count_sorted, out_arr=start_idx)
     repeated = reduction(bin_idx)
     M = N - repeated
 
     leaf_sfc.resize(M)
-    start_idx.resize(M)
+    # start_idx.resize(M)
     bin_count = bin_count_sorted[:M]
     leaf_idx = leaf_idx_sorted[:]
 
@@ -582,6 +660,40 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
                    child, sfc_n, level_n, idx_n, parent_n, child_n,
                    dimension, move_up)
 
+    new_count = ary.zeros(total_cells, dtype=np.int32, backend=backend)
+    merge_idx = ary.zeros(total_cells, dtype=np.int32, backend=backend)
+    cumsum_merge = ary.zeros(total_cells, dtype=np.int32, backend=backend)
+    eset_new_count = Elementwise(set_new_count, backend=backend)
+    efind_num_part = Elementwise(find_num_part, backend=backend)
+    emerge_mark = Elementwise(merge_mark, backend=backend)
+    emerge = Elementwise(merge, backend=backend)
+    ecorrect_idx = Elementwise(correct_idx, backend=backend)
+    eset_new_count(new_count, idx_n, bin_count)
+    efind_num_part(new_count, idx_n, level_n, bin_count)
+    emerge_mark(idx_n, level_n, new_count, merge_idx, n_max, parent_n, child_n)
+    remove_cells = reduction(merge_idx)
+    cumsum(in_arr=merge_idx, out_arr=cumsum_merge)
+    total_cells = total_cells - remove_cells
+    sfc_a = ary.zeros(total_cells, dtype=np.int32, backend=backend)
+    level_a = ary.zeros(total_cells, dtype=np.int32, backend=backend)
+    idx_a = ary.zeros(total_cells, dtype=np.int32, backend=backend)
+    temp_idx = ary.zeros(total_cells, dtype=np.int32, backend=backend)
+    temp_count = ary.zeros(total_cells, dtype=np.int32, backend=backend)
+    cumsum_idx = ary.zeros(total_cells, dtype=np.int32, backend=backend)
+    parent_a = ary.zeros(total_cells, dtype=np.int32, backend=backend)
+    child_a = ary.empty(8 * total_cells, dtype=np.int32, backend=backend)
+    child_a.fill(-1)
+    emerge(sfc_n, level_n, idx_n, parent_n, child_n, sfc_a, level_a, temp_idx,
+           parent_a, child_a, cumsum_merge, merge_idx, temp_count, new_count)
+    cumsum(in_arr=temp_idx, out_arr=cumsum_idx)
+    ecorrect_idx(idx_a, temp_idx, cumsum_idx, bin_count, temp_count)
+
+    size_bin = cumsum_idx[-1]
+
+    bin_count = bin_count[:size_bin]
+    start_idx = ary.zeros(size_bin, dtype=np.int32, backend=backend)
+    cumsum(in_arr=bin_count, out_arr=start_idx)
+
     leaf_sfc.resize(0)
     leaf_idx_pointer.resize(0)
     leaf_level.resize(0)
@@ -638,12 +750,12 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     part2bin = ary.zeros(N, dtype=np.int32, backend=backend)
     p2b_offset = ary.zeros(N, dtype=np.int32, backend=backend)
 
-    ep2bin(idx_n, bin_count, start_idx, part2bin, p2b_offset, leaf_idx)
+    ep2bin(idx_a, bin_count, start_idx, part2bin, p2b_offset, leaf_idx)
 
-    ecalc_center(sfc_n, level_n, cx, cy, cz, x_min, y_min, z_min, length,
+    ecalc_center(sfc_a, level_a, cx, cy, cz, x_min, y_min, z_min, length,
                  deleave_coeff)
 
-    [s1_lev, s1_idx, s1_index], _ = radix_sort([level_n, idx_n, index],
+    [s1_lev, s1_idx, s1_index], _ = radix_sort([level_a, idx_a, index],
                                                backend=backend)
     ereverse3(s2_idx, s2_lev, s2_index, s1_idx, s1_lev, s1_index, total_cells)
 
@@ -663,20 +775,20 @@ def build(N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
     s1_idx.resize(0)
     index.resize(0)
 
-    elev_info(level_n, idx_n, lev_n, max_depth)
-    elevwise_info(level_n, levwise_n)
+    elev_info(level_a, idx_a, lev_n, max_depth)
+    elevwise_info(level_a, levwise_n)
     ereverse2(lev_nr, levwise_nr, lev_n, levwise_n, max_depth + 1)
     cumsum(in_arr=lev_nr, out_arr=lev_cs)
     cumsum(in_arr=levwise_nr, out_arr=levwise_cs)
     ereverse2(lev_n, levwise_n, lev_cs, levwise_cs, max_depth + 1)
 
     esetting_p2(out_x, out_y, out_z, in_x, in_y, in_z, sph_pts, cx, cy, cz,
-                out_r, in_r, length, level_n, num_p2, s1_index)
+                out_r, in_r, length, level_a, num_p2, s1_index)
 
     lev_nr.resize(0)
     levwise_nr.resize(0)
 
-    return (total_cells, sfc_n, level_n, idx_n, bin_count, start_idx, leaf_idx,
-            parent_n, child_n, part2bin, p2b_offset, lev_n, levwise_n,
+    return (total_cells, sfc_a, level_a, idx_a, bin_count, start_idx, leaf_idx,
+            parent_a, child_a, part2bin, p2b_offset, lev_n, levwise_n,
             s1_index, s1r_index, lev_index, lev_index_r, cx, cy, cz, out_x,
             out_y, out_z, in_x, in_y, in_z, out_vl, in_vl)

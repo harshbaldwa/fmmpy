@@ -32,14 +32,15 @@ def timestep(i, part_x, part_y, part_z, vel_x, vel_y, vel_z, res_x, res_y,
     part_z[i] += vel_z[i] * dt
 
 
-def save_initial_state(N, max_depth, out_r, in_r, num_p2, dimension, dt, Ns,
-                       step):
+def save_initial_state(N, max_depth, n_max, out_r, in_r, num_p2, dimension,
+                       dt=0, Ns=0, step=0):
     """
     Saves the initial state of the simulation.
     """
     data = {
         "N": N,
         "max_depth": max_depth,
+        "n_max": n_max,
         "out_r": out_r,
         "in_r": in_r,
         "num_p2": num_p2,

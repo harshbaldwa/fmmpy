@@ -91,7 +91,7 @@ def plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, part2bin, spheres,
                    0.3 - level[i] * 0.05))
 
     if plot_points:
-        mlab.points3d(x, y, z, np.arange(N), scale_factor=0.025,
+        mlab.points3d(x, y, z, np.arange(N), scale_factor=0.25,
                       scale_mode='none', color=(1, 1, 1))
 
     if plot_text:
@@ -99,7 +99,7 @@ def plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, part2bin, spheres,
             mlab.text3d(x[i], y[i], z[i], str(i) + ", " + str(part2bin[i]),
                         scale=(0.03, 0.03, 0.03))
 
-    if True:
+    if False:
         mlab.points3d(cx, cy, cz, np.arange(cells), scale_factor=0.025,
                       scale_mode='none', color=(0, 0, 0))
         for i in range(cells):
@@ -154,7 +154,7 @@ def plot(plot_points, plot_text, save_fig):
               out_r, plot_points, plot_text, save_fig)
 
 
-@mlab.animate(delay=50, support_movie=True)
+@mlab.animate(delay=10, support_movie=True)
 def anim(Ns, s, x, y, z):
     for i in range(Ns):
         s.mlab_source.set(x=x[i], y=y[i], z=z[i])
@@ -172,7 +172,14 @@ def find_span(x, y, z):
     return l_max
 
 
-def simulate(Ns, N, step):
+def simulate():
+    INI_STATE = pkg_resources.resource_filename('fmmpy', 'data/ini_state.yaml')
+    with open(INI_STATE, 'r') as infile:
+        data = yaml.load(infile)
+
+    Ns = data['Ns']
+    N = data['N']
+    step = data['step']
     p_count = ceil(Ns / step)
     x = np.zeros((p_count, N))
     y = np.zeros((p_count, N))
@@ -186,11 +193,11 @@ def simulate(Ns, N, step):
         z[i, :] = npzfile['z']
 
     mlab.figure(bgcolor=(0, 0, 0), size=(1920, 1080))
-    s = mlab.points3d(x[0], y[0], z[0], scale_factor=0.25)
+    s = mlab.points3d(x[0], y[0], z[0], scale_factor=6.25)
     anim(p_count, s, x, y, z)
     f = mlab.gcf()
-    f.scene.camera.position = [16.241962354734, 12.8195323162745,
-                               12.810883443906]
+    f.scene.camera.position = [100.241962354734, 100.8195323162745,
+                               100.810883443906]
     f.scene.camera.focal_point = [3.4289073944091797, 0.00647735595703125,
                                   -0.0021715164184570312]
     f.scene.camera.view_angle = 30.0

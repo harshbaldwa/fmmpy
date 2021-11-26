@@ -461,6 +461,7 @@ def solver(part_val, part_x, part_y, part_z, backend, direct_call=False):
     data = read_initial_state()
     N = data["N"]
     max_depth = data["max_depth"]
+    n_max = data["n_max"]
     out_r = data["out_r"]
     in_r = data["in_r"]
     num_p2 = data["num_p2"]
@@ -487,10 +488,6 @@ def solver(part_val, part_x, part_y, part_z, backend, direct_call=False):
         count += i + 1
 
     leg_lst = wrap(leg_lst, backend=backend)
-
-    part_val, part_x, part_y, part_z, sph_pts, deleave_coeff = wrap(
-        part_val, part_x, part_y, part_z, sph_pts, deleave_coeff,
-        backend=backend)
     edirect = Elementwise(direct_solv, backend=backend)
 
     if direct_call:
@@ -501,9 +498,9 @@ def solver(part_val, part_x, part_y, part_z, backend, direct_call=False):
          part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index,
          lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z,
          out_val, in_val) = build(
-            N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min,
-            z_min, out_r, in_r, length, num_p2, backend, dimension, sph_pts,
-            order, deleave_coeff)
+            N, max_depth, n_max, part_x, part_y, part_z, x_min, y_min, z_min,
+            out_r, in_r, length, num_p2, backend, dimension, sph_pts,
+            deleave_coeff)
 
         assoc = ary.empty(26 * cells, dtype=np.int32, backend=backend)
         assoc.fill(-1)
