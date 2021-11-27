@@ -368,6 +368,7 @@ def test_loc_coeff(backend):
     dimension = 3
     N = 5
     max_depth = 2
+    n_max = 1
     num_p2 = 12
     x_min = 0
     y_min = 0
@@ -394,8 +395,8 @@ def test_loc_coeff(backend):
      part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index,
      lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_val,
      in_val) = build(
-         N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
-         out_r, in_r, length, num_p2, backend, dimension, sph_pts, order,
+         N, max_depth, n_max, part_x, part_y, part_z, x_min, y_min, z_min,
+         out_r, in_r, length, num_p2, backend, dimension, sph_pts,
          deleave_coeff)
 
     assoc = ary.empty(26 * cells, dtype=np.int32, backend=backend)
@@ -466,6 +467,7 @@ def test_trans_loc(backend):
     dimension = 3
     N = 4
     max_depth = 3
+    n_max = 1
     num_p2 = 24
     x_min = 0
     y_min = 0
@@ -493,8 +495,8 @@ def test_trans_loc(backend):
      part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index,
      lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_val,
      in_val) = build(
-         N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
-         out_r, in_r, length, num_p2, backend, dimension, sph_pts, order,
+         N, max_depth, n_max, part_x, part_y, part_z, x_min, y_min, z_min,
+         out_r, in_r, length, num_p2, backend, dimension, sph_pts,
          deleave_coeff)
 
     assoc = ary.empty(26 * cells, dtype=np.int32, backend=backend)
@@ -575,6 +577,7 @@ def test_compute(backend):
     dimension = 3
     N = 5
     max_depth = 3
+    n_max = 1
     num_p2 = 24
     x_min = 0
     y_min = 0
@@ -600,8 +603,8 @@ def test_compute(backend):
      part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r, lev_index,
      lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, out_val,
      in_val) = build(
-         N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
-         out_r, in_r, length, num_p2, backend, dimension, sph_pts, order,
+         N, max_depth, n_max, part_x, part_y, part_z, x_min, y_min, z_min,
+         out_r, in_r, length, num_p2, backend, dimension, sph_pts,
          deleave_coeff)
 
     res = ary.zeros(N, dtype=np.float32, backend=backend)

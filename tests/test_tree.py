@@ -469,13 +469,13 @@ def test_build(backend):
     check_import(backend)
     N = 6
     max_depth = 3
-    part_val = np.ones(N, dtype=np.int32)
     part_x = np.array([0.0625, 0.0630, 0.125, 0.375, 0.8125, 0.9375],
                       dtype=np.float32)
     part_y = np.array([0.0625, 0.0625, 0.625, 0.875, 0.4375, 0.4375],
                       dtype=np.float32)
     part_z = np.array([0.0625, 0.0625, 0.125, 0.375, 0.0625, 0.0625],
                       dtype=np.float32)
+    n_max = 1
     x_min = 0
     y_min = 0
     z_min = 0
@@ -488,7 +488,6 @@ def test_build(backend):
     with open(T_DESIGN, 'r') as file:
         data = yaml.load(file, Loader=yaml.FullLoader)[num_p2]
     sph_pts = np.array(data['array'], dtype=np.float32)
-    order = data['order']
     deleave_coeff = np.array([0x49249249, 0xC30C30C3, 0xF00F00F, 0xFF0000FF,
                               0x0000FFFF], dtype=np.int32)
 
@@ -525,16 +524,16 @@ def test_build(backend):
         r_child, r_part2bin, r_p2b_offset, r_lev_cs, r_levwise_cs, r_index,
         r_index_r, r_lev_index, r_lev_index_r, backend=backend)
 
-    part_val, part_x, part_y, part_z, sph_pts, deleave_coeff = wrap(
-        part_val, part_x, part_y, part_z, sph_pts, deleave_coeff,
+    part_x, part_y, part_z, sph_pts, deleave_coeff = wrap(
+        part_x, part_y, part_z, sph_pts, deleave_coeff,
         backend=backend)
 
     (cells, sfc, level, idx, bin_count, start_idx, leaf_idx, parent,
      child, part2bin, p2b_offset, lev_cs, levwise_cs, index, index_r,
      lev_index, lev_index_r, cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z,
      out_val, in_val) = build(
-         N, max_depth, part_val, part_x, part_y, part_z, x_min, y_min, z_min,
-         out_r, in_r, length, num_p2, backend, dimension, sph_pts, order,
+         N, max_depth, n_max, part_x, part_y, part_z, x_min, y_min, z_min,
+         out_r, in_r, length, num_p2, backend, dimension, sph_pts,
          deleave_coeff)
 
     assert r_cells == cells
