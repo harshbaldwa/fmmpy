@@ -1,4 +1,3 @@
-# LATER: add legendre polynomial list as physical file
 from math import floor, sqrt
 
 import compyle.array as ary
@@ -9,11 +8,23 @@ from compyle.sort import radix_sort
 from compyle.template import Template
 
 
-# TODO: Make dimension independent
-@annotate(i="int", index="gintp", gfloatp="x, y, z",
-          double="max_index, length, x_min, y_min, z_min")
-def get_particle_index(i, index, x, y, z, max_index, length, x_min, y_min,
-                       z_min):
+@annotate(int="i, max_index", index="gintp", gfloatp="x, y, z",
+          double="length, x_min, y_min, z_min")
+def get_part_index(i, index, x, y, z, max_index, length, x_min, y_min, z_min):
+    """Get the Morton z-index of particles using particles' coordinates.
+
+    Args:
+        i (int): iterator for Elementwise function
+        index (int[]): Morton z-index of particles at finest level
+        x (float[]): particle x-coordinates
+        y (float[]): particle y-coordinates
+        z (float[]): particle z-coordinates
+        max_index (int): 2 ** max_level
+        length (double): length of the box
+        x_min (double): minimum x-coordinate
+        y_min (double): minimum y-coordinate
+        z_min (double): minimum z-coordinate
+    """
     nx, ny, nz = declare("int", 3)
     nx = cast(floor((max_index * (x[i] - x_min)) / length), "int")
     ny = cast(floor((max_index * (y[i] - y_min)) / length), "int")
@@ -447,7 +458,7 @@ def build(N, max_depth, n_max, part_x, part_y, part_z, x_min, y_min, z_min,
     # start_idx = ary.zeros(N, dtype=np.int32, backend=backend)
 
     # different functions start from here
-    eget_particle_index = Elementwise(get_particle_index, backend=backend)
+    eget_part_index = Elementwise(get_part_index, backend=backend)
     esingle_node = Elementwise(single_node, backend=backend)
     cumsum = Scan(input_expr, output_expr, 'a+b',
                   dtype=np.int32, backend=backend)
@@ -503,8 +514,8 @@ def build(N, max_depth, n_max, part_x, part_y, part_z, x_min, y_min, z_min,
     elevwise_info = Elementwise(levwise_info, backend=backend)
 
     # calculations
-    eget_particle_index(leaf_sfc, part_x, part_y, part_z, max_index, length,
-                        x_min, y_min, z_min)
+    eget_part_index(leaf_sfc, part_x, part_y, part_z, max_index, length, x_min,
+                    y_min, z_min)
 
     [leaf_sfc_sorted, leaf_idx_sorted], _ = radix_sort(
         [leaf_sfc, leaf_idx], backend=backend)
