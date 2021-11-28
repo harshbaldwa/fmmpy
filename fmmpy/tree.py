@@ -8,10 +8,10 @@ from compyle.sort import radix_sort
 from compyle.template import Template
 
 
-@annotate(int="i, max_index", index="gintp", gfloatp="x, y, z",
-          double="length, x_min, y_min, z_min")
+@annotate(int='i, max_index', index='gintp', gfloatp='x, y, z',
+          double='length, x_min, y_min, z_min')
 def get_part_index(i, index, x, y, z, max_index, length, x_min, y_min, z_min):
-    """Get the Morton z-index of particles using particles' coordinates.
+    """Get the Morton z-index of particles using particles' coordinates
 
     Args:
         i (int): iterator for Elementwise function
@@ -20,15 +20,15 @@ def get_part_index(i, index, x, y, z, max_index, length, x_min, y_min, z_min):
         y (float[]): particle y-coordinates
         z (float[]): particle z-coordinates
         max_index (int): 2 ** max_level
-        length (double): length of the box
-        x_min (double): minimum x-coordinate
-        y_min (double): minimum y-coordinate
-        z_min (double): minimum z-coordinate
+        length (double): length of the domain
+        x_min (double): minimum x-coordinate of the domain
+        y_min (double): minimum y-coordinate of the domain
+        z_min (double): minimum z-coordinate of the domain
     """
-    nx, ny, nz = declare("int", 3)
-    nx = cast(floor((max_index * (x[i] - x_min)) / length), "int")
-    ny = cast(floor((max_index * (y[i] - y_min)) / length), "int")
-    nz = cast(floor((max_index * (z[i] - z_min)) / length), "int")
+    nx, ny, nz = declare('int', 3)
+    nx = cast(floor((max_index * (x[i] - x_min)) / length), 'int')
+    ny = cast(floor((max_index * (y[i] - y_min)) / length), 'int')
+    nz = cast(floor((max_index * (z[i] - z_min)) / length), 'int')
 
     nx = (nx | (nx << 16)) & 0x030000FF
     nx = (nx | (nx << 8)) & 0x0300F00F
@@ -49,13 +49,15 @@ def get_part_index(i, index, x, y, z, max_index, length, x_min, y_min, z_min):
 
 
 class CopyArrays(Template):
+    """Copy arrays in parallel
+    """
     def __init__(self, name, arrays):
         super(CopyArrays, self).__init__(name=name)
         self.arrays = arrays
         self.number = len(arrays)
 
     def extra_args(self):
-        return self.arrays, {"intp": ','.join(self.arrays)}
+        return self.arrays, {'intp': ','.join(self.arrays)}
 
     @annotate(i='int')
     def template(self, i):
@@ -67,14 +69,16 @@ class CopyArrays(Template):
 
 
 class ReverseArrays(Template):
+    """Reverse arrays in parallel
+    """
     def __init__(self, name, arrays):
         super(ReverseArrays, self).__init__(name=name)
         self.arrays = arrays
         self.number = len(arrays)
 
     def extra_args(self):
-        return self.arrays + ["length"], {"intp": ','.join(self.arrays),
-                                          "length": "int"}
+        return self.arrays + ['length'], {'intp': ','.join(self.arrays),
+                                          'length': 'int'}
 
     @annotate(i='int')
     def template(self, i):
@@ -85,9 +89,18 @@ class ReverseArrays(Template):
         '''
 
 
-@annotate(i="int", gintp="leaf_sfc, leaf_sfc_a, bin_count, bin_idx")
+@annotate(i='int', gintp='leaf_sfc, leaf_sfc_a, bin_count, bin_idx')
 def single_node(i, leaf_sfc, leaf_sfc_a, bin_count, bin_idx):
-    j = declare("int")
+    """Merge the particles having the same Morton z-index into one bin
+
+    Args:
+        i (int): iterator for Elementwise function
+        leaf_sfc (int[]): Morton z-index of particles at finest level
+        leaf_sfc_a (int[]): Morton z-index at finest level shifted by one place
+        bin_count (int[]): number of particles in each bin
+        bin_idx (int[]): marks bins which are repeated
+    """
+    j = declare('int')
     if leaf_sfc[i] != leaf_sfc_a[i]:
         return
     elif i != 0 and leaf_sfc[i - 1] == leaf_sfc_a[i]:
@@ -100,30 +113,47 @@ def single_node(i, leaf_sfc, leaf_sfc_a, bin_count, bin_idx):
             j += 1
 
 
-@annotate(i="int", x="gintp")
+@annotate(i='int', x='gintp')
 def map_sum(i, x):
+    """Reduction to get the sum of the array
+    """
     return x[i]
 
 
-@annotate(i="int", in_arr="gintp", return_="int")
+@annotate(i='int', in_arr='gintp', return_='int')
 def input_expr(i, in_arr):
+    """ Prefix sum of the array
+    """
     if i == 0:
         return 0
     else:
         return in_arr[i - 1]
 
 
-@annotate(int="i, item", out_arr="gintp")
+@annotate(int='i, item', out_arr='gintp')
 def output_expr(i, item, out_arr):
+    """ Prefix sum of the array
+    """
     out_arr[i] = item
 
 
-@annotate(gintp="sfc1, sfc2, level1, level2, lca_sfc, lca_level",
-          int="i, dimension")
-def internal_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level,
-                   dimension):
-    level_diff, xor_id, i1, i2, level, j = declare("int", 6)
-    level_diff = cast(abs(level1[i] - level2[i]), "int")
+@annotate(gintp='sfc1, sfc2, level1, level2, lca_sfc, lca_level',
+          int='i, dimension')
+def inter_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level, dimension):
+    """Find the lowest common ancestor of all nodes at the finest level
+
+    Args:
+        i (int): iterator for Elementwise function
+        sfc1 (int[]): Morton z-index at finest level
+        sfc2 (int[]): Morton z-index at finest level shifted by one place
+        level1 (int[]): level of nodes at finest level
+        level2 (int[]): level of nodes at finest level shifted by one place
+        lca_sfc (int[]): Morton z-index of internal nodes
+        lca_level (int[]): level of internal nodes
+        dimension (int): dimension of the problem
+    """
+    level_diff, xor_id, i1, i2, level, j = declare('int', 6)
+    level_diff = cast(abs(level1[i] - level2[i]), 'int')
 
     if level1[i] - level2[i] > 0:
         i1 = sfc1[i]
@@ -156,12 +186,27 @@ def internal_nodes(i, sfc1, sfc2, level1, level2, lca_sfc, lca_level,
     return
 
 
-@annotate(gintp="sfc1, sfc2, level1, level2, lca_sfc, "
-                "all_idx, lca_level, temp_idx", int="i, dimension")
-def find_parents(i, sfc1, sfc2, level1, level2, all_idx, lca_sfc,
-                 lca_level, temp_idx, dimension):
-    level_diff, xor_id, i1, i2, level, j = declare("int", 6)
-    level_diff = cast(abs(level1[i] - level2[i]), "int")
+@annotate(gintp='sfc1, sfc2, level1, level2, lca_sfc, all_idx, lca_level, '
+          'temp_idx', int='i, dimension')
+def find_parents(i, sfc1, sfc2, level1, level2, all_idx, lca_sfc, lca_level,
+                 temp_idx, dimension):
+    """Find the parents of all the nodes and internal nodes
+
+    Args:
+        i (int): iterator for Elementwise function
+        sfc1 (int[]): Morton z-index of nodes for calculating the parents
+        sfc2 (int[]): Morton z-index of nodes shifted by one place
+        level1 (int[]): level of nodes for calculating the parents
+        level2 (int[]): level of nodes shifted by one place
+        all_idx (int[]): relative index of the nodes in tree
+        lca_sfc (int[]): Morton z-index of parents
+        lca_level (int[]): level of parents
+        temp_idx (int[]): temporary array to store the relative index of the
+                          child of the current parent node
+        dimension (int): dimension of the problem
+    """
+    level_diff, xor_id, i1, i2, level, j = declare('int', 6)
+    level_diff = cast(abs(level1[i] - level2[i]), 'int')
 
     if level1[i] - level2[i] > 0:
         i1 = sfc1[i]
@@ -197,18 +242,44 @@ def find_parents(i, sfc1, sfc2, level1, level2, all_idx, lca_sfc,
     return
 
 
-@annotate(int="i, max_level, dimension", gintp="sfc, level")
+@annotate(int='i, max_level, dimension', gintp='sfc, level')
 def sfc_same(i, sfc, level, max_level, dimension):
+    """Converts the sfc to the same level as the max_level
+
+    Args:
+        i (int): iterator for Elementwise function
+        sfc (int[]): Morton z-index of nodes
+        level (int[]): levl of nodes
+        max_level (int): finest level of the tree
+        dimension (int): dimension of the problem
+    """
     sfc[i] = ((sfc[i] + 1) << dimension * (max_level - level[i])) - 1
 
 
-@annotate(int="i, max_level, dimension", gintp="sfc, level")
+@annotate(int='i, max_level, dimension', gintp='sfc, level')
 def sfc_real(i, sfc, level, max_level, dimension):
+    """Converts the sfc to the real level
+
+    Args:
+        i (int): iterator for Elementwise function
+        sfc (int[]): Morton z-index of nodes
+        level (int[]): levl of nodes
+        max_level (int): finest level of the tree
+        dimension (int): dimension of the problem
+    """
     sfc[i] = ((sfc[i] + 1) >> dimension * (max_level - level[i])) - 1
 
 
-@annotate(i="int", gintp="sfc, level, dp_idx")
+@annotate(i='int', gintp='sfc, level, dp_idx')
 def id_duplicates(i, sfc, level, dp_idx):
+    """Identifies the duplicate nodes
+
+    Args:
+        i (int): iterator for Elementwise function
+        sfc (int[]): Morton z-index of nodes
+        level (int[]): levl of nodes
+        dp_idx (int[]): mark duplicates nodes
+    """
     if i == 0:
         dp_idx[i] = 0
 
@@ -216,18 +287,36 @@ def id_duplicates(i, sfc, level, dp_idx):
         dp_idx[i + 1] = 1
 
 
-@annotate(i="int", gintp="dp_idx, sfc, level")
+@annotate(i='int', gintp='dp_idx, sfc, level')
 def remove_duplicates(i, dp_idx, sfc, level):
+    """Removes the duplicate nodes
+
+    Args:
+        i (int): iterator for Elementwise function
+        dp_idx (int[]): marked duplicates nodes
+        sfc (int[]): Morton z-index of nodes
+        level (int[]): levl of nodes
+    """
     if dp_idx[i] == 1:
         sfc[i] = -1
         level[i] = -1
 
 
-@annotate(i="int", gintp="pc_sfc, pc_level, temp_idx, rel_idx, "
-                         "parent_idx, child_idx")
-def get_relations(i, pc_sfc, pc_level, temp_idx, rel_idx,
-                  parent_idx, child_idx):
-    j = declare("int")
+@annotate(i='int', gintp='pc_sfc, pc_level, temp_idx, rel_idx, parent_idx, '
+          'child_idx')
+def get_rel(i, pc_sfc, pc_level, temp_idx, rel_idx, parent_idx, child_idx):
+    """Finds the relative index of the child of the current parent node
+
+    Args:
+        i (int): iterator for Elementwise function
+        pc_sfc (int[]): Morton z-index of all nodes including generated copies
+        pc_level (int[]): level of all nodes including generated copies
+        temp_idx (int[]): [description]
+        rel_idx (int[]): [description]
+        parent_idx (int[]): parent relative index of all nodes
+        child_idx (int[]): child relative index of all nodes
+    """
+    j = declare('int')
 
     if pc_sfc[i] == -1 or temp_idx[i] != -1 or i == 0:
         return
@@ -242,8 +331,18 @@ def get_relations(i, pc_sfc, pc_level, temp_idx, rel_idx,
             child_idx[8 * rel_idx[i] + j] = temp_idx[i - j - 1]
 
 
-@annotate(i="int", gintp="level, idx, parent, level_diff, move_up")
+@annotate(i='int', gintp='level, idx, parent, level_diff, move_up')
 def find_level_diff(i, level, idx, parent, level_diff, move_up):
+    """Find the level difference between the current node and its parent
+
+    Args:
+        i (int): iterator for Elementwise function
+        level (int[]): level of nodes
+        idx (int[]): particle index of nodes
+        parent (int[]): parent relative index of nodes
+        level_diff (int[]): level difference between nodes and parent
+        move_up (int[]): move up flag
+    """
     if parent[i] != -1:
         level_diff[i] = level[i] - level[parent[i]] - 1
 
@@ -252,13 +351,32 @@ def find_level_diff(i, level, idx, parent, level_diff, move_up):
         level_diff[i] = 0
 
 
-@annotate(gintp="level_diff, sfc, level, idx, parent, child, sfc_n, level_n, "
-                "idx_n, parent_n, child_n, cumsum_diff, move_up",
-          int="i, dimension")
+@annotate(gintp='level_diff, sfc, level, idx, parent, child, sfc_n, level_n, '
+          'idx_n, parent_n, child_n, cumsum_diff, move_up', int='i, dimension')
 def complete_tree(i, level_diff, cumsum_diff, sfc, level, idx, parent, child,
                   sfc_n, level_n, idx_n, parent_n, child_n, dimension,
                   move_up):
-    cid, j, k = declare("int", 3)
+    """Add nodes between parent and child with a level difference of 2 or more
+       and remove cells if childless nodes are found with a level difference
+
+    Args:
+        i (int): iterator for Elementwise function
+        level_diff (int[]): level difference between nodes and parent
+        cumsum_diff (int[]): cumulative level difference
+        sfc (int[]): Morton z-index of nodes
+        level (int[]): level of nodes
+        idx (int[]): particle index of nodes
+        parent (int[]): parent relative index of nodes
+        child (int[]): child relative index of nodes
+        sfc_n (int[]): Morton z-index of  new nodes
+        level_n (int[]): level of new nodes
+        idx_n (int[]): particle index of new nodes
+        parent_n (int[]): parent relative index of new nodes
+        child_n (int[]): child relative index of new nodes
+        dimension (int): dimension of the problem
+        move_up (int[]): move up flag
+    """
+    cid, j, k = declare('int', 3)
 
     cid = i + cumsum_diff[i]
     sfc_n[cid] = sfc[i]
@@ -292,10 +410,21 @@ def complete_tree(i, level_diff, cumsum_diff, sfc, level, idx, parent, child,
             child_n[8 * cid] = cid - 1
 
 
-@annotate(i="int", gintp="idx, bin_count, start_idx, part2bin, p2b_offset, "
-                         "leaf_idx")
+@annotate(i='int', gintp='idx, bin_count, start_idx, part2bin, p2b_offset, '
+                         'leaf_idx')
 def p2bin(i, idx, bin_count, start_idx, part2bin, p2b_offset, leaf_idx):
-    n = declare("int")
+    """Find the node relative index of each particle
+
+    Args:
+        i (int): iterator for Elementwise function
+        idx (int[]): particle index of nodes
+        bin_count (int[]): number of particles in each childless node
+        start_idx (int[]): start index of each childless node
+        part2bin (int[]): node relative index of each particle
+        p2b_offset (int[]): offset of each particle
+        leaf_idx (int[]): leaf index of each particle
+    """
+    n = declare('int')
     if idx[i] == -1:
         return
     else:
@@ -306,6 +435,14 @@ def p2bin(i, idx, bin_count, start_idx, part2bin, p2b_offset, leaf_idx):
 
 @annotate(i='int', gintp='new_count, idx, bin_count')
 def set_new_count(i, new_count, idx, bin_count):
+    """Set the new count of each node
+
+    Args:
+        i (int): iterator for Elementwise function
+        new_count (int[]): number of particles in each node
+        idx (int[]): particle index of nodes
+        bin_count (int[]): number of particles in each childless nodes
+    """
     if idx[i] == -1:
         return
     else:
@@ -314,6 +451,15 @@ def set_new_count(i, new_count, idx, bin_count):
 
 @annotate(i='int', gintp='new_count, idx, bin_count, level')
 def find_num_part(i, new_count, idx, level, bin_count):
+    """Sums up the number of particles in each node using children nodes
+
+    Args:
+        i (int): iterator for Elementwise function
+        new_count (int[]): number of particles in each node after summing up
+        idx (int[]): particle index of nodes
+        level (int[]): level of nodes
+        bin_count (int[]): number of particles in each childless nodes
+    """
     j = declare('int')
     j = 1
     if i == 0:
@@ -330,6 +476,19 @@ def find_num_part(i, new_count, idx, level, bin_count):
 @annotate(int='i, n_max', gintp='new_count, level, idx, merge_idx, parent, '
           'child')
 def merge_mark(i, idx, level, new_count, merge_idx, n_max, parent, child):
+    """Mark nodes which are to be merged such that maximum number of particles
+       in a node does not exceed n_max
+
+    Args:
+        i (int): iterator for Elementwise function
+        idx (int[]): particle index of nodes
+        level (int[]): level of nodes
+        new_count (int[]): number of particles in each node after summing up
+        merge_idx (int[]): mark nodes which needs to be merged
+        n_max (int): maximum number of particles in a node
+        parent (int[]): parent relative index of nodes
+        child (int[]): children relative index of nodes
+    """
     j, k, cid, pid, nid = declare('int', 5)
     if new_count[i] > n_max or idx[i] != -1:
         return
@@ -357,6 +516,25 @@ def merge_mark(i, idx, level, new_count, merge_idx, n_max, parent, child):
           'temp_count, new_count')
 def merge(i, sfc_n, level_n, idx_n, parent_n, child_n, sfc, level, temp_idx,
           parent, child, cumsum_merge, merge_idx, temp_count, new_count):
+    """Merge nodes which are marked for merging
+
+    Args:
+        i (int): iterator for Elementwise function
+        sfc_n (int[]): Morton z-index of new tree nodes
+        level_n (int[]): level of new tree nodes
+        idx_n (int[]): particle index of new tree nodes
+        parent_n (int[]): parent relative index of new tree nodes
+        child_n (int[]): children relative index of new tree nodes
+        sfc (int[]): Morton z-index of nodes
+        level (int[]): level of nodes
+        temp_idx (int[]): marks whether a node is childless or not
+        parent (int[]): parent relative index of nodes
+        child (int[]): children relative index of nodes
+        cumsum_merge (int[]): cumulative sum of nodes to be merged
+        merge_idx (int[]): marked nodes which needs to be merged
+        temp_count (int[]): number of particles in each new childless node
+        new_count (int[]): number of particles in each node after summing up
+    """
     n, j, chid = declare('int', 3)
     if merge_idx[i] == 0:
         n = i - cumsum_merge[i]
@@ -377,6 +555,16 @@ def merge(i, sfc_n, level_n, idx_n, parent_n, child_n, sfc, level, temp_idx,
 
 @annotate(i='int', gintp='idx, temp_idx, cumsum_idx, bin_count, temp_count')
 def correct_idx(i, idx, temp_idx, cumsum_idx, bin_count, temp_count):
+    """Setup the particle index and bin count of childless nodes
+
+    Args:
+        i (int): iterator for Elementwise function
+        idx (int[]): particle index of new nodes
+        temp_idx (int[]): marked nodes which are childless
+        cumsum_idx (int[]): cumulative sum of nodes which are childless
+        bin_count (int[]): number of particles in each childless nodes
+        temp_count (int[]): number of particles calculated in previous function
+    """
     if temp_idx[i] == 0:
         idx[i] = -1
     else:
@@ -384,14 +572,17 @@ def correct_idx(i, idx, temp_idx, cumsum_idx, bin_count, temp_count):
         bin_count[idx[i]] = temp_count[i]
 
 
-# TODO: make dimension a parameter
-@annotate(x="int", coeff="gintp", return_="int")
+@annotate(x='int', coeff='gintp', return_='int')
 def deinterleave(x, coeff):
-    # x = x & 0x49249249
-    # x = (x | (x >> 2)) & 0xC30C30C3
-    # x = (x | (x >> 4)) & 0xF00F00F
-    # x = (x | (x >> 8)) & 0xFF0000FF
-    # x = (x | (x >> 16)) & 0x0000FFFF
+    """Deinterleave the Morton z-index
+
+    Args:
+        x (int): Morton z-index
+        coeff (int[]): coefficients for deinterleaving
+
+    Returns:
+        int: deinterleaved index
+    """
     x = x & coeff[0]
     x = (x | (x >> 2)) & coeff[1]
     x = (x | (x >> 4)) & coeff[2]
@@ -400,10 +591,25 @@ def deinterleave(x, coeff):
     return x
 
 
-@annotate(i="int", gintp="sfc, level, coeff", gfloatp="cx, cy, cz",
-          double="x_min, y_min, z_min, length")
+@annotate(i='int', gintp='sfc, level, coeff', gfloatp='cx, cy, cz',
+          double='x_min, y_min, z_min, length')
 def calc_center(i, sfc, level, cx, cy, cz, x_min, y_min, z_min, length, coeff):
-    x, y, z = declare("int", 3)
+    """Calculate the center of a node
+
+    Args:
+        i (int): iterator for Elementwise function
+        sfc (int[]): Morton z-index of nodes
+        level (int[]): level of nodes
+        cx (float[]): center x-coordinate of nodes
+        cy (float[]): center y-coordinate of nodes
+        cz (float[]): center z-coordinate of nodes
+        x_min (double): minimum x-coordinate of the domain
+        y_min (double): minimum y-coordinate of the domain
+        z_min (double): minimum z-coordinate of the domain
+        length (double): length of the domain
+        coeff (int[]): coefficients for deinterleaving
+    """
+    x, y, z = declare('int', 3)
     x = deinterleave(sfc[i], coeff)
     y = deinterleave(sfc[i] >> 1, coeff)
     z = deinterleave(sfc[i] >> 2, coeff)
@@ -413,13 +619,34 @@ def calc_center(i, sfc, level, cx, cy, cz, x_min, y_min, z_min, length, coeff):
     cz[i] = z_min + length * (z + 0.5) / (2.0 ** level[i])
 
 
-@annotate(int="i, num_p2", gintp="level, index", double="length, out_r, in_r",
-          gfloatp="cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, sph_pts")
+@annotate(int='i, num_p2', gintp='level, index', double='length, out_r, in_r',
+          gfloatp='cx, cy, cz, out_x, out_y, out_z, in_x, in_y, in_z, sph_pts')
 def setting_p2(i, out_x, out_y, out_z, in_x, in_y, in_z, sph_pts, cx, cy, cz,
                out_r, in_r, length, level, num_p2, index):
-    cid, sid = declare("int", 2)
-    sz_cell = declare("double")
-    cid = cast(floor(i * 1.0 / num_p2), "int")
+    """Set up the pseudo-particles for all nodes
+
+    Args:
+        i (int): iterator for Elementwise function
+        out_x (float[]): x-coordinate of the outer spheres
+        out_y (float[]): y-coordinate of the outer spheres
+        out_z (float[]): z-coordinate of the outer spheres
+        in_x (float[]): x-coordinate of the inner spheres
+        in_y (float[]): y-coordinate of the inner spheres
+        in_z (float[]): z-coordinate of the inner spheres
+        sph_pts (float[]): spherical t-design points for unit sphere
+        cx (float[]): center x-coordinate of nodes
+        cy (float[]): center y-coordinate of nodes
+        cz (float[]): center z-coordinate of nodes
+        out_r (double): radius of the outer spheres
+        in_r (double): radius of the inner spheres
+        length (double): length of the domain
+        level (int[]): level of nodes
+        num_p2 (int): number of pseudo-particles for each node
+        index (int[]): mapping from tree relative index to childless-wise index
+    """
+    cid, sid = declare('int', 2)
+    sz_cell = declare('double')
+    cid = cast(floor(i * 1.0 / num_p2), 'int')
     cid = index[cid]
     sid = i % num_p2
     sz_cell = sqrt(3.0) * length / (2.0**(level[cid] + 1))
@@ -431,22 +658,90 @@ def setting_p2(i, out_x, out_y, out_z, in_x, in_y, in_z, sph_pts, cx, cy, cz,
     in_z[i] = cz[cid] + in_r * sz_cell * sph_pts[3 * sid + 2]
 
 
-@annotate(int="i, max_depth", gintp="level, lev_n, idx")
+@annotate(int='i, max_depth', gintp='level, lev_n, idx')
 def level_info(i, level, idx, lev_n, max_depth):
+    """Find number of nodes at each level and childless nodes are counted in
+       max_depth level
+
+    Args:
+        i (int): iterator for Elementwise function
+        level (int[]): level of nodes
+        idx (int[]): whether the node is childless or not
+        lev_n (int[]): number of nodes at each level
+        max_depth (int): maximum depth of the tree
+    """
     if idx[i] == -1:
         _ = atomic_inc(lev_n[level[i]])
     else:
         _ = atomic_inc(lev_n[max_depth])
 
 
-@annotate(i="int", gintp="level, lev_n")
+@annotate(i='int', gintp='level, lev_n')
 def levwise_info(i, level, lev_n):
+    """Find number of nodes at each level
+
+    Args:
+        i (int): iterator for Elementwise function
+        level (int[]): level of nodes
+        lev_n (int[]): number of nodes at each level
+    """
     _ = atomic_inc(lev_n[level[i]])
 
 
 def build(N, max_depth, n_max, part_x, part_y, part_z, x_min, y_min, z_min,
           out_r, in_r, length, num_p2, backend, dimension, sph_pts,
           deleave_coeff):
+    """Build the tree
+
+    Args:
+        N (int): number of particles
+        max_depth (int): maximum depth of the tree
+        n_max (int): maximum number of particles in a node
+        part_x (float[]): x-coordinate of particles
+        part_y (float[]): y-coordinate of particles
+        part_z (float[]): z-coordinate of particles
+        x_min (double): minimum x-coordinate of the domain
+        y_min (double): minimum y-coordinate of the domain
+        z_min (double): minimum z-coordinate of the domain
+        out_r (double): radius of the outer spheres
+        in_r (double): radius of the inner spheres
+        length (double): length of the domain
+        num_p2 (int): number of pseudo-particles for each node
+        backend (str): backend ['cython', 'opencl', 'cuda']
+        dimension (int): dimension of the problem
+        sph_pts (float[]): spherical t-design points for unit sphere
+        deleave_coeff (int[]): coefficients for deinterleaving
+
+    Returns:
+        int: Total number of nodes
+        int[]: Morton z-index of each node
+        int[]: level of each node
+        int[]: particle index of each node
+        int[]: number of particles in each node
+        int[]: start index of each node
+        int[]: leaf index of each node
+        int[]: parent relative index of each node
+        int[]: children relative index of each node
+        int[]: node relative index of each particle
+        int[]: offset of each particle
+        int[]: number of nodes in each level with childless cells at max_depth
+        int[]: number of nodes in each level
+        int[]: mapping from tree relative index to childless-wise index
+        int[]: reverse-mapping from tree relative index to childless index
+        int[]: mapping from tree relative index to level-wise index
+        int[]: reverse-mapping from tree relative index to level-wise index
+        float[]: x-coordinate of the center of each node
+        float[]: y-coordinate of the center of each node
+        float[]: z-coordinate of the center of each node
+        float[]: x-coordinate of the outer spheres
+        float[]: y-coordinate of the outer spheres
+        float[]: z-coordinate of the outer spheres
+        float[]: x-coordinate of the inner spheres
+        float[]: y-coordinate of the inner spheres
+        float[]: z-coordinate of the inner spheres
+        float[]: charge of all pseudo-particles in the outer spheres
+        float[]: approximate potential at the inner spheres
+    """
 
     max_index = 2 ** max_depth
 
@@ -479,7 +774,7 @@ def build(N, max_depth, n_max, part_x, part_y, part_z, x_min, y_min, z_min,
     ecopy4 = Elementwise(copy4, backend=backend)
     ecopy5 = Elementwise(copy5, backend=backend)
 
-    einternal_nodes = Elementwise(internal_nodes, backend=backend)
+    einter_nodes = Elementwise(inter_nodes, backend=backend)
 
     reverse2 = ReverseArrays('reverse2', [
         'a1', 'a2',
@@ -502,7 +797,7 @@ def build(N, max_depth, n_max, part_x, part_y, part_z, x_min, y_min, z_min,
     eremove_duplicates = Elementwise(remove_duplicates, backend=backend)
 
     efind_parents = Elementwise(find_parents, backend=backend)
-    eget_relations = Elementwise(get_relations, backend=backend)
+    eget_rel = Elementwise(get_rel, backend=backend)
 
     efind_level_diff = Elementwise(find_level_diff, backend=backend)
     ecomplete_tree = Elementwise(complete_tree, backend=backend)
@@ -542,8 +837,7 @@ def build(N, max_depth, n_max, part_x, part_y, part_z, x_min, y_min, z_min,
 
     # setting up the arrays
     leaf_idx_pointer = ary.arange(0, M, 1, dtype=np.int32, backend=backend)
-    leaf_nodes_idx = ary.arange(
-        0, 2 * M - 1, 1, dtype=np.int32, backend=backend)
+    leaf_nds_idx = ary.arange(0, 2 * M - 1, 1, dtype=np.int32, backend=backend)
     leaf_level = ary.empty(M, dtype=np.int32, backend=backend)
     leaf_level.fill(max_depth)
 
@@ -582,8 +876,8 @@ def build(N, max_depth, n_max, part_x, part_y, part_z, x_min, y_min, z_min,
     cumsum_diff = ary.zeros(2 * M - 1, dtype=np.int32, backend=backend)
     move_up = ary.zeros(2 * M - 1, dtype=np.int32, backend=backend)
 
-    einternal_nodes(leaf_sfc[:-1], leaf_sfc[1:], leaf_level[:-1],
-                    leaf_level[1:], nodes_sfc, nodes_level, dimension)
+    einter_nodes(leaf_sfc[:-1], leaf_sfc[1:], leaf_level[:-1], leaf_level[1:],
+                 nodes_sfc, nodes_level, dimension)
 
     [nodes_level_sorted, nodes_sfc_sorted], _ = radix_sort(
         [nodes_level, nodes_sfc], backend=backend)
@@ -627,32 +921,28 @@ def build(N, max_depth, n_max, part_x, part_y, part_z, x_min, y_min, z_min,
     move_up.resize(cells)
 
     ecopy4(pc_sfc[:cells], pc_level[:cells], pc_idx[:cells], rel_idx[:cells],
-           sfc_s, level_s, idx_s, leaf_nodes_idx)
+           sfc_s, level_s, idx_s, leaf_nds_idx)
 
     efind_parents(sfc_s[:-1], sfc_s[1:], level_s[:-1], level_s[1:],
-                  leaf_nodes_idx[:-1], pc_sfc[2 *
-                                              M - 1:], pc_level[2 * M - 1:],
+                  leaf_nds_idx[:-1], pc_sfc[2 * M - 1:], pc_level[2 * M - 1:],
                   temp_idx[2 * M - 1:], dimension)
 
-    [pc_level_s, pc_sfc_s, pc_idx_s,
-     rel_idx_s, temp_idx_s], _ = radix_sort(
-         [pc_level, pc_sfc, pc_idx, rel_idx, temp_idx], backend=backend)
+    [pc_level_s, pc_sfc_s, pc_idx_s, rel_idx_s, temp_idx_s], _ = radix_sort(
+        [pc_level, pc_sfc, pc_idx, rel_idx, temp_idx], backend=backend)
 
-    ereverse5(pc_level, pc_sfc, pc_idx, rel_idx,
-              temp_idx, pc_level_s, pc_sfc_s,
-              pc_idx_s, rel_idx_s, temp_idx_s, 4 * M - 2)
+    ereverse5(pc_level, pc_sfc, pc_idx, rel_idx, temp_idx, pc_level_s,
+              pc_sfc_s, pc_idx_s, rel_idx_s, temp_idx_s, 4 * M - 2)
 
     esfc_same(pc_sfc[2 * node_repeated + 1:], pc_level[2 * node_repeated + 1:],
               max_depth, dimension)
 
-    [pc_sfc_s, pc_level_s, pc_idx_s,
-     rel_idx_s, temp_idx_s], _ = radix_sort(
-         [pc_sfc, pc_level, pc_idx, rel_idx, temp_idx], backend=backend)
+    [pc_sfc_s, pc_level_s, pc_idx_s, rel_idx_s, temp_idx_s], _ = radix_sort(
+        [pc_sfc, pc_level, pc_idx, rel_idx, temp_idx], backend=backend)
 
     esfc_real(pc_sfc_s[:-(2 * node_repeated + 1)],
               pc_level_s[:-(2 * node_repeated + 1)], max_depth, dimension)
 
-    eget_relations(pc_sfc_s, pc_level_s, temp_idx_s, rel_idx_s, parent, child)
+    eget_rel(pc_sfc_s, pc_level_s, temp_idx_s, rel_idx_s, parent, child)
 
     efind_level_diff(level_s, idx_s, parent, level_diff, move_up)
     cumsum(in_arr=level_diff, out_arr=cumsum_diff)
@@ -711,7 +1001,7 @@ def build(N, max_depth, n_max, part_x, part_y, part_z, x_min, y_min, z_min,
     nodes_sfc.resize(0)
     nodes_level.resize(0)
     dp_idx.resize(0)
-    leaf_nodes_idx.resize(0)
+    leaf_nds_idx.resize(0)
     pc_sfc.resize(0)
     pc_sfc_s.resize(0)
     pc_level.resize(0)
