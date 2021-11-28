@@ -32,6 +32,7 @@ release = '0.0.dev1'
 # ones.
 extensions = [
     'sphinx_copybutton',
+    'sphinx.ext.viewcode'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
