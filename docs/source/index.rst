@@ -6,14 +6,15 @@
 Welcome to fmmpy's documentation!
 =================================
 
-Check out the :doc:`usage` section for further information, including how to
+Check out the :doc:`install` section for further information, including how to
 :ref:`install <installation>` the project.
 
 .. note::
    This project is under active development
 
 .. toctree::
-   usage
+   overview
+   install
 
 .. toctree::
    :maxdepth: 2

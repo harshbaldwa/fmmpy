@@ -1,10 +1,7 @@
-Usage
-=====
+Installation
+============
 
 .. _installation:
-
-Installation
-------------
 
 To use fmmpy, first install it using pip:
 
@@ -23,3 +20,10 @@ Note that if you want the latest bleeding edge of compyle, clone the repository 
   $ git clone https://github.com/harshbaldwa/fmmpy
   $ cd fmmpy
   $ python setup.py develop
+
+Installing Compyle
+------------------
+
+To install Compyle, refer to installation instructions at `Compyle's Documentation`_ 
+
+.. _Compyle's Documentation: https://compyle.readthedocs.io/en/latest/index.html
