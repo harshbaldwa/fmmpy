@@ -8,7 +8,7 @@ fmmpy: Parallel FMM on HPC platforms
 
 Installation
 ------------
-A simple example
-----------------
 Examples
 --------
+Results
+-------
