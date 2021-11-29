@@ -36,7 +36,7 @@ def test_get_particle_index(backend):
     x, y, z, r_index = wrap(x, y, z, r_index, backend=backend)
     index = ary.zeros(4, dtype=np.int32, backend=backend)
 
-    e = Elementwise(get_particle_index, backend=backend)
+    e = Elementwise(get_part_index, backend=backend)
     e(index, x, y, z, max_index, length, x_min, y_min, z_min)
     np.testing.assert_array_equal(r_index, index)
 
@@ -103,7 +103,7 @@ def test_internal_nodes(backend):
     lca_sfc = ary.empty(1, dtype=np.int32, backend=backend)
     lca_level = ary.empty(1, dtype=np.int32, backend=backend)
 
-    e = Elementwise(internal_nodes, backend=backend)
+    e = Elementwise(inter_nodes, backend=backend)
     e(sfc[:-1], sfc[1:], level[:-1], level[1:], lca_sfc, lca_level, dimension)
 
     np.testing.assert_array_equal(r_lca_sfc, lca_sfc)
@@ -157,7 +157,7 @@ def test_get_relations(backend):
     parent_idx.fill(-1)
     child_idx.fill(-1)
 
-    e = Elementwise(get_relations, backend=backend)
+    e = Elementwise(get_rel, backend=backend)
     e(pc_sfc, pc_level, temp_idx, rel_idx, parent_idx, child_idx)
 
     np.testing.assert_array_equal(r_parent_idx, parent_idx)
