@@ -15,8 +15,7 @@ def save_sim(part_x, part_y, part_z, sim, backend):
     outfile = pkg_resources.resource_filename(
         'fmmpy', f'data/simulation/sim_{sim:02d}.npz')
     np.savez(outfile, x=part_x, y=part_y, z=part_z)
-    part_x, part_y, part_z = wrap(
-        part_x, part_y, part_z, backend=backend)
+    part_x, part_y, part_z = wrap(part_x, part_y, part_z, backend=backend)
 
 
 @annotate(i="int", dt="float", gfloatp="part_x, part_y, part_z, vel_x, vel_y, "
