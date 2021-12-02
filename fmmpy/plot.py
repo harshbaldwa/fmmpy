@@ -70,7 +70,7 @@ def draw_node(cx, cy, cz, length, color):
     mlab.plot3d(x_f, y_f, z_f, tube_radius=radius, color=color)
 
 
-def draw_sphere(cx, cy, cz, r, color):
+def draw_sphere(cx, cy, cz, r):
     u, v = np.mgrid[0:2 * np.pi:50j, 0:np.pi:25j]
     r *= sqrt(3) / 2
     x = cx + r * np.cos(u) * np.sin(v)
@@ -83,8 +83,7 @@ def plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, part2bin, spheres,
               out_r, plot_points, plot_text, save_fig):
     for i in range(cells):
         if i in spheres:
-            draw_sphere(cx[i], cy[i], cz[i], out_r *
-                        length / (2**level[i]), 'red')
+            draw_sphere(cx[i], cy[i], cz[i], out_r * length / (2**level[i]))
         draw_node(cx[i], cy[i], cz[i], length / (2**level[i]),
                   (0.3 - level[i] * 0.05,
                    0.3 - level[i] * 0.05,
@@ -222,3 +221,7 @@ def plot_state(filename, N):
     mlab.figure(bgcolor=(0, 0, 0), size=(800, 800))
     mlab.points3d(x, y, z, scale_factor=0.025)
     mlab.show()
+
+
+def plot_tree_nodes(sfc, level, parent, child):
+    pass
