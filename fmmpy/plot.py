@@ -1,86 +1,85 @@
 import numpy as np
 from math import sqrt, ceil
-from mayavi import mlab
 import yaml
 import pkg_resources
 
 
-def draw_node(cx, cy, cz, length, color):
-    x = np.linspace(cx - length / 2, cx + length / 2, 3)
-    y = np.linspace(cy - length / 2, cy + length / 2, 3)
-    z = np.linspace(cz - length / 2, cz + length / 2, 3)
-
-    x_f = np.zeros(48)
-    y_f = np.zeros(48)
-    z_f = np.zeros(48)
-
-    x_f[0:3] = x
-    x_f[3:6] = x[2]
-    x_f[6:9] = x[::-1]
-    x_f[9:12] = x[0]
-    x_f[12:15] = x[0]
-    x_f[15:18] = x
-    x_f[18:21] = x[2]
-    x_f[21:24] = x[::-1]
-    x_f[24:27] = x[0]
-    x_f[27:30] = x
-    x_f[30:33] = x[2]
-    x_f[33:36] = x[2]
-    x_f[36:39] = x[2]
-    x_f[39:42] = x[::-1]
-    x_f[42:45] = x[0]
-    x_f[45:48] = x[0]
-
-    y_f[0:3] = y[0]
-    y_f[3:6] = y[0]
-    y_f[6:9] = y[0]
-    y_f[9:12] = y[0]
-    y_f[12:15] = y
-    y_f[15:18] = y[2]
-    y_f[18:21] = y[2]
-    y_f[21:24] = y[2]
-    y_f[24:27] = y[2]
-    y_f[27:30] = y[2]
-    y_f[30:33] = y[::-1]
-    y_f[33:36] = y[0]
-    y_f[36:39] = y
-    y_f[39:42] = y[2]
-    y_f[42:45] = y[::-1]
-    y_f[45:48] = y[0]
-
-    z_f[0:3] = z[0]
-    z_f[3:6] = z
-    z_f[6:9] = z[2]
-    z_f[9:12] = z[::-1]
-    z_f[12:15] = z[0]
-    z_f[15:18] = z[0]
-    z_f[18:21] = z
-    z_f[21:24] = z[2]
-    z_f[24:27] = z[::-1]
-    z_f[27:30] = z[0]
-    z_f[30:33] = z[0]
-    z_f[33:36] = z
-    z_f[36:39] = z[2]
-    z_f[39:42] = z[2]
-    z_f[42:45] = z[2]
-    z_f[45:48] = z[::-1]
-
-    radius = length / 100 + 0.0025
-
-    mlab.plot3d(x_f, y_f, z_f, tube_radius=radius, color=color)
-
-
-def draw_sphere(cx, cy, cz, r):
-    u, v = np.mgrid[0:2 * np.pi:50j, 0:np.pi:25j]
-    r *= sqrt(3) / 2
-    x = cx + r * np.cos(u) * np.sin(v)
-    y = cy + r * np.sin(u) * np.sin(v)
-    z = cz + r * np.cos(v)
-    mlab.mesh(x, y, z, opacity=0.4, color=(1, 1, 1))
-
-
 def plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, part2bin, spheres,
               out_r, plot_points, plot_text, save_fig):
+    from mayavi import mlab
+
+    def draw_node(cx, cy, cz, length, color):
+        x = np.linspace(cx - length / 2, cx + length / 2, 3)
+        y = np.linspace(cy - length / 2, cy + length / 2, 3)
+        z = np.linspace(cz - length / 2, cz + length / 2, 3)
+
+        x_f = np.zeros(48)
+        y_f = np.zeros(48)
+        z_f = np.zeros(48)
+
+        x_f[0:3] = x
+        x_f[3:6] = x[2]
+        x_f[6:9] = x[::-1]
+        x_f[9:12] = x[0]
+        x_f[12:15] = x[0]
+        x_f[15:18] = x
+        x_f[18:21] = x[2]
+        x_f[21:24] = x[::-1]
+        x_f[24:27] = x[0]
+        x_f[27:30] = x
+        x_f[30:33] = x[2]
+        x_f[33:36] = x[2]
+        x_f[36:39] = x[2]
+        x_f[39:42] = x[::-1]
+        x_f[42:45] = x[0]
+        x_f[45:48] = x[0]
+
+        y_f[0:3] = y[0]
+        y_f[3:6] = y[0]
+        y_f[6:9] = y[0]
+        y_f[9:12] = y[0]
+        y_f[12:15] = y
+        y_f[15:18] = y[2]
+        y_f[18:21] = y[2]
+        y_f[21:24] = y[2]
+        y_f[24:27] = y[2]
+        y_f[27:30] = y[2]
+        y_f[30:33] = y[::-1]
+        y_f[33:36] = y[0]
+        y_f[36:39] = y
+        y_f[39:42] = y[2]
+        y_f[42:45] = y[::-1]
+        y_f[45:48] = y[0]
+
+        z_f[0:3] = z[0]
+        z_f[3:6] = z
+        z_f[6:9] = z[2]
+        z_f[9:12] = z[::-1]
+        z_f[12:15] = z[0]
+        z_f[15:18] = z[0]
+        z_f[18:21] = z
+        z_f[21:24] = z[2]
+        z_f[24:27] = z[::-1]
+        z_f[27:30] = z[0]
+        z_f[30:33] = z[0]
+        z_f[33:36] = z
+        z_f[36:39] = z[2]
+        z_f[39:42] = z[2]
+        z_f[42:45] = z[2]
+        z_f[45:48] = z[::-1]
+
+        radius = length / 100 + 0.0025
+
+        mlab.plot3d(x_f, y_f, z_f, tube_radius=radius, color=color)
+
+    def draw_sphere(cx, cy, cz, r):
+        u, v = np.mgrid[0:2 * np.pi:50j, 0:np.pi:25j]
+        r *= sqrt(3) / 2
+        x = cx + r * np.cos(u) * np.sin(v)
+        y = cy + r * np.sin(u) * np.sin(v)
+        z = cz + r * np.cos(v)
+        mlab.mesh(x, y, z, opacity=0.4, color=(1, 1, 1))
+
     for i in range(cells):
         if i in spheres:
             draw_sphere(cx[i], cy[i], cz[i], out_r * length / (2**level[i]))
@@ -126,7 +125,6 @@ def test_plot(plot_points, plot_text, save_fig):
     spheres = [0]
     part2bin = np.zeros(N)
 
-    mlab.figure(bgcolor=(0, 0, 0), size=(800, 800))
     plot_tree(cells, cx, cy, cz, length, level, N, x, y, z, part2bin, spheres,
               out_r, plot_points, plot_text, save_fig)
 
@@ -153,13 +151,6 @@ def plot(plot_points, plot_text, save_fig):
               out_r, plot_points, plot_text, save_fig)
 
 
-@mlab.animate(delay=10, support_movie=True)
-def anim(Ns, s, x, y, z):
-    for i in range(Ns):
-        s.mlab_source.set(x=x[i], y=y[i], z=z[i])
-        yield
-
-
 def find_span(x, y, z):
     xM = np.max(x)
     xm = np.min(x)
@@ -172,6 +163,14 @@ def find_span(x, y, z):
 
 
 def simulate():
+    from mayavi import mlab
+
+    @mlab.animate(delay=10, support_movie=True)
+    def anim(Ns, s, x, y, z):
+        for i in range(Ns):
+            s.mlab_source.set(x=x[i], y=y[i], z=z[i])
+            yield
+
     INI_STATE = pkg_resources.resource_filename('fmmpy', 'data/ini_state.yaml')
     with open(INI_STATE, 'r') as infile:
         data = yaml.load(infile)
@@ -209,6 +208,8 @@ def simulate():
 
 
 def plot_state(filename, N):
+    from mayavi import mlab
+
     x = np.zeros(N)
     y = np.zeros(N)
     z = np.zeros(N)
@@ -223,5 +224,15 @@ def plot_state(filename, N):
     mlab.show()
 
 
-def plot_tree_nodes(sfc, level, parent, child):
-    pass
+def plot_tree_nodes(parent):
+    import networkx as nx
+    import matplotlib.pyplot as plt
+
+    g = nx.DiGraph()
+    for i, p in enumerate(parent[:-1]):
+        g.add_edge(i, p)
+
+    pos = nx.nx_pydot.graphviz_layout(g, prog='dot')
+    nx.draw_networkx(g, pos=pos, node_size=300, with_labels=True)
+    plt.axis('equal')
+    plt.show()
